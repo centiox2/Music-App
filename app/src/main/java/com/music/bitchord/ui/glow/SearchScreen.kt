@@ -415,7 +415,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.topResults(rows: List
     val browse = rows.drop(1).filterIsInstance<SearchResult.Browse>().map { it.item }
     val albums = browse.filter { it.type == BrowseType.ALBUM }
     val artists = browse.filter { it.type == BrowseType.ARTIST }
-    val playlists = browse.filter { it.type == BrowseType.PLAYLIST || it.type == BrowseType.OTHER }
+    val playlists = browse.filter { it.type == BrowseType.PLAYLIST }
+    val others = browse.filter { it.type == BrowseType.OTHER }
 
     if (top != null) item { TopResultCard(top) }
     if (songs.isNotEmpty()) {
@@ -425,6 +426,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.topResults(rows: List
     browseShelf("Albums", albums)
     browseShelf("Artists", artists, circle = true)
     browseShelf("Playlists", playlists)
+    browseShelf("More", others)
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.browseShelf(title: String, items: List<BrowseItem>, circle: Boolean = false) {

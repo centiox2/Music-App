@@ -87,7 +87,11 @@ import kotlinx.coroutines.delay
 val BottomChrome = 168.dp
 
 @Composable
-fun GlowApp(vm: MainViewModel = viewModel()) {
+fun GlowApp(
+    vm: MainViewModel = viewModel(),
+    /** Stands in for the live player in screenshot tests, where no service runs. */
+    playerOverride: com.music.bitchord.playback.PlayerState? = null,
+) {
     val context = LocalContext.current
     remember(context) {
         GlowPrefs.init(context)
@@ -111,7 +115,7 @@ fun GlowApp(vm: MainViewModel = viewModel()) {
         holder
     }
     state.controller = controller
-    state.player = player
+    state.player = playerOverride ?: player
 
     CompositionLocalProvider(LocalGlow provides state) {
         GlowRoot(state)

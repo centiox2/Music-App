@@ -371,7 +371,9 @@ private fun ArtistPageScreen(page: DetailPage) {
             }
             when (val state = page.songs) {
                 is UiState.Loading -> item { SkeletonRows(4) }
-                is UiState.Error -> item { EmptyState(Icons.Rounded.ErrorOutline, "Couldn't load this artist", state.message, iconTint = c.danger) }
+                is UiState.Error -> if (page.sections.isEmpty()) {
+                    item { EmptyState(Icons.Rounded.ErrorOutline, "Couldn't load this artist", state.message, iconTint = c.danger) }
+                }
                 is UiState.Success -> if (songs.isNotEmpty()) {
                     item { SectionHeader("Top songs") }
                     itemsIndexed(songs.take(5), key = { _, s -> "top" + s.videoId }) { i, song ->

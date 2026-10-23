@@ -694,8 +694,8 @@ fun SettingRow(
     value: String? = null,
     chevron: Boolean = false,
     titleColor: Color = Glow.colors.text,
-    onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     val c = Glow.colors
     Row(

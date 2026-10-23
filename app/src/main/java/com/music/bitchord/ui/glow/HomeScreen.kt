@@ -53,6 +53,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.music.bitchord.data.model.HomeShelf
@@ -177,9 +179,12 @@ fun HomeScreen() {
 @Composable
 fun AccountAvatar(name: String?, imageUrl: String?, onClick: () -> Unit) {
     val c = Glow.colors
-    GlassCircle(onClick = onClick) {
+    GlassCircle(
+        modifier = Modifier.semantics { contentDescription = "Account and settings" },
+        onClick = onClick,
+    ) {
         if (imageUrl != null) {
-            AsyncImage(imageUrl, "Account and settings", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            AsyncImage(imageUrl, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
             Text(
                 name?.trim()?.firstOrNull()?.uppercase() ?: "•",
