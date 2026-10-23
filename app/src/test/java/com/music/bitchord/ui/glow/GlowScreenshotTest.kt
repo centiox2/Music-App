@@ -170,4 +170,29 @@ class GlowScreenshotTest {
         click("Despacito")
         shot("46-light-player")
     }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w1180dp-h820dp-land-xhdpi")
+    fun tablet() {
+        launch(playing = true)
+        shot("49-tablet-home")
+        click("Despacito")
+        settle(10)
+        shot("49-tablet-player")
+        settle(6)
+        shot("49-tablet-player")
+    }
+
+    @Test
+    fun launcherIcon() {
+        assumeTrue(System.getenv("GLOW_SHOTS") != null)
+        val app = RuntimeEnvironment.getApplication()
+        val icon = app.getDrawable(com.music.bitchord.R.mipmap.ic_launcher)!!
+        val bitmap = Bitmap.createBitmap(432, 432, Bitmap.Config.ARGB_8888)
+        icon.setBounds(0, 0, 432, 432)
+        icon.draw(Canvas(bitmap))
+        File(File(System.getenv("GLOW_SHOTS")!!).apply { mkdirs() }, "00-icon.png").outputStream().use {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
 }

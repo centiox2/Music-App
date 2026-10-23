@@ -109,7 +109,9 @@ fun PlayerScreen() {
     ) {
         CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            if (maxWidth > maxHeight && maxWidth > 600.dp) {
+            if (maxWidth >= 840.dp && maxHeight >= 560.dp) {
+                TabletPlayer(song)
+            } else if (maxWidth > maxHeight && maxWidth > 600.dp) {
                 LandscapePlayer(song)
             } else {
                 PortraitPlayer(song)
@@ -195,6 +197,69 @@ private fun LandscapePlayer(song: Song) {
                 Spacer(Modifier.width(16.dp))
                 Box(Modifier.width(240.dp)) { PaneBar() }
             }
+        }
+    }
+}
+
+/**
+ * Tablet: the player on the left, and lyrics or the queue given the right
+ * half of the screen, chosen by tabs rather than the bottom pane bar.
+ */
+@Composable
+private fun TabletPlayer(song: Song) {
+    val g = LocalGlow.current
+    val c = Glow.colors
+    if (g.playerPane == PlayerPane.NOW_PLAYING) {
+        androidx.compose.runtime.SideEffect { g.playerPane = PlayerPane.LYRICS }
+    }
+    Row(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 40.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(48.dp),
+    ) {
+        Column(Modifier.weight(0.9f).fillMaxHeight()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTap(Icons.Rounded.KeyboardArrowDown, "Close player", iconSize = 30.dp, modifier = Modifier.offset(x = (-10).dp)) {
+                    g.playerOpen = false
+                }
+                Column {
+                    Text("Listening to", style = GlowType.secondary, color = c.textSecondary)
+                    Text(
+                        song.radioName ?: song.playbackSource ?: song.albumName ?: "Your queue",
+                        style = GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                        color = c.text,
+                        maxLines = 1,
+                    )
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                Artwork(song, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+            }
+            Spacer(Modifier.height(20.dp))
+            TitleRow(song, large = true)
+            Spacer(Modifier.height(16.dp))
+            SeekBar()
+            Spacer(Modifier.height(18.dp))
+            Controls()
+        }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            Segmented(
+                listOf("Lyrics", "Up next", "Devices"),
+                if (g.playerPane == PlayerPane.QUEUE) 1 else 0,
+                Modifier.width(380.dp),
+            ) { i ->
+                when (i) {
+                    0 -> g.playerPane = PlayerPane.LYRICS
+                    1 -> g.playerPane = PlayerPane.QUEUE
+                    else -> g.devicesOpen = true
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            if (g.playerPane == PlayerPane.QUEUE) QueuePane(Modifier.weight(1f)) else LyricsPane(Modifier.weight(1f))
         }
     }
 }

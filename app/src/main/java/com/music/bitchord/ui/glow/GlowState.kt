@@ -72,6 +72,9 @@ class GlowState(
     var player: PlayerState by mutableStateOf(PlayerState())
 
     var tab by mutableStateOf(0)
+
+    /** Tablet-wide window: a side rail instead of bottom tabs, two-column player. */
+    var wide by mutableStateOf(false)
     val stack = mutableStateListOf<Route>()
 
     var playerOpen by mutableStateOf(false)

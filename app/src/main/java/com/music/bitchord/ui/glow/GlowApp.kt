@@ -25,7 +25,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -222,9 +224,12 @@ private fun GlowRoot(state: GlowState) {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(c.base)) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(c.base)) {
+        state.wide = maxWidth >= 840.dp
+        val railWidth = if (state.wide) RailWidth else 0.dp
         // Pages.
         AnimatedContent(
+            modifier = Modifier.padding(start = railWidth),
             targetState = state.top to state.tab,
             transitionSpec = {
                 val forward = state.stack.size > 0 && targetState.first != null && initialState.first != targetState.first
@@ -276,13 +281,14 @@ private fun GlowRoot(state: GlowState) {
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .padding(start = railWidth)
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ToastHost(state)
                 if (player.song != null) MiniPlayer(state)
-                BottomTabs(state)
+                if (!state.wide) BottomTabs(state)
             }
         } else {
             Box(
@@ -292,6 +298,8 @@ private fun GlowRoot(state: GlowState) {
                     .padding(12.dp),
             ) { ToastHost(state) }
         }
+
+        if (state.wide) SideRail(state)
 
         // The player is a full-screen take-over.
         AnimatedVisibility(
@@ -460,6 +468,55 @@ private fun MiniPlayer(state: GlowState) {
     }
 }
 
+private val RailWidth = 88.dp
+
+/** The tablet's navigation: the same three tabs, stacked down the left edge. */
+@Composable
+private fun SideRail(state: GlowState) {
+    val c = Glow.colors
+    Column(
+        Modifier
+            .fillMaxHeight()
+            .width(RailWidth)
+            .background(c.base)
+            .statusBarsPadding()
+            .padding(top = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        RailItem("Home", Icons.Rounded.Home, Icons.Outlined.Home, state.tab == 0) { state.selectTab(0) }
+        RailItem("Search", Icons.Rounded.Search, Icons.Rounded.Search, state.tab == 1) { state.selectTab(1) }
+        RailItem("Library", Icons.AutoMirrored.Rounded.FormatListBulleted, Icons.AutoMirrored.Rounded.FormatListBulleted, state.tab == 2) { state.selectTab(2) }
+    }
+    Box(
+        Modifier
+            .padding(start = RailWidth)
+            .fillMaxHeight()
+            .width(1.dp)
+            .background(c.divider),
+    )
+}
+
+@Composable
+private fun RailItem(label: String, selectedIcon: ImageVector, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    val c = Glow.colors
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(if (selected) selectedIcon else icon, null, tint = if (selected) c.text else c.textSecondary, modifier = Modifier.size(26.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label,
+            style = GlowType.caption.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
+            color = if (selected) c.text else c.textSecondary,
+        )
+    }
+}
+
 @Composable
 private fun BottomTabs(state: GlowState) {
     val c = Glow.colors
@@ -507,8 +564,10 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(
 /** Content padding that clears the floating mini player and tab bar. */
 @Composable
 fun pageContentPadding(top: androidx.compose.ui.unit.Dp = 0.dp): PaddingValues {
-    val hasSong = LocalGlow.current.player.song != null
-    return PaddingValues(top = top, bottom = if (hasSong) BottomChrome + 20.dp else 110.dp)
+    val g = LocalGlow.current
+    val hasSong = g.player.song != null
+    val tabs = if (g.wide) 72.dp else 0.dp
+    return PaddingValues(top = top, bottom = (if (hasSong) BottomChrome + 20.dp else 110.dp) - tabs)
 }
 
 /** A shelf card's song, when the card is a track rather than a collection. */
