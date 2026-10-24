@@ -7,6 +7,8 @@ import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Arrangement
@@ -215,12 +217,7 @@ private fun FeaturedCard(shelfTitle: String, item: ShelfItem) {
             .background(Glow.colors.glassStrong)
             .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(item, shelfTitle) },
     ) {
-        AsyncImage(
-            item.thumbnailUrl.artworkAt(720),
-            null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        ArtImage(item.thumbnailUrl, 720, Modifier.fillMaxSize())
         Box(
             Modifier
                 .fillMaxWidth()
@@ -297,7 +294,16 @@ fun ShelfCard(
             .pressScale(interaction, 0.95f)
             .combinedClickable(interaction, null, onClick = onClick, onLongClick = onLongClick),
     ) {
-        Cover(item.thumbnailUrl, size = size, shape = if (circle) CircleShape else RoundedCornerShape(12.dp), px = 544)
+        Box(contentAlignment = Alignment.Center) {
+            Cover(item.thumbnailUrl, size = size, shape = if (circle) CircleShape else RoundedCornerShape(12.dp), px = 544)
+            val player = LocalGlow.current.player
+            androidx.compose.animation.AnimatedVisibility(item.videoId != null && player.song?.videoId == item.videoId, enter = fadeIn(), exit = fadeOut()) {
+                Box(
+                    Modifier.size(size).clip(if (circle) CircleShape else RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center,
+                ) { PlayingBars(Modifier.size(28.dp), playing = player.isPlaying, color = Color.White) }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Text(item.title, style = GlowType.body, color = c.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         if (item.subtitle.isNotBlank()) {

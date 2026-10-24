@@ -112,9 +112,12 @@ fun Cover(
     px: Int = 544,
 ) {
     val c = Glow.colors
+    // Large covers sit on a soft shadow; list-row thumbnails stay flat.
+    val shadowed = size >= 120.dp
     Box(
         modifier
             .size(size)
+            .then(if (shadowed) Modifier.coverShadow(if (shape == CircleShape) size / 2 else 12.dp, weight = (size.value / 300f).coerceIn(0.35f, 1f)) else Modifier)
             .clip(shape)
             .background(c.glassStrong),
         contentAlignment = Alignment.Center,
@@ -122,12 +125,7 @@ fun Cover(
         if (url == null) {
             Icon(Icons.Rounded.MusicNote, null, tint = c.textTertiary, modifier = Modifier.size(size / 2.4f))
         } else {
-            AsyncImage(
-                model = url.artworkAt(px),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            ArtImage(url, px, Modifier.fillMaxSize())
         }
     }
 }
@@ -140,6 +138,7 @@ fun SquareCover(url: String?, modifier: Modifier = Modifier, radius: Dp = 12.dp,
         modifier
             .fillMaxWidth()
             .aspectSquare()
+            .coverShadow(radius, weight = 0.6f)
             .clip(RoundedCornerShape(radius))
             .background(c.glassStrong),
         contentAlignment = Alignment.Center,
@@ -147,12 +146,7 @@ fun SquareCover(url: String?, modifier: Modifier = Modifier, radius: Dp = 12.dp,
         if (url == null) {
             Icon(Icons.Rounded.MusicNote, null, tint = c.textTertiary, modifier = Modifier.size(40.dp))
         } else {
-            AsyncImage(
-                model = url.artworkAt(px),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            ArtImage(url, px, Modifier.fillMaxSize())
         }
     }
 }
@@ -174,7 +168,8 @@ fun CoverGlow(
     val c = Glow.colors
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
-    val palette = rememberArtworkColors(if (fromArtwork) artworkUrl else null).colors
+    // Cached per cover, so reopening a screen starts on the right colours instead of flashing stock ones.
+    val palette = rememberGlowPalette(if (fromArtwork) artworkUrl else null) ?: ArtworkPalettes.last.takeIf { artworkUrl != null }.orEmpty()
     val baseColors = if (fromArtwork && artworkUrl != null && palette.size >= 2) {
         palette
     } else {
@@ -569,28 +564,57 @@ fun SongRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** The row's track, when it is one: the row then marks itself while that track plays. */
+    videoId: String? = null,
+    selected: Boolean = false,
 ) {
     val c = Glow.colors
+    val player = LocalGlow.current.player
+    val playing = active || (videoId != null && player.song?.videoId == videoId)
     val interaction = remember { MutableInteractionSource() }
+    val highlight by animateColorAsState(
+        when {
+            selected -> c.primary.copy(alpha = 0.16f)
+            playing -> c.glass
+            else -> Color.Transparent
+        },
+        label = "rowHighlight",
+    )
     Row(
         modifier
             .fillMaxWidth()
             .pressScale(interaction, 0.98f)
             .combinedClickable(interaction, ripple(), onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 20.dp, vertical = 5.dp)
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(highlight)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
             .alpha(if (dimmed) 0.45f else 1f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selected) {
+            GlowCheckbox(true)
+            Spacer(Modifier.width(12.dp))
+        }
         if (leading != null) {
             leading()
         } else {
-            Cover(artworkUrl, size = coverSize, shape = if (circleCover) CircleShape else RoundedCornerShape(8.dp))
+            Box(contentAlignment = Alignment.Center) {
+                Cover(artworkUrl, size = coverSize, shape = if (circleCover) CircleShape else RoundedCornerShape(8.dp))
+                // The same mark everywhere a playing track is listed: bars over a dimmed cover.
+                androidx.compose.animation.AnimatedVisibility(playing, enter = fadeIn(), exit = fadeOut()) {
+                    Box(
+                        Modifier.size(coverSize).clip(if (circleCover) CircleShape else RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center,
+                    ) { PlayingBars(Modifier.size(18.dp), playing = player.isPlaying, color = Color.White) }
+                }
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             GlowText(
                 title,
-                GlowType.body.copy(fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium),
+                GlowType.body.copy(fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Medium),
                 maxLines = 1,
             )
             if (subtitle.isNotEmpty()) GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
@@ -631,6 +655,7 @@ fun TrackRow(
         onClick = onClick,
         onLongClick = onMore,
         trailing = trailing ?: { MoreButton(onMore) },
+        videoId = song.videoId,
     )
 }
 

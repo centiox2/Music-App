@@ -733,13 +733,15 @@ fun ExploreScreen() {
                                         song.title,
                                         song.artist,
                                         song.thumbnailUrl,
+                                        videoId = song.videoId,
                                         leading = {
-                                            Text(
-                                                "${i + 1}",
-                                                style = GlowType.title.copy(fontSize = 18.sp),
-                                                color = Glow.colors.text,
-                                                modifier = Modifier.width(30.dp),
-                                            )
+                                            Box(Modifier.width(30.dp)) {
+                                                if (g.player.song?.videoId == song.videoId) {
+                                                    PlayingBars(playing = g.player.isPlaying)
+                                                } else {
+                                                    Text("${i + 1}", style = GlowType.title.copy(fontSize = 18.sp), color = Glow.colors.text)
+                                                }
+                                            }
                                             Cover(song.thumbnailUrl, size = 48.dp)
                                         },
                                         onClick = { g.playList(songs, i, shelf.title, PlaybackSourceType.QUEUE) },

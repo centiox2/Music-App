@@ -114,19 +114,28 @@ fun SongMenuSheet(song: Song, onDismiss: () -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickTile(Icons.Rounded.SkipNext, "Play next", Modifier.weight(1f)) { close { g.actions.playNext(song) } }
-            QuickTile(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue", Modifier.weight(1f)) { close { g.actions.addToQueue(song) } }
-            QuickTile(Icons.AutoMirrored.Rounded.PlaylistAdd, "Save to…", Modifier.weight(1f)) { close { g.saveToPlaylist = listOf(song) } }
-            QuickTile(Icons.Rounded.IosShare, "Share", Modifier.weight(1f)) { close { g.share(song) } }
+            if (isCurrent) {
+                // Queueing the song that's already playing only duplicated it, so the player's menu leaves that out.
+                QuickTile(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist", Modifier.weight(1f)) { close { g.saveToPlaylist = listOf(song) } }
+                QuickTile(Icons.Rounded.Podcasts, "Start radio", Modifier.weight(1f)) { close { g.actions.startRadio(song) } }
+                QuickTile(Icons.Rounded.IosShare, "Share", Modifier.weight(1f)) { close { g.share(song) } }
+            } else {
+                QuickTile(Icons.Rounded.SkipNext, "Play next", Modifier.weight(1f)) { close { g.actions.playNext(song) } }
+                QuickTile(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue", Modifier.weight(1f)) { close { g.actions.addToQueue(song) } }
+                QuickTile(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist", Modifier.weight(1f)) { close { g.saveToPlaylist = listOf(song) } }
+                QuickTile(Icons.Rounded.IosShare, "Share", Modifier.weight(1f)) { close { g.share(song) } }
+            }
         }
         Spacer(Modifier.height(8.dp))
-        MenuRow(Icons.Rounded.Podcasts, "Start radio") { close { g.actions.startRadio(song) } }
-        if (song.albumId != null) {
-            MenuRow(Icons.Rounded.Album, "Go to album") { close { g.playerOpen = false; g.openAlbumOf(song) } }
-        }
+        if (!isCurrent) MenuRow(Icons.Rounded.Podcasts, "Start radio") { close { g.actions.startRadio(song) } }
+        // Both are looked up when the song didn't arrive with them.
+        MenuRow(Icons.Rounded.Album, "Go to album") { close { g.playerOpen = false; g.openAlbumOf(song) } }
         val artistId = song.artistId ?: song.artists.firstOrNull { it.browseId != null }?.browseId
-        if (artistId != null) {
-            MenuRow(Icons.Rounded.Person, "Go to artist") { close { g.playerOpen = false; g.openArtist(artistId, song.artist) } }
+        MenuRow(Icons.Rounded.Person, "Go to artist") {
+            close {
+                g.playerOpen = false
+                if (artistId != null) g.openArtist(artistId, song.artist) else g.openArtistOf(song)
+            }
         }
         when {
             song.videoId in saved -> MenuRow(Icons.Rounded.Delete, "Remove download") { close { g.actions.removeDownload(song.videoId) } }

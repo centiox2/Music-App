@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -85,6 +86,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -134,7 +136,7 @@ fun PlayerScreen() {
             .background(c.base)
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
-        CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
+        PlayerBackdrop(song)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             if (maxWidth >= 840.dp && maxHeight >= 560.dp) {
                 TabletPlayer(song)
@@ -145,6 +147,47 @@ fun PlayerScreen() {
             }
         }
     }
+}
+
+/**
+ * Behind the player: a slow liquid mesh of the cover's colours (BitChord's
+ * mesh gradient, left running), or the still glow when that's turned off.
+ */
+@Composable
+private fun PlayerBackdrop(song: Song) {
+    val c = Glow.colors
+    val liquid by GlowPrefs.liquidBackground.collectAsStateWithLifecycle()
+    val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
+    val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
+    val intensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
+    val reduce = rememberReduceMotion()
+    if (!liquid) {
+        CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
+        return
+    }
+    val cover = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
+    val colors = when {
+        !fromArtwork -> Color(fixed).let { f -> listOf(f, lerp(f, Color.White, 0.25f), lerp(f, Color.Black, 0.3f), f) }
+        else -> cover ?: ArtworkPalettes.last ?: listOf(c.glassStrong, c.glass, c.glassStrong, c.glass)
+    }
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = (0.55f + 0.4f * intensity).coerceAtMost(1f) }) {
+        com.music.bitchord.ui.player.MeshGradientBackground(
+            palette = com.music.bitchord.ui.player.MeshPalette(colors),
+            trackKey = song.videoId,
+            continuous = !reduce,
+            driftMillis = 9_000,
+        )
+    }
+    // Keeps the controls readable where the colour is brightest.
+    Box(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                0f to c.base.copy(alpha = if (c.isDark) 0.25f else 0.35f),
+                0.55f to c.base.copy(alpha = if (c.isDark) 0.35f else 0.5f),
+                1f to c.base.copy(alpha = if (c.isDark) 0.82f else 0.85f),
+            ),
+        ),
+    )
 }
 
 @Composable
@@ -391,10 +434,8 @@ private fun Artwork(song: Song, modifier: Modifier) {
                 rotationZ = offset * 0.004f
                 scaleX = playScale
                 scaleY = playScale
-                shadowElevation = 28.dp.toPx() * shadow
-                shape = RoundedCornerShape(12.dp)
-                clip = false
             }
+            .coverShadow(12.dp, weight = 0.55f + 0.45f * shadow)
             .pullToClose(g)
             .clip(RoundedCornerShape(12.dp))
             .background(c.glassStrong)
@@ -419,7 +460,7 @@ private fun Artwork(song: Song, modifier: Modifier) {
             },
             label = "art",
         ) { url ->
-            AsyncImage(url.artworkAt(1080), song.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            ArtImage(url, 1080, Modifier.fillMaxSize(), contentDescription = song.title)
         }
         val error = g.player.error
         if (error != null) PlaybackErrorCard(error)
@@ -497,8 +538,10 @@ private fun TitleRow(song: Song, large: Boolean) {
                 style = if (large) GlowType.playerTitle else GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 17.sp),
                 color = c.text,
                 maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.clickable(enabled = song.albumId != null) { g.playerOpen = false; g.openAlbumOf(song) },
+                // Scrolls a few times when it doesn't fit; starts again whenever the player reopens.
+                modifier = Modifier
+                    .clickable { g.playerOpen = false; g.openAlbumOf(song) }
+                    .basicMarquee(iterations = 3, initialDelayMillis = 1500, repeatDelayMillis = 2000),
             )
             Text(
                 song.artist,
@@ -506,9 +549,9 @@ private fun TitleRow(song: Song, large: Boolean) {
                 color = c.textSecondary,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.clickable(enabled = song.artistId != null) {
+                modifier = Modifier.clickable {
                     g.playerOpen = false
-                    g.openArtist(song.artistId, song.artist)
+                    g.openArtistOf(song)
                 },
             )
         }

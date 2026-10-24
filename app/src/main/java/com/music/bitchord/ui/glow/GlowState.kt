@@ -178,9 +178,38 @@ class GlowState(
     }
 
     fun openAlbumOf(song: Song) {
-        val id = song.albumId ?: return
-        openDetail(id, song.albumName ?: song.title, song.artist, song.thumbnailUrl, BrowseType.ALBUM)
+        val id = song.albumId
+        if (id != null) {
+            openDetail(id, song.albumName ?: song.title, song.artist, song.thumbnailUrl, BrowseType.ALBUM)
+            return
+        }
+        // Songs from home cards, radio or a restored queue often arrive without their links;
+        // the track's own watch entry always names them.
+        scope.launch {
+            val linked = links(song)
+            val albumId = linked?.albumId
+            if (albumId != null) {
+                openDetail(albumId, linked.albumName ?: song.title, song.artist, song.thumbnailUrl, BrowseType.ALBUM)
+            } else {
+                notify("This song isn't on an album")
+            }
+        }
     }
+
+    /** The artist page for [song], looked up when the song didn't carry it. */
+    fun openArtistOf(song: Song) {
+        song.artistId?.let { return openArtist(it, song.artist) }
+        scope.launch {
+            val id = links(song)?.artistId
+                ?: com.music.bitchord.data.YtMusicRepository.findArtistPageId(song.artist.substringBefore(",").substringBefore(" & ").trim()).getOrNull()
+            if (id != null) openArtist(id, song.artist) else notify("Couldn't find ${song.artist}'s page")
+        }
+    }
+
+    private val linkCache = HashMap<String, Song>()
+
+    private suspend fun links(song: Song): Song? =
+        linkCache[song.videoId] ?: com.music.bitchord.data.YtMusicRepository.trackLinks(song.videoId).getOrNull()?.also { linkCache[song.videoId] = it }
 
     fun openMood(item: MoodGenre) {
         vm.openMoodGenre(item)

@@ -23,6 +23,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -344,6 +345,16 @@ private fun GlowRoot(state: GlowState) {
                 PlayerScreen()
             }
         }
+        // Toasts sit above the open player too; under it, "Added to playlist" from its menu was never seen.
+        if (state.playerOpen) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 96.dp),
+            ) { ToastHost(state) }
+        }
         AnimatedVisibility(
             visible = state.devicesOpen,
             enter = slideInVertically(tween(300)) { it },
@@ -461,6 +472,14 @@ private fun MiniPlayer(state: GlowState) {
     val progress = if (player.durationMs > 0) player.position.positionMs.toFloat() / player.durationMs else 0f
     val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), tween(300), label = "miniProgress")
     val swipe by GlowPrefs.swipeMiniPlayer.collectAsStateWithLifecycle()
+    val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
+    // Wears the cover's colour, darkened for legibility, and fades with each song.
+    val coverColors = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
+    val miniColor by androidx.compose.animation.animateColorAsState(
+        miniPlayerTint(coverColors ?: ArtworkPalettes.last.takeIf { fromArtwork }, c.miniPlayer, c.isDark),
+        tween(700),
+        label = "miniColor",
+    )
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
     val dragX = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -474,7 +493,7 @@ private fun MiniPlayer(state: GlowState) {
                 alpha = 1f - (kotlin.math.abs(dragX.value) / size.width).coerceIn(0f, 0.6f)
             }
             .clip(RoundedCornerShape(16.dp))
-            .background(c.miniPlayer)
+            .background(miniColor)
             .clickable(interaction, androidx.compose.material3.ripple()) { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, drag -> if (drag < -12f) state.playerOpen = true }
@@ -526,7 +545,13 @@ private fun MiniPlayer(state: GlowState) {
                     Cover(s.thumbnailUrl, size = 46.dp, shape = RoundedCornerShape(8.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        GlowText(s.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                        Text(
+                            s.title,
+                            style = GlowType.body.copy(fontWeight = FontWeight.SemiBold),
+                            color = c.text,
+                            maxLines = 1,
+                            modifier = Modifier.basicMarquee(iterations = 3, initialDelayMillis = 2000, repeatDelayMillis = 2000),
+                        )
                         GlowText(s.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
                     }
                 }

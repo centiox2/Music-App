@@ -360,6 +360,20 @@ fun ThemeScreen() {
             )
             Text("Vivid", style = GlowType.secondary, color = c.textSecondary)
         }
+        GroupLabel("Player")
+        val liquid by GlowPrefs.liquidBackground.collectAsStateWithLifecycle()
+        val shadow by GlowPrefs.coverShadow.collectAsStateWithLifecycle()
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow("Liquid background", liquid, GlowPrefs::setLiquidBackground, subtitle = "The cover's colours flow slowly behind the player")
+            CardDivider()
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Cover shadow", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.text, modifier = Modifier.weight(1f))
+                    Text(if (shadow < 0.05f) "Off" else "${(shadow * 100).roundToInt()}%", style = GlowType.body, color = c.textSecondary)
+                }
+                GlowSlider(value = shadow, onValueChange = { GlowPrefs.setCoverShadow((it * 20).roundToInt() / 20f) })
+            }
+        }
         GroupLabel("Mode")
         Segmented(listOf("System", "Dark", "Light"), when (theme) { ThemeMode.SYSTEM -> 0; ThemeMode.DARK -> 1; ThemeMode.LIGHT -> 2 }, Modifier.padding(horizontal = 20.dp)) {
             AppSettings.setThemeMode(listOf(ThemeMode.SYSTEM, ThemeMode.DARK, ThemeMode.LIGHT)[it])

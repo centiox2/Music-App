@@ -241,6 +241,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                         song.title,
                         song.artist,
                         song.thumbnailUrl,
+                        videoId = song.videoId,
                         onClick = { g.playSingle(song, page.title) },
                         trailing = {
                             IconTap(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { vm.addSuggestedSong(page.browseId, song) }

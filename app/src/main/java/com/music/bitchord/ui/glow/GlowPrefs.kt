@@ -60,6 +60,14 @@ object GlowPrefs {
     /** Swipe the mini player sideways to skip. */
     val swipeMiniPlayer: StateFlow<Boolean> = _swipeMiniPlayer.asStateFlow()
 
+    private val _liquidBackground = MutableStateFlow(true)
+    /** The player's moving mesh of cover colours; off falls back to the still glow. */
+    val liquidBackground: StateFlow<Boolean> = _liquidBackground.asStateFlow()
+
+    private val _coverShadow = MutableStateFlow(0.7f)
+    /** Drop shadow under large covers, 0 (off) to 1 (deep). */
+    val coverShadow: StateFlow<Float> = _coverShadow.asStateFlow()
+
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
@@ -83,6 +91,8 @@ object GlowPrefs {
         _glowIntensity.value = p.getFloat("glow_intensity", 1f)
         _swipeMiniPlayer.value = p.getBoolean("swipe_mini_player", true)
         _haptics.value = p.getBoolean("haptics", true)
+        _liquidBackground.value = p.getBoolean("liquid_background", true)
+        _coverShadow.value = p.getFloat("cover_shadow", 0.7f)
     }
 
     /** Every Cover Glow preference, for a settings backup. */
@@ -125,4 +135,6 @@ object GlowPrefs {
     fun setGlowIntensity(value: Float) { _glowIntensity.value = value; prefs?.edit()?.putFloat("glow_intensity", value)?.apply() }
     fun setSwipeMiniPlayer(value: Boolean) { _swipeMiniPlayer.value = value; prefs?.edit()?.putBoolean("swipe_mini_player", value)?.apply() }
     fun setHaptics(value: Boolean) { _haptics.value = value; prefs?.edit()?.putBoolean("haptics", value)?.apply() }
+    fun setLiquidBackground(value: Boolean) { _liquidBackground.value = value; prefs?.edit()?.putBoolean("liquid_background", value)?.apply() }
+    fun setCoverShadow(value: Float) { _coverShadow.value = value; prefs?.edit()?.putFloat("cover_shadow", value)?.apply() }
 }
