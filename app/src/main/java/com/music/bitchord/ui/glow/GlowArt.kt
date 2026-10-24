@@ -81,7 +81,17 @@ fun Modifier.coverShadow(cornerRadius: Dp, weight: Float = 1f): Modifier = compo
         }
         drawIntoCanvas { canvas ->
             val r = cornerRadius.toPx()
-            canvas.nativeCanvas.drawRoundRect(0f, 0f, size.width, size.height, r, r, paint)
+            val native = canvas.nativeCanvas
+            // Only the shadow, never the shape casting it: a filled shape under the cover
+            // showed through as a dark square whenever the cover faded (switching to lyrics
+            // or the queue) or hadn't loaded yet.
+            val outline = android.graphics.Path().apply {
+                addRoundRect(0f, 0f, size.width, size.height, r, r, android.graphics.Path.Direction.CW)
+            }
+            native.save()
+            native.clipOutPath(outline)
+            native.drawRoundRect(0f, 0f, size.width, size.height, r, r, paint)
+            native.restore()
         }
     }
 }

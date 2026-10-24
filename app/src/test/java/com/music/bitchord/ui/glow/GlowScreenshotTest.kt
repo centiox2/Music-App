@@ -138,6 +138,39 @@ class GlowScreenshotTest {
         shot("03-lyrics")
     }
 
+    /** Frame by frame through a pane switch and back, to catch what happens mid-transition. */
+    @Test
+    fun paneSwitchFrames() {
+        launch(playing = true, light = true)
+        // A plain page, so the shadow can be seen.
+        GlowPrefs.setLiquidBackground(false)
+        click("Despacito")
+        val matcher = hasContentDescription("Up next")
+        fun frames(prefix: String) {
+            rule.mainClock.autoAdvance = false
+            rule.onAllNodes(matcher)[0].performClick()
+            for (i in 0 until 14) {
+                rule.mainClock.advanceTimeBy(20)
+                shotNow("%s-%02d".format(prefix, i))
+            }
+            rule.mainClock.autoAdvance = true
+            settle(4)
+        }
+        frames("pf-to-queue")
+        frames("pf-to-player")
+        GlowPrefs.setLiquidBackground(true)
+    }
+
+    private fun shotNow(name: String) {
+        val dir = File(System.getenv("GLOW_SHOTS")!!).apply { mkdirs() }
+        val view = rule.activity.window.decorView
+        rule.runOnUiThread { view.invalidate() }
+        rule.waitForIdle()
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        rule.runOnUiThread { view.draw(Canvas(bitmap)) }
+        File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     @Test
     fun songMenu() {
         launch(playing = true)

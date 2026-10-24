@@ -203,10 +203,16 @@ private fun twistEffect(w: Int, h: Int): RenderEffect {
  */
 private fun tone(dark: Boolean): ColorMatrix {
     val m = ColorMatrix().apply { setSaturation(1.9f) }
-    if (dark) m.postConcat(ColorMatrix().apply { setScale(0.82f, 0.82f, 0.82f, 1f) })
+    if (dark) {
+        m.postConcat(ColorMatrix().apply { setScale(0.82f, 0.82f, 0.82f, 1f) })
+    } else {
+        // Light theme: lifted toward white, as the colour mesh does, so dark text stays readable.
+        m.postConcat(ColorMatrix(floatArrayOf(0.62f, 0f, 0f, 0f, 92f, 0f, 0.62f, 0f, 0f, 92f, 0f, 0f, 0.62f, 0f, 92f, 0f, 0f, 0f, 1f, 0f)))
+    }
     return m
 }
 
+// The colour under the copies; it then goes through the same tone as they do.
 private fun liquidBase(color: Color, dark: Boolean): Color =
     if (dark) androidx.compose.ui.graphics.lerp(color, Color.Black, 0.35f) else color
 
