@@ -93,7 +93,10 @@ fun HomeScreen() {
         .firstOrNull { (_, item) -> item.browseId != null && item.videoId == null }
     val moods = (explore as? UiState.Success)?.data.orEmpty()
         .flatMap { it.items }
-        .take(6)
+        .take(8)
+    // 0 is "For you"; any other chip shows that mood's shelves right here instead of opening a page.
+    var moodIndex by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
+    val moodShelves by vm.moodGenreShelves.collectAsStateWithLifecycle()
 
     GlowScreen(glowUrl = g.player.song?.thumbnailUrl ?: featured?.second?.thumbnailUrl) {
         PullToRefreshBox(
@@ -144,8 +147,28 @@ fun HomeScreen() {
                         item {
                             Spacer(Modifier.height(10.dp))
                             val chips = listOf("For you") + moods.map { it.title }
-                            ChipRow(chips, selected = 0) { i -> if (i > 0) g.openMood(moods[i - 1]) }
+                            ChipRow(chips, selected = moodIndex.coerceAtMost(chips.lastIndex)) { i ->
+                                moodIndex = i
+                                if (i > 0) vm.openMoodGenre(moods[i - 1])
+                            }
                             Spacer(Modifier.height(22.dp))
+                        }
+                        if (moodIndex > 0 && moodIndex <= moods.size) {
+                            when (val m = moodShelves) {
+                                is UiState.Loading -> item { HomeSkeleton() }
+                                is UiState.Error -> item {
+                                    EmptyState(Icons.Rounded.WifiOff, "Couldn't load ${moods[moodIndex - 1].title}", m.message, modifier = Modifier.padding(top = 40.dp)) {
+                                        PillButton("Try again", onClick = { vm.openMoodGenre(moods[moodIndex - 1]) })
+                                    }
+                                }
+                                is UiState.Success -> itemsIndexed(m.data, key = { _, it -> "m" + moodIndex + it.title }) { i, shelf ->
+                                    Column(Modifier.staggeredEntrance(i, moodIndex.toString() + shelf.title)) {
+                                        ShelfSection(shelf)
+                                        Spacer(Modifier.height(22.dp))
+                                    }
+                                }
+                            }
+                            return@LazyColumn
                         }
                         featured?.let { (shelf, item) ->
                             item { Box(Modifier.staggeredEntrance(0, item.title)) { FeaturedCard(shelf.title, item) } }

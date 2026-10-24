@@ -107,6 +107,11 @@ enum class LyricsSource(
         wordSynced = false,
         hidden = true,
     ),
+    NETEASE(
+        label = "NetEase Cloud Music",
+        detail = "Whole lines from a huge catalogue, strongest on Asian music",
+        wordSynced = false,
+    ),
     KUGOU(
         label = "KuGou",
         detail = "Whole lines, strong outside the English catalogue",

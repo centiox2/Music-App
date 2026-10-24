@@ -20,6 +20,12 @@ import com.music.bitchord.ui.MainViewModel
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -47,7 +53,7 @@ class GlowScreenshotTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
 
-    private val song = Song(
+    private var song = Song(
         videoId = "kJQP7kiw5Fk",
         title = "Despacito",
         artist = "Luis Fonsi",
@@ -59,7 +65,7 @@ class GlowScreenshotTest {
 
     private var lastPlayer: PlayerState? = null
 
-    private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L, route: Route? = null) {
+    private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L, route: Route? = null, paused: Boolean = false, durationMs: Long = 282_000L) {
         assumeTrue("Set GLOW_SHOTS to render screenshots", System.getenv("GLOW_SHOTS") != null)
         val app = RuntimeEnvironment.getApplication()
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
@@ -68,11 +74,13 @@ class GlowScreenshotTest {
         shadowOf(caps).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         shadowOf(cm).setNetworkCapabilities(cm.activeNetwork, caps)
         AppSettings.setOnboardingComplete()
+        // Still frames: the liquid background never stops moving otherwise, and Compose never idles.
+        AppSettings.setReduceAnimation(true)
         AppSettings.setThemeMode(if (light) ThemeMode.LIGHT else ThemeMode.DARK)
         GlowPrefs.init(app)
         GlowPrefs.setNotificationsAsked()
         val player = if (playing) {
-            PlayerState(song = song, isPlaying = true, durationMs = 282_000L, queue = listOf(song), queueIndex = 0)
+            PlayerState(song = song, isPlaying = !paused, durationMs = durationMs, queue = listOf(song), queueIndex = 0)
                 .also { it.position.report(positionMs); lastPlayer = it }
         } else {
             null
@@ -187,6 +195,48 @@ class GlowScreenshotTest {
         shot("15-settings")
         click("Equalizer & audio")
         shot("13-equalizer")
+    }
+
+    @Test
+    fun wordSync() {
+        song = Song(videoId = "fHI8X4OXluQ", title = "Blinding Lights", artist = "The Weeknd", thumbnailUrl = "https://i.ytimg.com/vi/fHI8X4OXluQ/hqdefault.jpg", durationText = "3:20")
+        launch(playing = true, positionMs = 30_600L, paused = true, durationMs = 200_000L)
+        click("Blinding Lights")
+        click("Lyrics")
+        settle(30)
+        shot("75-word-sync")
+    }
+
+    @Test
+    fun wordSyncIsolated() {
+        assumeTrue(System.getenv("GLOW_SHOTS") != null)
+        val found = kotlinx.coroutines.runBlocking {
+            com.music.bitchord.data.lyrics.LyricsRepository.lyrics(
+                "fHI8X4OXluQ", "Blinding Lights", "The Weeknd", 200_000L, null,
+                setOf(com.music.bitchord.data.lyrics.LyricsSource.LRC_RED), listOf(com.music.bitchord.data.lyrics.LyricsSource.LRC_RED), true,
+            )
+        }!!
+        var position by androidx.compose.runtime.mutableLongStateOf(30_000L)
+        GlowPrefs.init(RuntimeEnvironment.getApplication())
+        AppSettings.setThemeMode(ThemeMode.DARK)
+        rule.setContent {
+            GlowTheme {
+                androidx.compose.foundation.layout.Box(
+                    androidx.compose.ui.Modifier.fillMaxSize().background(Glow.colors.base).padding(horizontal = 20.dp, vertical = 40.dp),
+                ) {
+                    com.music.bitchord.ui.glow.lyrics.GlowLyrics(
+                        lyrics = found.lines, checked = true,
+                        positionProvider = { position }, isPlayingProvider = { false },
+                        lyricsOffsetMs = 0, onSeek = {}, onShare = {},
+                    )
+                }
+            }
+        }
+        listOf(30_150L to "76a-word-start", 30_900L to "76b-word-mid", 31_700L to "76c-word-late", 33_000L to "76d-next-line").forEach { (ms, name) ->
+            position = ms
+            settle(8)
+            shot(name)
+        }
     }
 
     @Test

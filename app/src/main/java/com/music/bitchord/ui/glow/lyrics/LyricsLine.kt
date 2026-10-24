@@ -360,6 +360,7 @@ private fun WordLevelLyrics(
 
     // Which word, and which position in it, each glyph belongs to.
     val charToWordData = remember(mainText, effectiveWords, isBackground, graphemeClusters, clusterCharOffsets) {
+        val matchText = mainText.normalizedForMatch()
         val wordIdxMap = IntArray(clusterCount) { -1 }
         val charInWordMap = IntArray(clusterCount)
         val wordLenMap = IntArray(clusterCount) { 1 }
@@ -374,9 +375,12 @@ private fun WordLevelLyrics(
             } else {
                 word.text
             }
-            val indexInMain = mainText.indexOf(rawWordText, currentPos)
+            // Providers send words with their own spacing and typography ("it’s" against "it's"),
+            // and an exact search missed those, leaving the word dark while it was sung.
+            val needle = rawWordText.trim()
+            val indexInMain = if (needle.isEmpty()) -1 else matchText.indexOf(needle.normalizedForMatch(), currentPos, ignoreCase = true)
             if (indexInMain != -1) {
-                val wordEndInMain = indexInMain + rawWordText.length
+                val wordEndInMain = indexInMain + needle.length
                 while (clCursor < clusterCount && clusterCharOffsets[clCursor] < indexInMain) clCursor++
                 val wordClusterIndices = mutableListOf<Int>()
                 while (clCursor < clusterCount && clusterCharOffsets[clCursor] < wordEndInMain) {
@@ -398,6 +402,29 @@ private fun WordLevelLyrics(
                     clCursor++
                 }
                 currentPos = wordEndInMain
+            }
+        }
+        // Punctuation and anything else no word claimed ("Despacito," with the comma outside the
+        // word) used to stay dark after the line was sung. It goes with the word before it.
+        var lastWord = -1
+        var lastLen = 1
+        for (i in 0 until clusterCount) {
+            if (wordIdxMap[i] != -1) {
+                lastWord = wordIdxMap[i]
+                lastLen = wordLenMap[i]
+            } else if (lastWord != -1) {
+                wordIdxMap[i] = lastWord
+                charInWordMap[i] = (lastLen - 1).coerceAtLeast(0)
+                wordLenMap[i] = lastLen
+            }
+        }
+        // Leading characters before the first word belong to that word.
+        val firstWord = wordIdxMap.firstOrNull { it != -1 } ?: -1
+        if (firstWord != -1) {
+            for (i in 0 until clusterCount) {
+                if (wordIdxMap[i] != -1) break
+                wordIdxMap[i] = firstWord
+                charInWordMap[i] = 0
             }
         }
         Triple(wordIdxMap, charInWordMap, wordLenMap)
@@ -651,3 +678,14 @@ private fun WordLevelLyrics(
         }
     }
 }
+
+/** Same length as the input, so indices found in the result are indices in the original. */
+private fun String.normalizedForMatch(): String = map { ch ->
+    when (ch) {
+        '\u2018', '\u2019', '\u02BC', '`' -> '\''
+        '\u201C', '\u201D' -> '"'
+        '\u2013', '\u2014' -> '-'
+        '\u00A0' -> ' '
+        else -> ch
+    }
+}.joinToString("")

@@ -211,6 +211,7 @@ object LyricsRepository {
             LyricsSource.PAXSENIX_SPOTIFY -> PaxSenix.spotifyLyrics(title, artist, durationMs)
             LyricsSource.PAXSENIX_MUSIXMATCH -> PaxSenix.musixmatchLyrics(title, artist, durationMs)
             LyricsSource.KUGOU -> KuGou.lyrics(title, artist, durationMs, album)
+            LyricsSource.NETEASE -> NetEase.lyrics(title, artist, durationMs)
             LyricsSource.MEGALOBIZ -> Megalobiz.lyrics(title, artist)
             LyricsSource.GENIUS -> Genius.lyrics(title, artist)
         }

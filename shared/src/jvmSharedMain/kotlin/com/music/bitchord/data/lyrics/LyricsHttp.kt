@@ -41,6 +41,18 @@ private val authenticatedClient by lazy {
 }
 
 /** Body of a successful GET, or null for any failure at all. */
+/** [lyricsGet] with extra request headers, for hosts that want a Referer. */
+internal fun lyricsGetWithHeaders(url: String, headers: Map<String, String>): String? = runCatching {
+    val request = Request.Builder().url(url)
+        .header("User-Agent", LYRICS_AGENT)
+        .header("Accept", "application/json")
+        .apply { headers.forEach { (k, v) -> header(k, v) } }
+        .build()
+    client.newCall(request).execute().use { response ->
+        if (response.isSuccessful) response.body?.string() else null
+    }
+}.getOrNull()
+
 internal fun lyricsGet(url: String): String? = runCatching {
     val request = Request.Builder().url(url)
         .header("User-Agent", LYRICS_AGENT)

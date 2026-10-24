@@ -399,6 +399,8 @@ private fun GlowRoot(state: GlowState) {
         })
     }
     if (state.sleepTimerOpen) SleepTimerSheet(onDismiss = { state.sleepTimerOpen = false })
+    if (state.lyricsMenuOpen) LyricsMenuSheet(onDismiss = { state.lyricsMenuOpen = false })
+    if (state.lyricsEditorOpen) LyricsEditor(onDismiss = { state.lyricsEditorOpen = false })
     state.songDetails?.let { song -> SongDetailsSheet(song, onDismiss = { state.songDetails = null }) }
 }
 
@@ -483,6 +485,7 @@ private fun MiniPlayer(state: GlowState) {
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
     val dragX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragY = remember { androidx.compose.animation.core.Animatable(0f) }
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         Modifier
@@ -490,13 +493,36 @@ private fun MiniPlayer(state: GlowState) {
             .pressScale(interaction, 0.98f)
             .graphicsLayer {
                 translationX = dragX.value
-                alpha = 1f - (kotlin.math.abs(dragX.value) / size.width).coerceIn(0f, 0.6f)
+                translationY = dragY.value
+                alpha = 1f - (kotlin.math.abs(dragX.value) / size.width).coerceIn(0f, 0.6f) - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.6f)
             }
             .clip(RoundedCornerShape(16.dp))
             .background(miniColor)
             .clickable(interaction, androidx.compose.material3.ripple()) { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
             .pointerInput(Unit) {
-                detectVerticalDragGestures { _, drag -> if (drag < -12f) state.playerOpen = true }
+                // Up opens the player; down pulls the mini player away and, far enough, stops the music.
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        scope.launch {
+                            if (dragY.value > size.height * 0.9f) {
+                                haptic()
+                                dragY.animateTo(size.height * 2.5f, tween(180))
+                                state.controller?.let { it.stop(); it.clearMediaItems() }
+                                dragY.snapTo(0f)
+                            } else {
+                                dragY.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f))
+                            }
+                        }
+                    },
+                    onDragCancel = { scope.launch { dragY.animateTo(0f) } },
+                ) { change, drag ->
+                    if (drag < -12f && dragY.value <= 0f) {
+                        state.playerOpen = true
+                    } else if (drag > 0f || dragY.value > 0f) {
+                        change.consume()
+                        scope.launch { dragY.snapTo((dragY.value + drag).coerceAtLeast(0f)) }
+                    }
+                }
             }
             .pointerInput(swipe, player.hasNext) {
                 if (!swipe) return@pointerInput

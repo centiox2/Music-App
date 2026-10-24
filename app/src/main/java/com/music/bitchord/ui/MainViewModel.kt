@@ -391,6 +391,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             LyricsSource.entries.associateWith { LyricsProviderState.NOT_FETCHED }
         _lyrics.value = null
         _lyricsSource.value = null
+        _lyricsEdited.value = false
         lyricsJob?.cancel()
         if (sources.isEmpty()) {
             // Switched off, or every source unticked. Nothing to look up, and
@@ -401,6 +402,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         _lyricsChecked.value = false
         lyricsJob = viewModelScope.launch {
+            // The user's own corrections beat every source.
+            com.music.bitchord.data.UserLyrics.get(getApplication(), videoId)?.let { edited ->
+                _lyrics.value = edited
+                _lyricsSource.value = null
+                _lyricsEdited.value = true
+                _lyricsChecked.value = true
+                return@launch
+            }
             // The file first, and without the duration gate below: a length is
             // only needed to *match* a track against a stranger's database, and
             // nothing is being matched here — these lyrics were written into
@@ -521,7 +530,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private val _lyricsEdited = MutableStateFlow(false)
+    /** True while the shown lyrics are the user's own edit. */
+    val lyricsEdited: StateFlow<Boolean> = _lyricsEdited.asStateFlow()
+
+    /** Asks every source again for the playing track, as if it had just started. */
+    fun refetchLyrics() {
+        val r = currentLyricsRequest ?: return
+        lyricsFor = null
+        loadLyrics(r.videoId, r.title, r.artist, r.durationMs, r.album)
+    }
+
+    /** Saves the user's edit of the playing track's lyrics and shows it straight away. */
+    fun saveEditedLyrics(text: String) {
+        val r = currentLyricsRequest ?: return
+        val lines = com.music.bitchord.data.UserLyrics.save(getApplication(), r.videoId, text)
+        lyricsJob?.cancel()
+        _lyrics.value = lines
+        _lyricsSource.value = null
+        _lyricsEdited.value = true
+        _lyricsChecked.value = true
+    }
+
+    /** Drops the user's edit and fetches the lyrics again. */
+    fun resetEditedLyrics() {
+        val r = currentLyricsRequest ?: return
+        com.music.bitchord.data.UserLyrics.remove(getApplication(), r.videoId)
+        refetchLyrics()
+    }
+
     private fun showLyricsResult(result: LyricsRepository.Result) {
+        _lyricsEdited.value = false
         _lyrics.value = result.lines
         _lyricsSource.value = result.source
         _lyricsChecked.value = true

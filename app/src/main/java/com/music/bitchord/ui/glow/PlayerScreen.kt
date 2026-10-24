@@ -171,12 +171,7 @@ private fun PlayerBackdrop(song: Song) {
         else -> cover ?: ArtworkPalettes.last ?: listOf(c.glassStrong, c.glass, c.glassStrong, c.glass)
     }
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = (0.55f + 0.4f * intensity).coerceAtMost(1f) }) {
-        com.music.bitchord.ui.player.MeshGradientBackground(
-            palette = com.music.bitchord.ui.player.MeshPalette(colors),
-            trackKey = song.videoId,
-            continuous = !reduce,
-            driftMillis = 9_000,
-        )
+        GlowMesh(colors, moving = !reduce)
     }
     // Keeps the controls readable where the colour is brightest.
     Box(
@@ -569,7 +564,10 @@ private fun TitleRow(song: Song, large: Boolean) {
                 vm.toggleLike(song.videoId)
             }
         }
-        IconTap(Icons.Rounded.MoreHoriz, "More options", iconSize = 24.dp) { g.openSongMenu(song, fromPlayer = true) }
+        IconTap(Icons.Rounded.MoreHoriz, "More options", iconSize = 24.dp) {
+            // On the lyrics screen, the menu is about the lyrics (Metrolist's lyrics menu).
+            if (g.playerPane == PlayerPane.LYRICS) g.lyricsMenuOpen = true else g.openSongMenu(song, fromPlayer = true)
+        }
     }
 }
 

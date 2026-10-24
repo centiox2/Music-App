@@ -82,11 +82,29 @@ fun List<LyricLine>.toLyricsEntries(translated: List<LyricLine>? = null): Pair<L
 
 private fun LyricLine.toEntry(isBackground: Boolean): LyricsEntry {
     val words = if (isWordSynced) {
-        words.mapIndexed { i, w ->
+        words.flatMapIndexed { i, w ->
             val span = wordSpans.getOrNull(i)
-            val trailing = span != null && span.last + 1 < text.length && text[span.last + 1].isWhitespace()
-            WordTimestamp(w.text, w.startMs / 1000.0, w.endMs / 1000.0, trailing || i < words.lastIndex && span == null)
-        }
+            val trailing = span != null && span.last + 1 < text.length && text[span.last + 1].isWhitespace() ||
+                i < words.lastIndex && span == null
+            val start = w.startMs
+            // Some providers send a zero or negative length; the fill then jumped straight to done.
+            val end = w.endMs.coerceAtLeast(start + 1)
+            val clean = w.text.trim()
+            val syllables = w.syllables.filter { it.endChar > it.startChar && it.endChar <= w.text.length }
+            if (syllables.size > 1) {
+                // Syllable timing, where the source has it, lights each part of a long word as it is sung.
+                syllables.mapIndexed { k, syl ->
+                    WordTimestamp(
+                        text = w.text.substring(syl.startChar, syl.endChar).trim(),
+                        startTime = syl.startMs / 1000.0,
+                        endTime = syl.endMs.coerceAtLeast(syl.startMs + 1) / 1000.0,
+                        hasTrailingSpace = k == syllables.lastIndex && trailing,
+                    )
+                }.filter { it.text.isNotEmpty() }
+            } else {
+                listOf(WordTimestamp(clean, start / 1000.0, end / 1000.0, trailing))
+            }
+        }.filter { it.text.isNotEmpty() }
     } else {
         null
     }

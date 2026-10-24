@@ -83,6 +83,8 @@ class GlowState(
     val stack = mutableStateListOf<Route>()
 
     var playerOpen by mutableStateOf(false)
+    var lyricsMenuOpen by mutableStateOf(false)
+    var lyricsEditorOpen by mutableStateOf(false)
 
     /** How far the open player has been pulled down, in px; it follows the finger. */
     var playerDrag by androidx.compose.runtime.mutableFloatStateOf(0f)
