@@ -122,7 +122,7 @@ private fun SearchIdle(onStartTyping: () -> Unit) {
     val c = Glow.colors
     val history by vm.searchHistory.collectAsStateWithLifecycle()
     val explore by vm.explore.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { vm.loadExplore() }
+    LaunchedEffect(Unit) { if (vm.explore.value !is UiState.Success) vm.loadExplore() }
     val voice = rememberVoiceSearch { vm.searchFor(it) }
     val moods = (explore as? UiState.Success)?.data.orEmpty().flatMap { it.items }
 
@@ -697,7 +697,7 @@ fun ExploreScreen() {
     val explore by vm.explore.collectAsStateWithLifecycle()
     val home by vm.home.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(0) }
-    LaunchedEffect(Unit) { vm.loadExplore() }
+    LaunchedEffect(Unit) { if (vm.explore.value !is UiState.Success) vm.loadExplore() }
     val shelves = (home as? UiState.Success)?.data.orEmpty()
     val releases = shelves.filter { s -> listOf("new", "release", "album", "single").any { s.title.contains(it, true) } }
     val charts = shelves.filter { s -> listOf("chart", "top", "trending", "popular").any { s.title.contains(it, true) } }

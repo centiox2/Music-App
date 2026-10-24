@@ -421,23 +421,14 @@ private fun Modifier.pullToClose(g: GlowState): Modifier = pointerInput(Unit) {
 private fun Artwork(song: Song, modifier: Modifier) {
     val g = LocalGlow.current
     val c = Glow.colors
-    val reduce = rememberReduceMotion()
     var dragX by remember { mutableFloatStateOf(0f) }
     val offset by animateFloatAsState(dragX, label = "swipe")
-    // Like a record that's stopped: the cover settles back a little while paused.
-    val playScale by animateFloatAsState(
-        if (g.player.isPlaying || reduce) 1f else 0.88f,
-        androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 260f),
-        label = "artScale",
-    )
     val shadow by animateFloatAsState(if (g.player.isPlaying) 1f else 0.4f, tween(500), label = "artShadow")
     Box(
         modifier
             .graphicsLayer {
                 translationX = offset * 0.35f
                 rotationZ = offset * 0.004f
-                scaleX = playScale
-                scaleY = playScale
             }
             .coverShadow(12.dp, weight = 0.55f + 0.45f * shadow)
             .pullToClose(g)
@@ -1016,10 +1007,14 @@ private fun QueueRow(
     SwipeToDismissBox(
         state = state,
         backgroundContent = {
-            Box(
-                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(c.danger.copy(alpha = 0.25f)).padding(horizontal = 18.dp),
-                contentAlignment = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
-            ) { Icon(Icons.Rounded.Delete, "Remove", tint = c.danger) }
+            // Only while a row is being swiped: the rows are see-through over the player's
+            // background, so a red layer drawn underneath at rest showed through every one.
+            if (state.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                Box(
+                    Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(c.danger.copy(alpha = 0.25f)).padding(horizontal = 18.dp),
+                    contentAlignment = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+                ) { Icon(Icons.Rounded.Delete, "Remove", tint = c.danger) }
+            }
         },
     ) { content() }
 }

@@ -83,8 +83,9 @@ fun HomeScreen() {
     val online = rememberOnline()
 
     LaunchedEffect(Unit) {
-        vm.onHomeShown()
-        vm.loadExplore()
+        // Loaded once; after that Home only reloads when pulled down. (BitChord refreshed it
+        // on every return once a song had played, and re-read the moods each time too.)
+        if (vm.explore.value !is UiState.Success) vm.loadExplore()
     }
 
     val shelves = (home as? UiState.Success)?.data.orEmpty()

@@ -136,6 +136,8 @@ class GlowState(
     val top: Route? get() = stack.lastOrNull()
 
     fun push(route: Route) {
+        // Opening the page that's already showing does nothing (and two copies would share saved state).
+        if (stack.lastOrNull() == route) return
         stack.add(route)
     }
 

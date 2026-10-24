@@ -261,6 +261,7 @@ private fun GlowRoot(state: GlowState) {
         state.wide = maxWidth >= 840.dp
         val railWidth = if (state.wide) RailWidth else 0.dp
         // Pages.
+        val pageStates = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
         AnimatedContent(
             modifier = Modifier.padding(start = railWidth),
             targetState = state.top to state.tab,
@@ -276,6 +277,9 @@ private fun GlowRoot(state: GlowState) {
             },
             label = "pages",
         ) { (route, tab) ->
+            // Each page keeps its saved state (scroll position, what has animated in) while away,
+            // so coming back to Home doesn't look like a reload.
+            pageStates.SaveableStateProvider(route?.toString() ?: "tab$tab") {
             Box(Modifier.fillMaxSize()) {
                 when (route) {
                     null -> when (tab) {
@@ -305,6 +309,7 @@ private fun GlowRoot(state: GlowState) {
                     Route.JoinSession -> JoinSessionScreen()
                 }
             }
+        }
         }
 
         // Mini player + tabs, hidden on the full-screen pages that don't show them.
