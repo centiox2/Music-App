@@ -1,6 +1,9 @@
 package com.music.bitchord.ui.glow
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -159,6 +162,22 @@ fun PlayerScreen() {
 }
 
 /**
+ * Fades a pane in and out by modulating the alpha of what it draws rather than
+ * compositing it offscreen, so shadows outside its bounds aren't clipped.
+ */
+@Composable
+private fun Modifier.paneFade(scope: androidx.compose.animation.AnimatedVisibilityScope): Modifier {
+    val alpha by scope.transition.animateFloat(
+        transitionSpec = { tween(if (targetState == androidx.compose.animation.EnterExitState.Visible) 200 else 150) },
+        label = "paneAlpha",
+    ) { if (it == androidx.compose.animation.EnterExitState.Visible) 1f else 0f }
+    return graphicsLayer {
+        this.alpha = alpha
+        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+    }
+}
+
+/**
  * Behind the player: a slow liquid mesh of the cover's colours (BitChord's
  * mesh gradient, left running), or the still glow when that's turned off.
  */
@@ -208,18 +227,24 @@ private fun PortraitPlayer(song: Song) {
         PlayerHeader(song)
         AnimatedContent(
             targetState = g.playerPane,
-            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
+            // The fade is drawn by paneFade below, not by AnimatedContent: its own fade renders
+            // each pane into an offscreen layer the size of the pane, which cut the cover's
+            // shadow off mid-switch and only drew it once the fade had finished.
+            transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
             modifier = Modifier.weight(1f),
             label = "pane",
         ) { pane ->
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().paneFade(this)) {
                 when (pane) {
                     PlayerPane.NOW_PLAYING -> {
+                        // Same total fixed space as before (24dp), so the cover doesn't move:
+                        // the title sits close under it and the slack goes below the title.
                         Spacer(Modifier.weight(0.5f))
                         Artwork(song, Modifier.fillMaxWidth().aspectRatio(1f))
-                        Spacer(Modifier.weight(0.5f))
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(16.dp))
                         TitleRow(song, large = true)
+                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.weight(0.5f))
                     }
                     PlayerPane.LYRICS -> {
                         LyricsPane(Modifier.weight(1f))
