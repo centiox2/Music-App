@@ -567,14 +567,27 @@ fun SongRow(
     /** The row's track, when it is one: the row then marks itself while that track plays. */
     videoId: String? = null,
     selected: Boolean = false,
+    /** The row's song, when it can be multi-selected by long-press. */
+    song: Song? = null,
 ) {
     val c = Glow.colors
-    val player = LocalGlow.current.player
+    val g = LocalGlow.current
+    val player = g.player
+    val pool = LocalSelectionPool.current
+    val ownedPlaylist = LocalSelectionPlaylist.current
+    val isSelected = selected || (song != null && g.isSelected(song))
+    // While selecting, a tap adds or removes the row; a long-press starts selecting.
+    val rowClick: () -> Unit = if (song != null && g.selecting) ({ g.toggleSelected(song) }) else onClick
+    val rowLongClick: (() -> Unit)? = if (song != null) {
+        { if (g.selecting) g.toggleSelected(song) else g.startSelection(song, pool.ifEmpty { listOf(song) }, ownedPlaylist) }
+    } else {
+        onLongClick
+    }
     val playing = active || (videoId != null && player.song?.videoId == videoId)
     val interaction = remember { MutableInteractionSource() }
     val highlight by animateColorAsState(
         when {
-            selected -> c.primary.copy(alpha = 0.16f)
+            isSelected -> c.primary.copy(alpha = 0.16f)
             playing -> c.glass
             else -> Color.Transparent
         },
@@ -584,7 +597,7 @@ fun SongRow(
         modifier
             .fillMaxWidth()
             .pressScale(interaction, 0.98f)
-            .combinedClickable(interaction, ripple(), onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(interaction, ripple(), onClick = rowClick, onLongClick = rowLongClick)
             .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(highlight)
@@ -592,9 +605,11 @@ fun SongRow(
             .alpha(if (dimmed) 0.45f else 1f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (selected) {
-            GlowCheckbox(true)
-            Spacer(Modifier.width(12.dp))
+        androidx.compose.animation.AnimatedVisibility(song != null && g.selecting) {
+            Row {
+                GlowCheckbox(isSelected)
+                Spacer(Modifier.width(12.dp))
+            }
         }
         if (leading != null) {
             leading()
@@ -653,9 +668,9 @@ fun TrackRow(
         active = active,
         dimmed = dimmed,
         onClick = onClick,
-        onLongClick = onMore,
         trailing = trailing ?: { MoreButton(onMore) },
         videoId = song.videoId,
+        song = song,
     )
 }
 

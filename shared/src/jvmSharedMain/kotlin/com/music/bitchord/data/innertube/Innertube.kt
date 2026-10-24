@@ -1024,6 +1024,9 @@ object Innertube {
                 addJsonObject {
                     put("action", "ACTION_ADD_VIDEO")
                     put("addedVideoId", videoId)
+                    // YouTube skips a track that's already there instead of adding it twice,
+                    // so callers needn't read the whole playlist first to check.
+                    put("dedupeOption", "DEDUPE_OPTION_SKIP")
                 }
             }
         }

@@ -68,6 +68,13 @@ object GlowPrefs {
     /** Drop shadow under large covers, 0 (off) to 1 (deep). */
     val coverShadow: StateFlow<Float> = _coverShadow.asStateFlow()
 
+    private val _autoSync = MutableStateFlow(true)
+    /** Sync the YouTube library by itself when the app returns after a while. */
+    val autoSync: StateFlow<Boolean> = _autoSync.asStateFlow()
+
+    private val _lastSync = MutableStateFlow(0L)
+    val lastSync: StateFlow<Long> = _lastSync.asStateFlow()
+
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
@@ -91,6 +98,8 @@ object GlowPrefs {
         _glowIntensity.value = p.getFloat("glow_intensity", 1f)
         _swipeMiniPlayer.value = p.getBoolean("swipe_mini_player", true)
         _haptics.value = p.getBoolean("haptics", true)
+        _autoSync.value = p.getBoolean("auto_sync", true)
+        _lastSync.value = p.getLong("last_sync", 0L)
         _liquidBackground.value = p.getBoolean("liquid_background", true)
         _coverShadow.value = p.getFloat("cover_shadow", 0.7f)
     }
@@ -137,4 +146,6 @@ object GlowPrefs {
     fun setHaptics(value: Boolean) { _haptics.value = value; prefs?.edit()?.putBoolean("haptics", value)?.apply() }
     fun setLiquidBackground(value: Boolean) { _liquidBackground.value = value; prefs?.edit()?.putBoolean("liquid_background", value)?.apply() }
     fun setCoverShadow(value: Float) { _coverShadow.value = value; prefs?.edit()?.putFloat("cover_shadow", value)?.apply() }
+    fun setAutoSync(value: Boolean) { _autoSync.value = value; prefs?.edit()?.putBoolean("auto_sync", value)?.apply() }
+    fun setLastSync(value: Long) { _lastSync.value = value; prefs?.edit()?.putLong("last_sync", value)?.apply() }
 }

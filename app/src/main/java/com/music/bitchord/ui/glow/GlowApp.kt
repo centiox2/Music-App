@@ -1,5 +1,10 @@
 package com.music.bitchord.ui.glow
 
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -55,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -226,7 +232,24 @@ private fun GlowRoot(state: GlowState) {
     }
 
     // ---- back ----
-    BackHandler(enabled = state.playerOpen || state.devicesOpen || state.stack.isNotEmpty()) {
+    // Automatic account sync: when the app comes back to the front after 15 minutes or more.
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && GlowPrefs.autoSync.value &&
+                System.currentTimeMillis() - GlowPrefs.lastSync.value > 15 * 60_000L
+            ) {
+                GlowPrefs.setLastSync(System.currentTimeMillis())
+                state.syncAccount(quiet = true)
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    BackHandler(enabled = state.selecting) { state.clearSelection() }
+    // Leaving the page a selection was made on ends it.
+    LaunchedEffect(state.top, state.tab) { state.clearSelection() }
+    BackHandler(enabled = !state.selecting && (state.playerOpen || state.devicesOpen || state.stack.isNotEmpty())) {
         when {
             state.devicesOpen -> state.devicesOpen = false
             state.playerOpen -> state.playerOpen = false
@@ -303,7 +326,12 @@ private fun GlowRoot(state: GlowState) {
             ) {
                 ToastHost(state)
                 AnimatedVisibility(
-                    visible = player.song != null,
+                    visible = state.selecting,
+                    enter = slideInVertically { it } + fadeIn(),
+                    exit = slideOutVertically { it } + fadeOut(),
+                ) { SelectionBar(state) }
+                AnimatedVisibility(
+                    visible = player.song != null && !state.selecting,
                     enter = slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 380f)) { it } + fadeIn(),
                     exit = slideOutVertically { it } + fadeOut(),
                 ) { MiniPlayer(state) }
@@ -733,5 +761,73 @@ fun GlowState.openShelfItem(item: ShelfItem, shelfTitle: String) {
     when {
         song != null -> playSingle(song, shelfTitle)
         item.browseId != null -> openDetail(item.browseId!!, item.title, item.subtitle, item.thumbnailUrl)
+    }
+}
+
+/** Stands in for the mini player while songs are selected: what can be done with all of them. */
+@Composable
+private fun SelectionBar(state: GlowState) {
+    val c = Glow.colors
+    val songs = state.selection.toList()
+    val n = songs.size
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.sheet)
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+            IconTap(Icons.Rounded.Close, "Cancel selection", size = 36.dp) { state.clearSelection() }
+            Text(if (n == 1) "1 song" else "$n songs", style = GlowType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, modifier = Modifier.weight(1f).padding(start = 6.dp))
+            val all = state.selectionPool.size > n
+            TextAction(if (all) "Select all" else "Clear") {
+                if (all) {
+                    state.selection.clear()
+                    state.selection.addAll(state.selectionPool)
+                } else {
+                    state.clearSelection()
+                }
+            }
+        }
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(horizontal = 6.dp),
+            modifier = Modifier.padding(top = 6.dp),
+        ) {
+            item { SelectionAction(Icons.Rounded.PlayArrow, "Play") { state.playList(songs, 0, "Selection", com.music.bitchord.data.model.PlaybackSourceType.QUEUE); state.clearSelection() } }
+            item { SelectionAction(Icons.Rounded.SkipNext, "Play next") { state.actions.queueSongs(songs, next = true); state.clearSelection() } }
+            item { SelectionAction(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { state.actions.queueSongs(songs, next = false); state.clearSelection() } }
+            item { SelectionAction(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { state.saveToPlaylist = songs; state.clearSelection() } }
+            item { SelectionAction(Icons.Rounded.Download, "Download") { state.actions.download(songs); state.clearSelection() } }
+            state.selectionPlaylist?.let { playlist ->
+                item {
+                    SelectionAction(Icons.Rounded.Delete, "Remove", danger = true) {
+                        state.vm.removeFromPlaylist(playlist, songs) { ok -> if (!ok) state.notify("Couldn't remove those songs") }
+                        state.notify(if (n == 1) "Removed 1 song" else "Removed $n songs")
+                        state.clearSelection()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectionAction(icon: ImageVector, label: String, danger: Boolean = false, onClick: () -> Unit) {
+    val c = Glow.colors
+    val tint = if (danger) c.danger else c.text
+    Column(
+        Modifier
+            .width(76.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(c.glass)
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, style = GlowType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium), color = tint, maxLines = 1)
     }
 }

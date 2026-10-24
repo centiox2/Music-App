@@ -208,6 +208,32 @@ class GlowState(
         }
     }
 
+    /** Like or unlike, and show it on Liked songs at once rather than after YouTube's next read. */
+    fun toggleLike(song: Song) {
+        val nowLiked = vm.likeStatuses.value[song.videoId] != com.music.bitchord.data.model.LikeStatus.LIKE
+        vm.toggleLike(song.videoId)
+        if (nowLiked) LikedSongsCache.liked(song)
+    }
+
+    /**
+     * Brings the library, playlists and likes up to date with the YouTube
+     * account. Pulled down on Library, tapped in Settings, or run on its own
+     * when the app comes back after a while (Settings → Account sync).
+     */
+    fun syncAccount(quiet: Boolean = false) {
+        if (!vm.signedIn.value) return
+        vm.refresh(com.music.bitchord.ui.MainViewModel.Feed.LIBRARY)
+        vm.loadPlaylists()
+        GlowPrefs.setLastSync(System.currentTimeMillis())
+        scope.launch {
+            com.music.bitchord.data.YtMusicRepository.allSongs(com.music.bitchord.data.YtMusicRepository.LIKED_MUSIC).onSuccess {
+                LikedSongsCache.songs.value = it
+                LikedSongsCache.complete.value = true
+            }
+            if (!quiet) notify("Library synced with YouTube Music")
+        }
+    }
+
     private val linkCache = HashMap<String, Song>()
 
     private suspend fun links(song: Song): Song? =
@@ -241,11 +267,46 @@ class GlowState(
             ),
         )
 
-    fun openSongMenu(song: Song, fromPlayer: Boolean = false) {
+    fun openSongMenu(song: Song, fromPlayer: Boolean = false, playlist: String? = null) {
         songMenuFromPlayer = fromPlayer
+        songMenuPlaylist = playlist
         songMenu = song
         vm.loadSongMenu(song.videoId)
     }
+
+    /** The user's own playlist the open song menu was raised from, so it can offer removal. */
+    var songMenuPlaylist by mutableStateOf<String?>(null)
+
+    // ---- multi-select ----
+
+    /** Songs picked by long-press; non-empty means selection mode. */
+    val selection = mutableStateListOf<Song>()
+    /** The owned playlist the selection was made in, for "Remove from playlist". */
+    var selectionPlaylist by mutableStateOf<String?>(null)
+    /** Everything selectable on the page the selection started on, for "Select all". */
+    var selectionPool by mutableStateOf<List<Song>>(emptyList())
+
+    val selecting get() = selection.isNotEmpty()
+
+    fun startSelection(song: Song, pool: List<Song>, playlist: String?) {
+        selection.clear()
+        selection.add(song)
+        selectionPool = pool
+        selectionPlaylist = playlist
+    }
+
+    fun toggleSelected(song: Song) {
+        val i = selection.indexOfFirst { it.videoId == song.videoId && it.setVideoId == song.setVideoId }
+        if (i >= 0) selection.removeAt(i) else selection.add(song)
+    }
+
+    fun clearSelection() {
+        selection.clear()
+        selectionPool = emptyList()
+        selectionPlaylist = null
+    }
+
+    fun isSelected(song: Song) = selection.any { it.videoId == song.videoId && it.setVideoId == song.setVideoId }
 
     fun cycleRepeat() {
         val c = controller ?: return
@@ -282,3 +343,23 @@ class GlowState(
 }
 
 val LocalGlow = staticCompositionLocalOf<GlowState> { error("GlowState not provided") }
+
+/**
+ * Every liked song, kept between visits to Liked songs: the page used to start
+ * from the library's first 100 every time and only show the true count once
+ * the rest had been read again.
+ */
+object LikedSongsCache {
+    val songs = kotlinx.coroutines.flow.MutableStateFlow<List<Song>?>(null)
+    val complete = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    fun liked(song: Song) {
+        songs.value = songs.value?.let { list -> listOf(song) + list.filterNot { it.videoId == song.videoId } }
+    }
+}
+
+/** The songs a page lists, so a long-press there can "Select all" of them. */
+val LocalSelectionPool = androidx.compose.runtime.compositionLocalOf<List<Song>> { emptyList() }
+
+/** Set by a page showing the user's own playlist: selections made there can be removed from it. */
+val LocalSelectionPlaylist = androidx.compose.runtime.compositionLocalOf<String?> { null }

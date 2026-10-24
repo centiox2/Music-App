@@ -84,6 +84,7 @@ import java.time.format.DateTimeFormatter
 private val LIBRARY_TABS = listOf("Playlists", "Songs", "Albums", "Artists", "Downloads")
 
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun LibraryScreen() {
     val g = LocalGlow.current
     val vm = g.vm
@@ -91,10 +92,28 @@ fun LibraryScreen() {
     val signedIn by vm.signedIn.collectAsStateWithLifecycle()
     val library by vm.library.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(0) }
-    LaunchedEffect(signedIn) { if (signedIn) vm.onLibraryShown() }
+    LaunchedEffect(signedIn) {
+        if (!signedIn) return@LaunchedEffect
+        vm.onLibraryShown()
+        // The full liked list, read once in the background, so its count is right before Liked songs is opened.
+        if (LikedSongsCache.songs.value == null) {
+            YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
+                LikedSongsCache.songs.value = it
+                LikedSongsCache.complete.value = true
+            }
+        }
+    }
+    val likedAll by LikedSongsCache.songs.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
     val page = (library as? UiState.Success)?.data
 
     GlowScreen(glowUrl = g.player.song?.thumbnailUrl) {
+        // Pull down to sync the library with the YouTube account.
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = MainViewModel.Feed.LIBRARY in refreshing,
+            onRefresh = { g.syncAccount() },
+            modifier = Modifier.fillMaxSize(),
+        ) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
                 PageHeader("Library") {
@@ -125,7 +144,7 @@ fun LibraryScreen() {
                     }
                 }
                 is UiState.Success -> when (tab) {
-                    0 -> playlistsTab(g, state.data.shelves, state.data.likedSongs.size)
+                    0 -> playlistsTab(g, state.data.shelves, likedAll?.size ?: state.data.likedSongs.size, likedExact = likedAll != null)
                     1 -> songsTab(g, state.data.librarySongs)
                     2 -> albumsTab(g, state.data.shelves.firstOrNull { it.title == "Albums" }?.items.orEmpty())
                     else -> artistsTab(
@@ -139,6 +158,7 @@ fun LibraryScreen() {
             if (page == null && library !is UiState.Loading && library !is UiState.Error) {
                 item { SkeletonRows(5) }
             }
+        }
         }
     }
 }
@@ -198,7 +218,7 @@ private fun CollectionCard(
 
 private enum class PlaylistSort(val label: String) { RECENT("Recently added"), AZ("A–Z") }
 
-private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, likedCount: Int) {
+private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, likedCount: Int, likedExact: Boolean = false) {
     item {
         val saved by Downloads.saved.collectAsStateWithLifecycle()
         var sort by rememberSaveable { mutableStateOf(PlaylistSort.RECENT) }
@@ -225,7 +245,7 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
             }
             Spacer(Modifier.height(8.dp))
             Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CollectionCard("Liked songs", if (likedCount > 0) "$likedCount+ songs" else "Songs you like", Icons.Rounded.Favorite, Modifier.weight(1f)) {
+                CollectionCard("Liked songs", if (likedCount > 0) (if (likedExact) "$likedCount songs" else "$likedCount+ songs") else "Songs you like", Icons.Rounded.Favorite, Modifier.weight(1f)) {
                     g.push(Route.Liked)
                 }
                 CollectionCard("Downloads", "${saved.size} songs", Icons.Rounded.Download, Modifier.weight(1f), accent = true) {
@@ -309,13 +329,15 @@ private fun LazyListScope.songsTab(g: GlowState, songs: List<Song>) {
                     },
                     onClick = { g.actions.shuffle(sorted, g.source("Library", PlaybackSourceType.BROWSE)) },
                 )
-                sorted.forEachIndexed { i, song ->
-                    TrackRow(
-                        song,
-                        onClick = { g.playList(sorted, i, "Library", PlaybackSourceType.BROWSE) },
-                        onMore = { g.openSongMenu(song) },
-                        active = g.player.song?.videoId == song.videoId,
-                    )
+                androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted) {
+                    sorted.forEachIndexed { i, song ->
+                        TrackRow(
+                            song,
+                            onClick = { g.playList(sorted, i, "Library", PlaybackSourceType.BROWSE) },
+                            onMore = { g.openSongMenu(song) },
+                            active = g.player.song?.videoId == song.videoId,
+                        )
+                    }
                 }
             }
         }
@@ -391,15 +413,23 @@ fun LikedSongsScreen() {
     val likes by vm.likeStatuses.collectAsStateWithLifecycle()
     val saved by Downloads.saved.collectAsStateWithLifecycle()
     val firstPage = (library as? UiState.Success)?.data?.likedSongs.orEmpty()
-    val all by produceState(firstPage, firstPage) {
-        YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess { value = it }
+    val cached by LikedSongsCache.songs.collectAsStateWithLifecycle()
+    val complete by LikedSongsCache.complete.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        // Refreshed each visit, but what was read last time shows meanwhile.
+        YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
+            LikedSongsCache.songs.value = it
+            LikedSongsCache.complete.value = true
+        }
     }
+    val all = cached ?: firstPage
     val songs = all.filter { likes[it.videoId] != LikeStatus.INDIFFERENT && likes[it.videoId] != LikeStatus.DISLIKE }
     var sortRecent by rememberSaveable { mutableStateOf(true) }
     val sorted = if (sortRecent) songs else songs.sortedBy { it.title.lowercase() }
     val totalMs = songs.sumOf { it.durationMillis() }
     val allDownloaded = songs.isNotEmpty() && songs.all { it.videoId in saved }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted) {
     GlowScreen(glowUrl = songs.firstOrNull()?.thumbnailUrl) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
@@ -413,7 +443,9 @@ fun LikedSongsScreen() {
                     Column {
                         Text("Liked songs", style = GlowType.display, color = c.text)
                         Text(
-                            "${songs.size} songs" + if (totalMs > 0) " · ${formatLongDuration(totalMs)}" else "",
+                            // Until every page is read, the count is a floor, and says so.
+                            (if (complete || cached != null) "${songs.size} songs" else "${songs.size}+ songs") +
+                                if (totalMs > 0 && (complete || cached != null)) " · ${formatLongDuration(totalMs)}" else "",
                             style = GlowType.bodyRegular,
                             color = c.textSecondary,
                         )
@@ -461,6 +493,7 @@ fun LikedSongsScreen() {
                 )
             }
         }
+    }
     }
 }
 

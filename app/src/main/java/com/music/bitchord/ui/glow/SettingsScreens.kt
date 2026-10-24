@@ -186,6 +186,19 @@ fun SettingsScreen() {
         SettingEntry("Lyrics translation", "Lyrics") {
             SettingRow("Translation", icon = Icons.Rounded.Translate, value = if (translate) translateProvider.label else "Off", chevron = true) { g.push(Route.SettingsTranslation) }
         },
+        SettingEntry("Sync now", "Account sync") {
+            val lastSync by GlowPrefs.lastSync.collectAsStateWithLifecycle()
+            SettingRow(
+                "Sync now",
+                icon = Icons.Rounded.Refresh,
+                subtitle = if (!signedIn) "Sign in to sync your library" else if (lastSync == 0L) "Library, playlists and likes" else "Last synced " +
+                    android.text.format.DateUtils.getRelativeTimeSpanString(lastSync, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS),
+            ) { g.syncAccount() }
+        },
+        SettingEntry("Sync automatically", "Account sync") {
+            val auto by GlowPrefs.autoSync.collectAsStateWithLifecycle()
+            SwitchRow("Sync automatically", auto, GlowPrefs::setAutoSync, icon = Icons.Rounded.Autorenew, subtitle = "When you come back to the app after a while. You can also pull down on Library.")
+        },
         SettingEntry("Downloads & storage", "Downloads") {
             SettingRow("Downloads & storage", icon = Icons.Rounded.Storage, chevron = true) { g.push(Route.SettingsStorage) }
         },

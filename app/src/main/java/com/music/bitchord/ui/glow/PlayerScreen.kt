@@ -561,7 +561,7 @@ private fun TitleRow(song: Song, large: Boolean) {
                 modifier = Modifier.popOnChange(liked, enabled = liked),
             ) {
                 haptic()
-                vm.toggleLike(song.videoId)
+                g.toggleLike(song)
             }
         }
         IconTap(Icons.Rounded.MoreHoriz, "More options", iconSize = 24.dp) {

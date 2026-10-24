@@ -1028,9 +1028,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
             ?.songs as? UiState.Success)?.data
-        val known = openSongs
-            ?: YtMusicRepository.allSongs(playlist.browseId).getOrNull()
-        if (known?.any { it.videoId == song.videoId } == true) return AddOutcome.ALREADY_THERE
+        // Only the open page is checked up front. Reading every page of a long playlist
+        // first made each add wait seconds; YouTube now skips duplicates itself.
+        if (openSongs?.any { it.videoId == song.videoId } == true) return AddOutcome.ALREADY_THERE
         return YtMusicRepository.addToPlaylist(playlist.playlistId, listOf(song.videoId)).fold(
             onSuccess = { added ->
                 libraryStale = true
@@ -1161,31 +1161,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Drops [song] from the playlist page it is being read on, and takes the
      * row out from under the reader rather than waiting for a re-fetch.
      */
-    fun removeFromPlaylist(browseId: String, song: Song) {
-        val setVideoId = song.setVideoId ?: return
-        if (!requireSignIn()) return
+    fun removeFromPlaylist(browseId: String, song: Song, onResult: (Boolean) -> Unit = {}) =
+        removeFromPlaylist(browseId, listOf(song), onResult)
+
+    /**
+     * Takes [songs] out of the user's playlist [browseId]. The rows go at
+     * once and come back if YouTube refuses, so a removal never waits on
+     * the network to show.
+     */
+    fun removeFromPlaylist(browseId: String, songs: List<Song>, onResult: (Boolean) -> Unit = {}) {
+        val entries = songs.mapNotNull { s -> s.setVideoId?.let { it to s.videoId } }
+        if (entries.isEmpty() || !requireSignIn()) return onResult(false)
         val playlistId = browseId.removePrefix("VL")
+        val removed = entries.map { it.first }.toSet()
+        val before = _detailStack.value
+        _detailStack.value = before.map { page ->
+            val list = (page.songs as? UiState.Success)?.data
+            if (page.browseId != browseId || list == null) page
+            else page.copy(songs = UiState.Success(list.filterNot { it.setVideoId in removed }))
+        }
         viewModelScope.launch {
-            YtMusicRepository.removeFromPlaylist(
-                playlistId,
-                listOf(setVideoId to song.videoId),
-            ).fold(
+            YtMusicRepository.removeFromPlaylist(playlistId, entries).fold(
                 onSuccess = {
                     libraryStale = true
-                    _detailStack.value = _detailStack.value.map { page ->
-                        val songs = (page.songs as? UiState.Success)?.data
-                        if (page.browseId != browseId || songs == null) {
-                            page
-                        } else {
-                            page.copy(
-                                songs = UiState.Success(
-                                    songs.filterNot { it.setVideoId == setVideoId },
-                                ),
-                            )
-                        }
-                    }
+                    onResult(true)
                 },
-                onFailure = {},
+                onFailure = {
+                    _detailStack.value = _detailStack.value.map { page ->
+                        before.firstOrNull { it.browseId == page.browseId && page.browseId == browseId } ?: page
+                    }
+                    onResult(false)
+                },
             )
         }
     }
@@ -1804,7 +1810,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadLibrary() {
         if (!_signedIn.value) return
         val identity = listenerKey()
-        _library.value = UiState.Loading
+        // Last session's library first, so the tab isn't blank while every page is read again.
+        val snapshot = com.music.bitchord.data.LibrarySnapshot.load(getApplication(), identity)
+        _library.value = snapshot?.let { UiState.Success(it) } ?: UiState.Loading
         viewModelScope.launch { fetchLibrary(identity) }
     }
 
@@ -1817,11 +1825,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // a liked track past the first page still reads as liked.
                 page.likedContinuation?.let { token -> syncLikedMusic(identity, token) }
                 if (page.isEmpty) UiState.Error(text(R.string.library_empty))
-                else UiState.Success(page.copy(likedContinuation = null))
+                else UiState.Success(page.copy(likedContinuation = null)).also {
+                    com.music.bitchord.data.LibrarySnapshot.save(getApplication(), identity, it.data)
+                }
             },
             onFailure = { UiState.Error(it.friendly()) },
         )
-        if (identity == listenerKey()) _library.value = next
+        // A failed refresh keeps the snapshot on screen rather than replacing it with an error.
+        if (identity == listenerKey() && !(next is UiState.Error && _library.value is UiState.Success)) _library.value = next
     }
 
     /**
@@ -3411,6 +3422,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         authStore.signOut()
+        com.music.bitchord.data.LibrarySnapshot.clear(getApplication())
         Innertube.cookie = null
         // The mirror image: verdicts reached with a session in hand say nothing
         // about what an anonymous walk will be told, and the clients stood down

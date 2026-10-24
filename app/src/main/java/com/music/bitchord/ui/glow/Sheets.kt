@@ -108,7 +108,7 @@ fun SongMenuSheet(song: Song, onDismiss: () -> Unit) {
             }
             if (signedIn) {
                 IconTap(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) "Unlike" else "Like") {
-                    vm.toggleLike(song.videoId)
+                    g.toggleLike(song)
                 }
             }
         }
@@ -167,6 +167,16 @@ fun SongMenuSheet(song: Song, onDismiss: () -> Unit) {
                         g.player.hasNext
                     ) {
                         g.controller?.seekToNext()
+                    }
+                }
+            }
+        }
+        g.songMenuPlaylist?.let { playlist ->
+            if (song.setVideoId != null) {
+                MenuRow(Icons.Rounded.Delete, "Remove from this playlist", danger = true) {
+                    close {
+                        vm.removeFromPlaylist(playlist, song) { ok -> if (!ok) g.notify("Couldn't remove ${song.title}") }
+                        g.notify("Removed from playlist", detail = song.title, artworkUrl = song.thumbnailUrl)
                     }
                 }
             }

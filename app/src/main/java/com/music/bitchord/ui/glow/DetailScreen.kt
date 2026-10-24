@@ -113,6 +113,10 @@ private fun ReleasePageScreen(page: DetailPage) {
     val isOwned = owned[page.browseId] == true
     val target = DownloadTarget(page.browseId, page.title, page.subtitle, page.thumbnailUrl, playlist = isPlaylist)
 
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalSelectionPool provides songs,
+        LocalSelectionPlaylist provides page.browseId.takeIf { isOwned },
+    ) {
     GlowScreen(glowUrl = page.thumbnailUrl) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
@@ -225,11 +229,17 @@ private fun ReleasePageScreen(page: DetailPage) {
                             null
                         },
                         onClick = { g.actions.playDetail(page, songs, index, vm::takePlaybackContext) },
+                        song = song,
                         trailing = {
                             if (song.videoId in saved) {
                                 Icon(Icons.Rounded.Check, "Downloaded", tint = c.textTertiary, modifier = Modifier.size(16.dp))
                             }
-                            MoreButton { g.openSongMenu(if (page.type == BrowseType.ALBUM) song.copy(albumName = song.albumName ?: page.title, albumId = song.albumId ?: page.browseId) else song) }
+                            MoreButton {
+                                g.openSongMenu(
+                                    if (page.type == BrowseType.ALBUM) song.copy(albumName = song.albumName ?: page.title, albumId = song.albumId ?: page.browseId) else song,
+                                    playlist = page.browseId.takeIf { isOwned },
+                                )
+                            }
                         },
                     )
                 }
@@ -254,6 +264,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                 ShelfSection(shelf)
             }
         }
+    }
     }
 
     if (menuOpen) {
