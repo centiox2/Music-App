@@ -75,7 +75,7 @@ fun LyricsMenuSheet(onDismiss: () -> Unit) {
     val song = g.player.song
     val close: (() -> Unit) -> Unit = { action -> onDismiss(); action() }
 
-    GlowSheet(onDismiss) {
+    GlowSheet(onDismiss, color = playerSheetColor(song?.thumbnailUrl)) {
         Text("Lyrics", style = GlowType.title, color = c.text)
         Text(
             when {

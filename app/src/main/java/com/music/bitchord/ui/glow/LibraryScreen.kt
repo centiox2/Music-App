@@ -222,6 +222,7 @@ private enum class PlaylistSort(val label: String) { RECENT("Recently added"), A
 private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, likedCount: Int, likedExact: Boolean = false) {
     item {
         val saved by Downloads.saved.collectAsStateWithLifecycle()
+        val collections by Downloads.collections.collectAsStateWithLifecycle()
         var sort by rememberSaveable { mutableStateOf(PlaylistSort.RECENT) }
         var grid by rememberSaveable { mutableStateOf(false) }
         val c = Glow.colors
@@ -267,7 +268,7 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
                     Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         pair.forEach { item ->
                             Column(Modifier.weight(1f).clickable { g.openShelfItem(item, "Library") }) {
-                                SquareCover(item.thumbnailUrl)
+                                SquareCover(item.thumbnailUrl, downloaded = isFullyDownloaded(item.browseId, collections, saved))
                                 Spacer(Modifier.height(8.dp))
                                 GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                                 GlowText(item.subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
@@ -284,6 +285,7 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
                         item.thumbnailUrl,
                         coverSize = 52.dp,
                         onClick = { g.openShelfItem(item, "Library") },
+                        downloaded = isFullyDownloaded(item.browseId, collections, saved),
                     )
                 }
             }
@@ -436,10 +438,13 @@ fun LikedSongsScreen() {
             item {
                 TopBar(onBack = { g.pop() })
                 Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(120.dp).clip(RoundedCornerShape(14.dp)).background(c.primary),
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Favorite, null, tint = c.onPrimary, modifier = Modifier.size(48.dp)) }
+                    Box {
+                        Box(
+                            Modifier.size(120.dp).clip(RoundedCornerShape(14.dp)).background(c.primary),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.Favorite, null, tint = c.onPrimary, modifier = Modifier.size(48.dp)) }
+                        if (allDownloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(8.dp), size = 24.dp)
+                    }
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text("Liked songs", style = GlowType.display, color = c.text)
@@ -452,7 +457,7 @@ fun LikedSongsScreen() {
                         )
                         if (allDownloaded) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.Check, null, tint = c.textSecondary, modifier = Modifier.size(16.dp))
+                                DownloadedMark(c.textSecondary)
                                 Spacer(Modifier.width(6.dp))
                                 Text("Downloaded", style = GlowType.secondary, color = c.textSecondary)
                             }

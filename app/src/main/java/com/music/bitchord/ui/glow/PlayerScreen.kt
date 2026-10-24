@@ -103,6 +103,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -178,8 +180,9 @@ private fun Modifier.paneFade(scope: androidx.compose.animation.AnimatedVisibili
 }
 
 /**
- * Behind the player: a slow liquid mesh of the cover's colours (BitChord's
- * mesh gradient, left running), or the still glow when that's turned off.
+ * Behind the player: the cover itself, turned, twisted and blurred into a
+ * liquid (see [LiquidArtwork]), a mesh of a fixed colour when the glow isn't
+ * taken from the artwork, or the still glow when that's turned off.
  */
 @Composable
 private fun PlayerBackdrop(song: Song) {
@@ -200,7 +203,11 @@ private fun PlayerBackdrop(song: Song) {
     }
     // Opaque at the default strength, so the colours on screen are the cover's.
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = intensity.coerceIn(0.3f, 1f) }) {
-        GlowMesh(palette, moving = !reduce, dark = c.isDark)
+        if (fromArtwork) {
+            LiquidArtwork(song.thumbnailUrl, palette, moving = !reduce, dark = c.isDark)
+        } else {
+            GlowMesh(palette, moving = !reduce, dark = c.isDark)
+        }
     }
     // Only enough shade to keep the controls readable, mostly at the bottom where they are.
     Box(
@@ -237,14 +244,12 @@ private fun PortraitPlayer(song: Song) {
             Column(Modifier.fillMaxSize().paneFade(this)) {
                 when (pane) {
                     PlayerPane.NOW_PLAYING -> {
-                        // Same total fixed space as before (24dp), so the cover doesn't move:
-                        // the title sits close under it and the slack goes below the title.
-                        Spacer(Modifier.weight(0.5f))
+                        // Laid out like the reference: cover, title, seek bar and controls sit
+                        // together at set gaps above the bottom bar; spare height goes above the cover.
+                        Spacer(Modifier.weight(1f))
                         Artwork(song, Modifier.fillMaxWidth().aspectRatio(1f))
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(30.dp))
                         TitleRow(song, large = true)
-                        Spacer(Modifier.height(8.dp))
-                        Spacer(Modifier.weight(0.5f))
                     }
                     PlayerPane.LYRICS -> {
                         LyricsPane(Modifier.weight(1f))
@@ -255,13 +260,16 @@ private fun PortraitPlayer(song: Song) {
                 }
             }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(26.dp))
         SeekBar()
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(25.dp))
         Controls()
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(32.dp))
         PaneBar()
-        Spacer(Modifier.height(12.dp))
+        // As in the reference, the bar sits about 50dp off the bottom edge, counting the
+        // system's navigation area, so the cover and controls keep their places with it.
+        val navInset = with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
+        Spacer(Modifier.height((50.dp - navInset).coerceAtLeast(12.dp)))
     }
 }
 

@@ -43,7 +43,7 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.DownloadForOffline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Favorite
@@ -122,7 +122,8 @@ private fun ReleasePageScreen(page: DetailPage) {
         it.title.contains(filter, true) || it.artist.contains(filter, true)
     }
     val totalMs = songs.sumOf { it.durationMillis() }
-    val downloaded = songs.isNotEmpty() && (page.browseId in collections || songs.all { it.videoId in saved })
+    // Fully downloaded only when every track on the page is on disk, not merely asked for.
+    val downloaded = songs.isNotEmpty() && isFullyDownloaded(page.browseId, collections, saved, songs)
     val isPlaylist = page.type == BrowseType.PLAYLIST || page.type == BrowseType.OTHER
     val isOwned = owned[page.browseId] == true
     val target = DownloadTarget(page.browseId, page.title, page.subtitle, page.thumbnailUrl, playlist = isPlaylist)
@@ -148,7 +149,10 @@ private fun ReleasePageScreen(page: DetailPage) {
                     }
                 }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Cover(page.thumbnailUrl, size = 200.dp, shape = RoundedCornerShape(12.dp), px = 720)
+                    Box {
+                        Cover(page.thumbnailUrl, size = 200.dp, shape = RoundedCornerShape(12.dp), px = 720)
+                        if (downloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(10.dp), size = 28.dp)
+                    }
                     Spacer(Modifier.height(18.dp))
                     Text(page.title, style = GlowType.display.copy(fontSize = 28.sp), color = c.text, textAlign = TextAlign.Center, maxLines = 2)
                     val artist = songs.firstOrNull()?.artists?.firstOrNull()
@@ -181,7 +185,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                                 g.actions.download(songs, target)
                             }
                         }) {
-                            Icon(if (downloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download, "Download", tint = c.text, modifier = Modifier.size(22.dp))
+                            Icon(if (downloaded) Icons.Rounded.DownloadForOffline else Icons.Rounded.Download, if (downloaded) "Downloaded" else "Download", tint = c.text, modifier = Modifier.size(22.dp))
                         }
                         val savedToLibrary = page.library?.saved == true
                         if (signedIn && page.library != null && !isOwned) {
@@ -246,7 +250,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                         song = song,
                         trailing = {
                             if (song.videoId in saved) {
-                                Icon(Icons.Rounded.Check, "Downloaded", tint = c.textTertiary, modifier = Modifier.size(16.dp))
+                                DownloadedMark()
                             }
                             MoreButton {
                                 g.openSongMenu(

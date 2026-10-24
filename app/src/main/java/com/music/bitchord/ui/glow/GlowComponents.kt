@@ -89,6 +89,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.music.bitchord.data.model.Song
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadForOffline
 import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.ui.player.rememberArtworkColors
 
@@ -132,7 +134,15 @@ fun Cover(
 
 /** Same as [Cover] but filling the width it is given, square. */
 @Composable
-fun SquareCover(url: String?, modifier: Modifier = Modifier, radius: Dp = 12.dp, px: Int = 720) {
+fun SquareCover(url: String?, modifier: Modifier = Modifier, radius: Dp = 12.dp, px: Int = 720, downloaded: Boolean = false) {
+    Box(modifier.fillMaxWidth()) {
+        SquareCoverImage(url, Modifier, radius, px)
+        if (downloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(8.dp), size = 24.dp)
+    }
+}
+
+@Composable
+private fun SquareCoverImage(url: String?, modifier: Modifier, radius: Dp, px: Int) {
     val c = Glow.colors
     Box(
         modifier
@@ -152,6 +162,46 @@ fun SquareCover(url: String?, modifier: Modifier = Modifier, radius: Dp = 12.dp,
 }
 
 fun Modifier.aspectSquare(): Modifier = aspectRatio(1f)
+
+/**
+ * The mark on a cover whose playlist or album is downloaded in full: a white
+ * download arrow in a dark disc, at the cover's top-right corner.
+ */
+@Composable
+fun DownloadedBadge(modifier: Modifier = Modifier, size: Dp = 22.dp) {
+    Box(
+        modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Rounded.Download, "Downloaded", tint = Color.White, modifier = Modifier.size(size * 0.68f))
+    }
+}
+
+/** A song's downloaded mark in a list: the download arrow, where a tick used to be. */
+@Composable
+fun DownloadedMark(tint: Color = Glow.colors.textTertiary) {
+    Icon(Icons.Rounded.DownloadForOffline, "Downloaded", tint = tint, modifier = Modifier.size(18.dp))
+}
+
+/**
+ * Whether [id]'s release was downloaded as a whole and every one of its
+ * tracks is on disk. With [songs] (the page as loaded now) those are checked
+ * instead of the recorded list, so a playlist that has grown since isn't
+ * marked complete.
+ */
+fun isFullyDownloaded(
+    id: String?,
+    collections: Map<String, com.music.bitchord.download.SavedCollection>,
+    saved: Map<String, String>,
+    songs: List<Song>? = null,
+): Boolean {
+    if (!songs.isNullOrEmpty()) return songs.all { it.videoId in saved }
+    val record = id?.let { collections[it] ?: collections[it.removePrefix("VL")] ?: collections["VL$it"] } ?: return false
+    return record.videoIds.isNotEmpty() && record.videoIds.all { it in saved }
+}
 
 /**
  * The signature of the design: soft blooms of the playing cover's colours
@@ -573,6 +623,8 @@ fun SongRow(
     selected: Boolean = false,
     /** The row's song, when it can be multi-selected by long-press. */
     song: Song? = null,
+    /** Marks the cover as a release downloaded in full. */
+    downloaded: Boolean = false,
 ) {
     val c = Glow.colors
     val g = LocalGlow.current
@@ -627,6 +679,7 @@ fun SongRow(
                         contentAlignment = Alignment.Center,
                     ) { PlayingBars(Modifier.size(18.dp), playing = player.isPlaying, color = Color.White) }
                 }
+                if (downloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp), size = 18.dp)
             }
         }
         Spacer(Modifier.width(12.dp))
@@ -971,6 +1024,7 @@ fun GlowTextField(
 fun GlowSheet(
     onDismiss: () -> Unit,
     skipPartiallyExpanded: Boolean = true,
+    color: Color? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = Glow.colors
@@ -978,7 +1032,7 @@ fun GlowSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = state,
-        containerColor = c.sheet,
+        containerColor = color ?: c.sheet,
         contentColor = c.text,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
@@ -1000,6 +1054,14 @@ fun GlowSheet(
             content = content,
         )
     }
+}
+
+/** The sheet colour for menus raised from the player: the playing cover's own colour. */
+@Composable
+fun playerSheetColor(thumbnailUrl: String?): Color {
+    val c = Glow.colors
+    val palette = rememberGlowPalette(thumbnailUrl)
+    return miniPlayerTint(palette, c.sheet, c.isDark)
 }
 
 /** A centred dialog card for errors and confirmations. */

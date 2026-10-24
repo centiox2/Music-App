@@ -57,6 +57,7 @@ import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.download.Downloads
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -364,6 +365,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         durationMs: Long,
         album: String? = null,
         localUri: String? = null,
+        /** Skips the saved copy and asks the sources again (the lyrics menu's refetch). */
+        fresh: Boolean = false,
     ) {
         val sources = if (AppSettings.syncedLyrics.value) {
             AppSettings.lyricsSources.value
@@ -425,6 +428,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
             }
+            // Lyrics found on an earlier play: shown straight away, and offline.
+            if (!fresh) {
+                val cached = withContext(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.get(getApplication(), videoId) }
+                if (cached != null && cached.source in sources) {
+                    lyricsProviderResults[cached.source] = cached
+                    _lyricsProviderStates.update { it + (cached.source to LyricsProviderState.FOUND) }
+                    _lyrics.value = cached.lines
+                    _lyricsSource.value = cached.source
+                    _lyricsChecked.value = true
+                    return@launch
+                }
+            }
             if (durationMs <= 0L) {
                 // Duration arrives a beat after the track does; wait for it.
                 lyricsFor = null
@@ -443,7 +458,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _lyrics.value = selected?.lines
             _lyricsSource.value = selected?.source
             _lyricsChecked.value = true
+            selected?.let { saveLyrics(videoId, it) }
         }
+    }
+
+    private fun saveLyrics(videoId: String, result: LyricsRepository.Result) {
+        viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.put(getApplication(), videoId, result) }
     }
 
     /**
@@ -539,7 +559,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun refetchLyrics() {
         val r = currentLyricsRequest ?: return
         lyricsFor = null
-        loadLyrics(r.videoId, r.title, r.artist, r.durationMs, r.album)
+        loadLyrics(r.videoId, r.title, r.artist, r.durationMs, r.album, fresh = true)
     }
 
     /** Saves the user's edit of the playing track's lyrics and shows it straight away. */
@@ -561,6 +581,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun showLyricsResult(result: LyricsRepository.Result) {
+        // A provider picked by hand is the one to come back to next time.
+        currentLyricsRequest?.let { saveLyrics(it.videoId, result) }
         _lyricsEdited.value = false
         _lyrics.value = result.lines
         _lyricsSource.value = result.source

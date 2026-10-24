@@ -550,15 +550,23 @@ fun StorageScreen() {
             SettingRow("Clear song cache", titleColor = c.danger) { confirm = "song" }
             CardDivider()
             SettingRow("Clear image cache", titleColor = c.danger) { confirm = "image" }
+            CardDivider()
+            SettingRow("Clear saved lyrics", titleColor = c.danger) { confirm = "lyrics" }
         }
     }
 
     confirm?.let { which ->
         GlowDialog({ confirm = null }) {
-            Text(if (which == "song") "Clear song cache?" else "Clear image cache?", style = GlowType.title, color = c.text)
+            Text(
+                when (which) { "song" -> "Clear song cache?"; "lyrics" -> "Clear saved lyrics?"; else -> "Clear image cache?" },
+                style = GlowType.title, color = c.text)
             Spacer(Modifier.height(8.dp))
             Text(
-                if (which == "song") "Songs will stream again the next time you play them. Downloads stay." else "Covers will load again as you browse.",
+                when (which) {
+                    "song" -> "Songs will stream again the next time you play them. Downloads stay."
+                    "lyrics" -> "Lyrics will be fetched again the next time each song plays. Your edits stay."
+                    else -> "Covers will load again as you browse."
+                },
                 style = GlowType.bodyRegular,
                 color = c.textSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -567,6 +575,8 @@ fun StorageScreen() {
             PillButton("Clear", Modifier.fillMaxWidth(), height = 48.dp) {
                 if (which == "song") {
                     AudioCache.clear { refresh++ }
+                } else if (which == "lyrics") {
+                    scope.launch(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.clear(context) }
                 } else {
                     scope.launch(Dispatchers.IO) {
                         SingletonImageLoader.get(context).diskCache?.clear()

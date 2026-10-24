@@ -92,8 +92,9 @@ fun SongMenuSheet(song: Song, onDismiss: () -> Unit) {
     val liked = likes[song.videoId] == LikeStatus.LIKE
     val isCurrent = g.player.song?.videoId == song.videoId
     val close: (() -> Unit) -> Unit = { action -> onDismiss(); action() }
+    val sheetColor = if (g.songMenuFromPlayer) playerSheetColor(song.thumbnailUrl) else null
 
-    GlowSheet(onDismiss) {
+    GlowSheet(onDismiss, color = sheetColor) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Cover(song.thumbnailUrl, size = 52.dp, shape = RoundedCornerShape(10.dp))
             Spacer(Modifier.width(14.dp))

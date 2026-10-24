@@ -390,7 +390,7 @@ private fun OfflineDownloads() {
                 song,
                 onClick = { g.playList(songs, i, "Downloads", PlaybackSourceType.QUEUE) },
                 onMore = { g.openSongMenu(song) },
-                trailing = { Icon(Icons.Rounded.Check, null, tint = Glow.colors.textSecondary, modifier = Modifier.padding(12.dp).size(20.dp)) },
+                trailing = { Box(Modifier.padding(12.dp)) { DownloadedMark(Glow.colors.textSecondary) } },
             )
         }
     }
