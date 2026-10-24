@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
@@ -166,6 +167,11 @@ object LyricsTranslator {
 
     fun reset() { _status.value = Status.Idle }
 
+    private class RateLimited : Exception()
+
+    private val statusScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main.immediate)
+    private var hideJob: kotlinx.coroutines.Job? = null
+
     private val memory = ConcurrentHashMap<String, List<String>>()
     private val json = Json { ignoreUnknownKeys = true }
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
@@ -193,10 +199,15 @@ object LyricsTranslator {
         _status.value = Status.Translating
         return try {
             val out = if (provider == TranslationProvider.GOOGLE) google(trackId, lines, mode, target) else external(trackId, lines, provider, mode, target)
-            if (out != null) {
-                _status.value = Status.Done
-                delay(2500)
-                if (_status.value == Status.Done) _status.value = Status.Idle
+            if (out != null) _status.value = Status.Done
+            val shown = _status.value
+            if (shown is Status.Done || shown is Status.Same) {
+                // Hide the pill on its own, without holding back the lines.
+                hideJob?.cancel()
+                hideJob = statusScope.launch {
+                    delay(if (shown is Status.Same) 4000 else 2500)
+                    if (_status.value == shown) _status.value = Status.Idle
+                }
             }
             out
         } catch (e: CancellationException) {
@@ -222,8 +233,64 @@ object LyricsTranslator {
                 _status.value = Status.Same("These lyrics are already in ${Locale.forLanguageTag(r.language).displayLanguage.ifBlank { r.language }}")
                 null
             }
-            LyricsTranslation.Result.Unavailable -> { _status.value = Status.Error("Couldn't reach Google Translate"); null }
+            // BitChord's batches can come back with their markers mangled; send plain lines instead.
+            LyricsTranslation.Result.Unavailable -> googleLines(lines, target)
         }
+    }
+
+    /** Google Translate with one line per newline, for when the marked-up batch route fails. */
+    private suspend fun googleLines(lines: List<LyricLine>, target: String): List<LyricLine>? = withContext(Dispatchers.IO) {
+        val texts = flatten(lines)
+        val filled = texts.withIndex().filter { it.value.isNotBlank() }
+        if (filled.isEmpty()) return@withContext null
+        val out = MutableList(texts.size) { "" }
+        var source = ""
+        try {
+            // Keep each request comfortably under Google's size limit.
+            val chunks = mutableListOf<List<IndexedValue<String>>>()
+            var current = mutableListOf<IndexedValue<String>>()
+            var length = 0
+            for (item in filled) {
+                if (length + item.value.length > 3000 && current.isNotEmpty()) {
+                    chunks += current
+                    current = mutableListOf()
+                    length = 0
+                }
+                current += item
+                length += item.value.length + 1
+            }
+            if (current.isNotEmpty()) chunks += current
+            for (chunk in chunks) {
+                val body = okhttp3.FormBody.Builder()
+                    .add("client", "gtx").add("sl", "auto").add("tl", target).add("dt", "t")
+                    .add("q", chunk.joinToString("\n") { it.value.replace('\n', ' ') })
+                    .build()
+                val request = Request.Builder().url("https://translate.googleapis.com/translate_a/single").post(body).build()
+                val text = client.newCall(request).execute().use { r ->
+                    if (r.code == 429) throw RateLimited()
+                    if (!r.isSuccessful) throw Exception("HTTP ${r.code}")
+                    r.body?.string().orEmpty()
+                }
+                val root = json.parseToJsonElement(text).jsonArray
+                source = root.getOrNull(2)?.jsonPrimitive?.contentOrNull ?: source
+                val joined = root[0].jsonArray.joinToString("") { it.jsonArray.getOrNull(0)?.jsonPrimitive?.contentOrNull.orEmpty() }
+                val parts = joined.split('\n').map { it.trim() }
+                chunk.forEachIndexed { n, (index, _) -> out[index] = parts.getOrNull(n).orEmpty() }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RateLimited) {
+            _status.value = Status.Error("Google Translate is busy. Tap to try again in a minute")
+            return@withContext null
+        } catch (e: Exception) {
+            _status.value = Status.Error("Couldn't reach Google Translate. Tap to try again")
+            return@withContext null
+        }
+        if (source.isNotBlank() && Locale.forLanguageTag(source).language == Locale.forLanguageTag(target).language) {
+            _status.value = Status.Same("These lyrics are already in ${Locale.forLanguageTag(source).displayLanguage}")
+            return@withContext null
+        }
+        rebuild(lines, out)
     }
 
     /** Main and background texts in reading order, as Metrolist sends them: one per line. */

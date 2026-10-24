@@ -20,6 +20,9 @@ import com.music.bitchord.ui.MainViewModel
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -56,7 +59,7 @@ class GlowScreenshotTest {
 
     private var lastPlayer: PlayerState? = null
 
-    private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L) {
+    private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L, route: Route? = null) {
         assumeTrue("Set GLOW_SHOTS to render screenshots", System.getenv("GLOW_SHOTS") != null)
         val app = RuntimeEnvironment.getApplication()
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
@@ -74,7 +77,7 @@ class GlowScreenshotTest {
         } else {
             null
         }
-        rule.setContent { GlowTheme { GlowApp(playerOverride = player) } }
+        rule.setContent { GlowTheme { GlowApp(playerOverride = player, startRoute = route) } }
         settle(24)
     }
 
@@ -184,6 +187,104 @@ class GlowScreenshotTest {
         shot("15-settings")
         click("Equalizer & audio")
         shot("13-equalizer")
+    }
+
+    @Test
+    fun homeLate() {
+        launch(playing = true)
+        shot("80-home-a")
+        settle(10)
+        shot("80-home-b")
+        rule.onRoot().performTouchInput { swipeUp() }
+        settle(6)
+        shot("80-home-c")
+    }
+
+    private fun back() {
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        settle(3)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsPlaybackOptions() {
+        launch(playing = true, route = Route.SettingsPlaybackOptions)
+        shot("61-playback")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsTranslation() {
+        launch(playing = true, route = Route.SettingsTranslation)
+        shot("62-translation")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsPrivacy() {
+        launch(playing = true, route = Route.SettingsPrivacy)
+        shot("63-privacy")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsBackup() {
+        launch(playing = true, route = Route.SettingsBackup)
+        shot("64-backup")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsLyrics() {
+        launch(playing = true, route = Route.SettingsLyrics)
+        shot("65-lyrics-sources")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsTheme() {
+        launch(playing = true, route = Route.SettingsTheme)
+        shot("66-theme")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsLastFm() {
+        launch(playing = true, route = Route.SettingsLastFm)
+        shot("67-scrobbling")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsStorage() {
+        launch(playing = true, route = Route.SettingsStorage)
+        shot("68-storage")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettings() {
+        launch(playing = true, route = Route.Settings)
+        shot("60-settings-tall")
+    }
+
+    @Test
+    fun lyricsTranslated() {
+        val app = RuntimeEnvironment.getApplication()
+        com.music.bitchord.ui.glow.lyrics.TranslationPrefs.init(app)
+        com.music.bitchord.ui.glow.lyrics.TranslationPrefs.setShowTranslation(true)
+        com.music.bitchord.data.settings.AppSettings.setTranslationLanguage("en")
+        try {
+            launch(playing = true, positionMs = 62_000L)
+            click("Despacito")
+            click("Lyrics")
+            settle(16)
+            shot("70-lyrics-translated")
+            settle(12)
+            shot("70b-lyrics-translated")
+        } finally {
+            com.music.bitchord.ui.glow.lyrics.TranslationPrefs.setShowTranslation(false)
+        }
     }
 
     @Test

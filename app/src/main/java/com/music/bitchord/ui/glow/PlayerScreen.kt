@@ -681,7 +681,8 @@ private fun LyricsPane(modifier: Modifier) {
         if (keepOn) view.keepScreenOn = true
         onDispose { view.keepScreenOn = was }
     }
-    val translated by produceState<List<LyricLine>?>(null, lyrics, translate, provider, mode, model, language, trackId) {
+    var retry by remember { mutableIntStateOf(0) }
+    val translated by produceState<List<LyricLine>?>(null, lyrics, translate, provider, mode, model, language, trackId, retry) {
         value = null
         val lines = lyrics
         if (!translate || lines.isNullOrEmpty()) {
@@ -713,7 +714,15 @@ private fun LyricsPane(modifier: Modifier) {
         TranslationStatusPill(
             status = if (translate) status else LyricsTranslator.Status.Idle,
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
-        ) { g.playerOpen = false; g.push(Route.SettingsTranslation) }
+        ) {
+            // Setup problems are fixed in settings; anything else is worth another go.
+            if (TranslationPrefs.missingSetup() != null) {
+                g.playerOpen = false
+                g.push(Route.SettingsTranslation)
+            } else {
+                retry++
+            }
+        }
     }
 }
 

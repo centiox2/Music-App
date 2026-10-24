@@ -348,6 +348,18 @@ fun ThemeScreen() {
                 }
             }
         }
+        GroupLabel("Glow strength")
+        val intensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
+        Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Subtle", style = GlowType.secondary, color = c.textSecondary)
+            GlowSlider(
+                value = intensity,
+                onValueChange = { GlowPrefs.setGlowIntensity((it * 10).roundToInt() / 10f) },
+                valueRange = 0.3f..1.5f,
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+            )
+            Text("Vivid", style = GlowType.secondary, color = c.textSecondary)
+        }
         GroupLabel("Mode")
         Segmented(listOf("System", "Dark", "Light"), when (theme) { ThemeMode.SYSTEM -> 0; ThemeMode.DARK -> 1; ThemeMode.LIGHT -> 2 }, Modifier.padding(horizontal = 20.dp)) {
             AppSettings.setThemeMode(listOf(ThemeMode.SYSTEM, ThemeMode.DARK, ThemeMode.LIGHT)[it])
@@ -410,12 +422,11 @@ fun LyricsSourcesScreen() {
         }
         GroupLabel("Timing offset")
         Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Slider(
+            GlowSlider(
                 value = offset.toFloat(),
                 onValueChange = { AppSettings.setLyricsOffsetMs((it / 100).roundToInt() * 100) },
                 valueRange = AppSettings.MIN_LYRICS_OFFSET_MS.toFloat()..AppSettings.MAX_LYRICS_OFFSET_MS.toFloat(),
                 modifier = Modifier.weight(1f),
-                colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
             )
             Spacer(Modifier.width(12.dp))
             Text("%+.1f s".format(offset / 1000f), style = GlowType.body, color = c.text, modifier = Modifier.width(60.dp))
@@ -762,11 +773,10 @@ fun EqualizerScreen() {
                     Text("Tempo", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.text, modifier = Modifier.weight(1f))
                     Text("%.2f×".format(speed), style = GlowType.body.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp), color = c.text)
                 }
-                Slider(
+                GlowSlider(
                     value = speed,
                     onValueChange = { AppSettings.setPlaybackSpeed((it * 20).roundToInt() / 20f) },
                     valueRange = 0.5f..2f,
-                    colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
                 )
             }
             CardDivider()
@@ -783,12 +793,11 @@ fun EqualizerScreen() {
                     GlowSwitch(crossfade > 0, { AppSettings.setCrossfadeSeconds(if (it) 4 else 0) })
                 }
                 if (crossfade > 0) {
-                    Slider(
+                    GlowSlider(
                         value = crossfade.toFloat(),
                         onValueChange = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
                         valueRange = 1f..12f,
                         steps = 10,
-                        colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
                     )
                 }
             }

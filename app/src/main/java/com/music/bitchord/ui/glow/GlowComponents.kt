@@ -1,5 +1,9 @@
 package com.music.bitchord.ui.glow
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -179,7 +183,8 @@ fun CoverGlow(
     }
     val a by animateColorAsState(baseColors[0], tween(1200), label = "glowA")
     val b by animateColorAsState(baseColors.getOrElse(1) { baseColors[0] }, tween(1200), label = "glowB")
-    val strength = if (c.isDark) intensity else intensity * 0.55f
+    val userIntensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
+    val strength = ((if (c.isDark) intensity else intensity * 0.55f) * userIntensity).coerceAtMost(1f)
     Canvas(modifier.fillMaxWidth().height(height)) {
         val w = size.width
         val h = size.height
@@ -1097,4 +1102,55 @@ fun Long.formatBytes(): String = when {
     this >= 1L shl 20 -> "%.0f MB".format(this / (1L shl 20).toDouble())
     this >= 1L shl 10 -> "%.0f KB".format(this / (1L shl 10).toDouble())
     else -> "$this B"
+}
+
+/**
+ * The Glow slider: a thin glass track, a white fill, and a round thumb that
+ * swells while it's held — Material's default track is thick and dotted.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GlowSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    enabled: Boolean = true,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {
+    val c = Glow.colors
+    val interaction = remember { MutableInteractionSource() }
+    val dragged by interaction.collectIsDraggedAsState()
+    val pressed by interaction.collectIsPressedAsState()
+    val thumbScale by androidx.compose.animation.core.animateFloatAsState(if (dragged || pressed) 1.3f else 1f, GlowMotion.press, label = "thumb")
+    androidx.compose.material3.Slider(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
+        onValueChangeFinished = onValueChangeFinished,
+        interactionSource = interaction,
+        thumb = {
+            Box(
+                Modifier
+                    .size(18.dp)
+                    .graphicsLayer { scaleX = thumbScale; scaleY = thumbScale }
+                    .shadow(3.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(if (enabled) c.text else c.textTertiary),
+            )
+        },
+        track = { state ->
+            val span = (state.valueRange.endInclusive - state.valueRange.start).takeIf { it > 0f } ?: 1f
+            val fraction = ((state.value - state.valueRange.start) / span).coerceIn(0f, 1f)
+            Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
+                drawRoundRect(c.glassStrong, cornerRadius = r)
+                drawRoundRect(if (enabled) c.text else c.textTertiary, size = size.copy(width = size.width * fraction), cornerRadius = r)
+            }
+        },
+    )
 }

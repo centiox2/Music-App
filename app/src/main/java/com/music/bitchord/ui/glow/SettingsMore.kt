@@ -87,7 +87,7 @@ fun TranslationSettingsScreen() {
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SwitchRow("Translate lyrics", show, TranslationPrefs::setShowTranslation, subtitle = "Translate each song's lyrics as they load")
             CardDivider()
-            SettingRow("Translate into", icon = Icons.Rounded.Language, value = languageLabel, chevron = true) { pickLanguage = true }
+            SettingRow("Translate into", icon = Icons.Rounded.Language, subtitle = languageLabel, chevron = true) { pickLanguage = true }
         }
         GroupLabel("Show")
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
@@ -209,11 +209,10 @@ fun LyricsDisplaySection() {
                 Text("Text size", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.text, modifier = Modifier.weight(1f))
                 Text("${size.roundToInt()}", style = GlowType.body, color = c.textSecondary)
             }
-            Slider(
+            GlowSlider(
                 value = size,
                 onValueChange = { GlowPrefs.setLyricsTextSize(it.roundToInt().toFloat()) },
                 valueRange = 20f..40f,
-                colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
             )
             Text(
                 "Lyrics",
@@ -326,13 +325,13 @@ fun PrivacyScreen() {
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SwitchRow("Pause listening history", pauseListen, GlowPrefs::setPauseListenHistory, icon = Icons.Rounded.History, subtitle = "Songs you play aren't added to History on this phone")
             CardDivider()
-            SettingRow("Clear listening history", subtitle = "${history.size} songs", titleColor = c.danger) { confirm = "listen" }
+            SettingRow("Clear listening history", subtitle = if (history.size == 1) "1 song" else "${history.size} songs", titleColor = c.danger) { confirm = "listen" }
         }
         GroupLabel("Search history")
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SwitchRow("Pause search history", pauseSearch, GlowPrefs::setPauseSearchHistory, icon = Icons.Rounded.ManageSearch, subtitle = "Searches aren't remembered")
             CardDivider()
-            SettingRow("Clear search history", subtitle = "${searches.size} searches", titleColor = c.danger) { confirm = "search" }
+            SettingRow("Clear search history", subtitle = if (searches.size == 1) "1 search" else "${searches.size} searches", titleColor = c.danger) { confirm = "search" }
         }
         Text(
             "Your YouTube Music account keeps its own history, which you can manage at myactivity.google.com.",
@@ -433,11 +432,10 @@ fun ScrobbleRulesSection() {
                 Text("After listening to", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.text, modifier = Modifier.weight(1f))
                 Text("${(delayPercent * 100).roundToInt()}%", style = GlowType.body, color = c.textSecondary)
             }
-            Slider(
+            GlowSlider(
                 value = delayPercent,
                 onValueChange = { AppSettings.setScrobbleDelayPercent((it * 20).roundToInt() / 20f) },
                 valueRange = 0.25f..0.9f,
-                colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
             )
         }
         CardDivider()
@@ -446,11 +444,10 @@ fun ScrobbleRulesSection() {
                 Text("Ignore songs shorter than", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.text, modifier = Modifier.weight(1f))
                 Text("$minDuration s", style = GlowType.body, color = c.textSecondary)
             }
-            Slider(
+            GlowSlider(
                 value = minDuration.toFloat(),
                 onValueChange = { AppSettings.setScrobbleMinDuration((it / 5).roundToInt() * 5) },
                 valueRange = 10f..120f,
-                colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
             )
         }
     }

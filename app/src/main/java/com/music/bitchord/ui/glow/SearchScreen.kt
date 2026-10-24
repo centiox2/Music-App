@@ -199,24 +199,34 @@ private fun SearchIdle(onStartTyping: () -> Unit) {
             }
             if (explore is UiState.Loading) {
                 items(6) { SkeletonBox(Modifier.fillMaxWidth().height(74.dp), radius = 12.dp) }
+            } else if (moods.isEmpty()) {
+                // A failed or empty load used to leave this section blank with no way back.
+                item(span = { GridItemSpan(2) }) {
+                    Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GlowText("Couldn't load moods & genres", GlowType.secondary, Modifier.weight(1f), color = Glow.colors.textSecondary)
+                        TextAction("Try again") { vm.loadExplore() }
+                    }
+                }
             }
             itemsIndexed(moods, key = { _, m -> m.browseId + (m.params ?: "") }) { i, mood ->
-                MoodTile(mood, i) { g.openMood(mood) }
+                MoodTile(mood, i, Modifier.staggeredEntrance(i, mood.browseId + mood.title)) { g.openMood(mood) }
             }
         }
     }
 }
 
 @Composable
-private fun MoodTile(mood: MoodGenre, index: Int, onClick: () -> Unit) {
+private fun MoodTile(mood: MoodGenre, index: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val base = mood.stripeColor?.let { Color(it) } ?: Color(TILE_COLORS[index % TILE_COLORS.size])
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(74.dp)
+            .pressScale(interaction, 0.95f)
             .clip(RoundedCornerShape(12.dp))
             .background(base.copy(alpha = 1f).darken(0.55f))
-            .clickable(onClick = onClick),
+            .clickable(interaction, androidx.compose.material3.ripple(), onClick = onClick),
     ) {
         Box(
             Modifier

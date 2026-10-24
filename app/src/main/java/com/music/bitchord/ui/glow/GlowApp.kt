@@ -99,6 +99,8 @@ fun GlowApp(
     vm: MainViewModel = viewModel(),
     /** Stands in for the live player in screenshot tests, where no service runs. */
     playerOverride: com.music.bitchord.playback.PlayerState? = null,
+    /** Opens straight on this page; screenshot tests use it to skip navigating there. */
+    startRoute: Route? = null,
 ) {
     val context = LocalContext.current
     remember(context) {
@@ -120,6 +122,7 @@ fun GlowApp(
         )
         holder = GlowState(context.applicationContext, vm, actions, scope)
         holder.tab = GlowPrefs.startTab.value
+        startRoute?.let { holder.stack.add(it) }
         holder
     }
     state.controller = controller

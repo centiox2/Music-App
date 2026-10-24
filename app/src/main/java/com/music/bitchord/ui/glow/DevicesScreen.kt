@@ -151,7 +151,7 @@ fun DevicesScreen() {
             }
             Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Rounded.VolumeDown, null, tint = c.text, modifier = Modifier.size(22.dp))
-                Slider(
+                GlowSlider(
                     value = if (cast.casting) castVolume else volume,
                     onValueChange = {
                         if (cast.casting) {
@@ -162,7 +162,6 @@ fun DevicesScreen() {
                         }
                     },
                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                    colors = SliderDefaults.colors(thumbColor = c.text, activeTrackColor = c.text, inactiveTrackColor = c.glassStrong),
                 )
                 Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = c.text, modifier = Modifier.size(22.dp))
             }
