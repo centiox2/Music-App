@@ -237,7 +237,9 @@ private fun PortraitPlayer(song: Song) {
             // The fade is drawn by paneFade below, not by AnimatedContent: its own fade renders
             // each pane into an offscreen layer the size of the pane, which cut the cover's
             // shadow off mid-switch and only drew it once the fade had finished.
-            transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
+            // clip = false: while a switch runs, AnimatedContent otherwise clips to its own bounds,
+            // and the cover is as wide as the pane, so its side shadows vanished until the end.
+            transitionSpec = { (EnterTransition.None togetherWith ExitTransition.None) using androidx.compose.animation.SizeTransform(clip = false) },
             modifier = Modifier.weight(1f),
             label = "pane",
         ) { pane ->
