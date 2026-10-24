@@ -257,7 +257,7 @@ fun SettingsScreen() {
         }
         if (query.isBlank()) {
             Text(
-                "Built on BitChord (GPL-3.0). Not affiliated with YouTube or Google.",
+                "Sonder is built on BitChord, with parts from Metrolist and ViVi Music (all GPL-3.0). Not affiliated with YouTube or Google.",
                 style = GlowType.caption.copy(fontSize = 12.sp),
                 color = c.textTertiary,
                 modifier = Modifier.padding(20.dp).clickable {

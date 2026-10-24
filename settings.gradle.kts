@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CoverGlow"
+rootProject.name = "Sonder"
 include(":shared")
 include(":sharedUi")
 

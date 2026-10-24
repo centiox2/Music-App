@@ -379,7 +379,7 @@ object LyricsTranslator {
                     .apply { if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer ${apiKey.trim()}") }
                     .addHeader("Content-Type", "application/json")
                     .addHeader("HTTP-Referer", "https://github.com/kushagrasinghx/BitChord")
-                    .addHeader("X-Title", "Cover Glow")
+                    .addHeader("X-Title", "Sonder")
                     .post(body.toString().toRequestBody(jsonMediaType))
                     .build()
                 client.newCall(request).execute().use { response ->

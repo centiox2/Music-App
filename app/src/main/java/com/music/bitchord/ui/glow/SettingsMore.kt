@@ -370,7 +370,7 @@ fun BackupScreen() {
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     val json = JSONObject()
-                        .put("format", "cover-glow-settings")
+                        .put("format", "sonder-settings")
                         .put("version", 1)
                         .put("app", AppSettings.exportPrefs().toTypedJson())
                         .put("glow", GlowPrefs.export().toTypedJson())
@@ -387,7 +387,8 @@ fun BackupScreen() {
                 runCatching {
                     val text = g.context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() } ?: return@runCatching false
                     val json = JSONObject(text)
-                    require(json.optString("format") == "cover-glow-settings")
+                    // Backups made before the rename still restore.
+                    require(json.optString("format") in setOf("sonder-settings", "cover-glow-settings"))
                     val app = json.getJSONObject("app").fromTypedJson()
                     val glow = json.optJSONObject("glow")?.fromTypedJson().orEmpty()
                     withContext(Dispatchers.Main) {
@@ -397,7 +398,7 @@ fun BackupScreen() {
                     true
                 }.getOrDefault(false)
             }
-            g.notify(if (ok) "Settings restored" else "That file isn't a Cover Glow backup")
+            g.notify(if (ok) "Settings restored" else "That file isn't a Sonder backup")
         }
     }
     SettingsPage("Backup & restore") {
@@ -408,7 +409,7 @@ fun BackupScreen() {
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         )
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
-            SettingRow("Back up settings", icon = Icons.Rounded.Upload, chevron = true) { export.launch("cover-glow-settings.json") }
+            SettingRow("Back up settings", icon = Icons.Rounded.Upload, chevron = true) { export.launch("sonder-settings.json") }
             CardDivider()
             SettingRow("Restore settings", icon = Icons.Rounded.Download, chevron = true) { import.launch(arrayOf("application/json", "text/plain", "*/*")) }
         }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -73,10 +74,11 @@ fun rememberGlowPalette(url: String?): List<Color>? {
  */
 fun miniPlayerTint(colors: List<Color>?, base: Color, isDark: Boolean): Color {
     val seed = colors?.firstOrNull() ?: return base
-    return if (isDark) {
-        val dark = lerp(seed, Color.Black, 0.62f)
-        if (dark.luminance() > 0.12f) lerp(dark, Color.Black, 0.35f) else dark
-    } else {
-        lerp(seed, Color.White, 0.78f)
-    }
+    // Lightness is set, not derived: darkening a near-black cover gave a black bar
+    // that vanished into the page, and a pale one gave white text nothing to sit on.
+    val hsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(seed.toArgb(), hsl)
+    hsl[1] = (hsl[1] * 0.75f).coerceAtMost(0.5f)
+    hsl[2] = if (isDark) 0.2f else 0.86f
+    return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
 }

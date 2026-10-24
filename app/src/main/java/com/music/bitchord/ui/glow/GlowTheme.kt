@@ -101,6 +101,9 @@ val Inter = FontFamily(
     Font(R.font.inter_bold, FontWeight.Bold),
 )
 
+/** Archivo, condensed, black: the artist page's name (OFL, see ARCHIVO-LICENSE.txt). */
+val ArchivoCondensed = FontFamily(Font(R.font.archivo_condensed_black, FontWeight.Black))
+
 /** Type scale lifted from the design's CSS (sizes are its px). */
 object GlowType {
     val display = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 30.sp, letterSpacing = (-0.02).em)

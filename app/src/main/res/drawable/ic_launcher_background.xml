@@ -1,24 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cover Glow: the app's base colour with a soft teal bloom behind the cover. -->
+<!-- Sonder: near-black teal, lit from the top (the dark icon's radial gradient). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#0A1416"
-        android:pathData="M0,0h108v108h-108z" />
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:centerX="40"
-                android:centerY="34"
-                android:gradientRadius="70"
-                android:type="radial">
-                <item android:color="#B35FB3AD" android:offset="0" />
-                <item android:color="#402F5A55" android:offset="0.55" />
-                <item android:color="#000A1416" android:offset="1" />
+            <gradient android:type="radial" android:centerX="54" android:centerY="0" android:gradientRadius="102.6">
+                <item android:offset="0" android:color="#FF2F5A55"/>
+                <item android:offset="0.55" android:color="#FF12302F"/>
+                <item android:offset="1" android:color="#FF0A1416"/>
             </gradient>
         </aapt:attr>
     </path>

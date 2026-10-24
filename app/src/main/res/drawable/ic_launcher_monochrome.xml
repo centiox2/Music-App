@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer: the rest alone, tinted by the launcher. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.44" android:scaleY="0.44" android:translateX="10.00" android:translateY="10.00">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M77.2 133.2Q77.2 125.7 82.1 121.8Q87.0 117.9 93.6 117.9Q97.9 117.9 104.0 120.3L79.4 88.0Q96.8 72.3 96.8 59.9Q96.8 50.1 85.1 35.0H94.9L122.8 69.0Q104.7 90.4 104.7 100.9Q104.7 110.9 121.7 131.2L118.2 136.2Q109.5 131.2 103.6 131.2Q95.7 131.2 95.7 140.8Q95.7 150.4 104.3 160.2L101.2 165.0Q77.2 147.1 77.2 133.2Z"/>
+    </group>
+</vector>

@@ -1,24 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  A Cover Glow sleeve: rounded cover, pale moon over a teal horizon. Kept
-  inside the 66dp safe zone of the 108dp adaptive canvas. Also used as the
-  monochrome (themed) icon, where only its shape matters.
--->
+<!-- Sonder: a quarter rest in mint, from sonder-icon-dark.svg, centred in the adaptive safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Cover -->
-    <path
-        android:fillColor="#2F5A55"
-        android:pathData="M37,30h34a7,7 0,0 1,7 7v34a7,7 0,0 1,-7 7h-34a7,7 0,0 1,-7 -7v-34a7,7 0,0 1,7 -7z" />
-    <!-- Moon, cut off by the horizon -->
-    <path
-        android:fillColor="#9CC9BA"
-        android:pathData="M42,60a14,14 0,1 1,28 0z" />
-    <!-- Horizon stripe -->
-    <path
-        android:fillColor="#5FB3AD"
-        android:pathData="M30,60h48v7h-48z" />
+    <group android:scaleX="0.44" android:scaleY="0.44" android:translateX="10.00" android:translateY="10.00">
+        <path android:pathData="M77.2 133.2Q77.2 125.7 82.1 121.8Q87.0 117.9 93.6 117.9Q97.9 117.9 104.0 120.3L79.4 88.0Q96.8 72.3 96.8 59.9Q96.8 50.1 85.1 35.0H94.9L122.8 69.0Q104.7 90.4 104.7 100.9Q104.7 110.9 121.7 131.2L118.2 136.2Q109.5 131.2 103.6 131.2Q95.7 131.2 95.7 140.8Q95.7 150.4 104.3 160.2L101.2 165.0Q77.2 147.1 77.2 133.2Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="77" android:startY="35" android:endX="123" android:endY="165">
+                    <item android:offset="0" android:color="#FFE6F2EA"/>
+                    <item android:offset="1" android:color="#FF5FB3AD"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
 </vector>

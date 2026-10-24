@@ -5,6 +5,15 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.background
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,6 +105,14 @@ fun DevicesScreen() {
     }
     val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     var volume by remember { mutableFloatStateOf(audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max) }
+    // Follows the hardware volume keys while the sheet is open.
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(400)
+            val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max
+            if (kotlin.math.abs(now - volume) > 0.5f / max) volume = now
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(c.base)) {
         CoverGlow(g.player.song?.thumbnailUrl, height = 800.dp, intensity = 0.45f)
@@ -149,22 +166,20 @@ fun DevicesScreen() {
                     if (i < cast.devices.lastIndex) CardDivider()
                 }
             }
-            Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.AutoMirrored.Rounded.VolumeDown, null, tint = c.text, modifier = Modifier.size(22.dp))
-                GlowSlider(
-                    value = if (cast.casting) castVolume else volume,
-                    onValueChange = {
-                        if (cast.casting) {
-                            CastController.setVolume(it)
-                        } else {
-                            volume = it
-                            audio.setStreamVolume(AudioManager.STREAM_MUSIC, (it * max).toInt(), 0)
-                        }
-                    },
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                )
-                Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = c.text, modifier = Modifier.size(22.dp))
+            GroupLabel("Volume")
+            VolumeBar(
+                value = if (cast.casting) castVolume else volume,
+                label = if (cast.casting) cast.connectedName ?: "Cast device" else "This phone",
+                modifier = Modifier.padding(horizontal = 20.dp),
+            ) {
+                if (cast.casting) {
+                    CastController.setVolume(it)
+                } else {
+                    volume = it
+                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, (it * max).roundToInt(), 0)
+                }
             }
+            Spacer(Modifier.height(8.dp))
             GroupLabel("Listen together")
             ListenTogetherCard()
             Spacer(Modifier.height(30.dp))
@@ -440,5 +455,63 @@ fun JoinSessionScreen() {
                 )
             }
         }
+    }
+}
+
+/**
+ * The volume control: one wide glass bar that fills as it rises, dragged or
+ * tapped anywhere along it. Icon and percentage sit inside it.
+ */
+@Composable
+private fun VolumeBar(value: Float, label: String, modifier: Modifier = Modifier, onChange: (Float) -> Unit) {
+    val c = Glow.colors
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val shown = (dragging ?: value).coerceIn(0f, 1f)
+    val fill by androidx.compose.animation.core.animateFloatAsState(shown, if (dragging != null) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(stiffness = 600f), label = "volumeFill")
+    val height by androidx.compose.animation.core.animateDpAsState(if (dragging != null) 62.dp else 56.dp, label = "volumeHeight")
+    Column(modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height)
+                .clip(RoundedCornerShape(18.dp))
+                .background(c.glass)
+                .pointerInput(Unit) {
+                    detectTapGestures { offset -> onChange((offset.x / size.width).coerceIn(0f, 1f)) }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragging = (it.x / size.width).coerceIn(0f, 1f) },
+                        onDragEnd = { dragging?.let(onChange); dragging = null },
+                        onDragCancel = { dragging = null },
+                    ) { change, _ ->
+                        val v = (change.position.x / size.width).coerceIn(0f, 1f)
+                        dragging = v
+                        onChange(v)
+                    }
+                }
+                .semantics {
+                    contentDescription = "Volume"
+                    stateDescription = "${(shown * 100).roundToInt()}%"
+                },
+        ) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth(fill).background(c.text.copy(alpha = 0.92f)))
+            Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                val icon = when {
+                    shown <= 0.001f -> Icons.AutoMirrored.Rounded.VolumeOff
+                    shown < 0.5f -> Icons.AutoMirrored.Rounded.VolumeDown
+                    else -> Icons.AutoMirrored.Rounded.VolumeUp
+                }
+                // Dark over the white fill, light over the glass.
+                Icon(icon, null, tint = if (fill > 0.08f) c.base else c.text, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${(shown * 100).roundToInt()}%",
+                    style = GlowType.body.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (fill > 0.9f) c.base else c.text,
+                )
+            }
+        }
+        Text(label, style = GlowType.secondary, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
     }
 }

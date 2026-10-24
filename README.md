@@ -1,4 +1,4 @@
-# Cover Glow
+# Sonder
 
 A personal YouTube Music client for Android. The interface is the **Cover Glow**
 design (option 6): dark, glassy, and tinted by whatever cover is playing. Everything
@@ -7,6 +7,11 @@ lyrics, sign-in, Listen Together, scrobbling — comes from
 [BitChord](https://github.com/kushagrasinghx/BitChord).
 
 > Not affiliated with, endorsed by, or connected to YouTube or Google.
+
+Parts are ported from other GPL-3.0 players: the lyrics engine, animations,
+lyrics menu and AI translation from [Metrolist](https://github.com/metrolistgroup/metrolist),
+and the cover shadow from [ViVi Music](https://github.com/vivizzz007/vivi-music).
+Fonts: Inter (OFL, `INTER-LICENSE.txt`) and Archivo (OFL, `ARCHIVO-LICENSE.txt`).
 
 ## What's where
 
