@@ -111,9 +111,13 @@ fun Cover(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     shape: Shape = RoundedCornerShape(8.dp),
-    px: Int = 544,
+    /** Pixels to fetch; by default enough for [size] on this screen, with a little to spare. */
+    px: Int = 0,
 ) {
     val c = Glow.colors
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    // A list row's thumbnail was fetched at 544px (a 1280px frame for a video's) to show at ~150.
+    val fetchPx = if (px > 0) px else with(density) { (size.toPx() * 1.25f).toInt().coerceIn(120, 544) }
     // Large covers sit on a soft shadow; list-row thumbnails stay flat.
     val shadowed = size >= 120.dp
     Box(
@@ -127,7 +131,7 @@ fun Cover(
         if (url == null) {
             Icon(Icons.Rounded.MusicNote, null, tint = c.textTertiary, modifier = Modifier.size(size / 2.4f))
         } else {
-            ArtImage(url, px, Modifier.fillMaxSize())
+            ArtImage(url, fetchPx, Modifier.fillMaxSize())
         }
     }
 }

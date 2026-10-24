@@ -267,7 +267,7 @@ fun SaveToPlaylistSheet(songs: List<Song>, onDismiss: () -> Unit) {
                 }
             }
             if (loading && playlists.isEmpty()) item { SkeletonRows(3) }
-            items(shown, key = { it.playlistId }) { playlist ->
+            items(shown.distinctBy { it.playlistId }, key = { it.playlistId }) { playlist ->
                 val checked = playlist.playlistId in chosen
                 Row(
                     Modifier.fillMaxWidth().clickable {
@@ -284,7 +284,7 @@ fun SaveToPlaylistSheet(songs: List<Song>, onDismiss: () -> Unit) {
                     GlowCheckbox(checked)
                 }
             }
-            items(local, key = { "local" + it.id }) { playlist ->
+            items(local.distinctBy { "local" + it.id }, key = { "local" + it.id }) { playlist ->
                 Row(
                     Modifier.fillMaxWidth().clickable {
                         LocalPlaylistStore.savePlaylist(playlist.title, (playlist.songs + songs).distinctBy { it.videoId })

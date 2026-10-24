@@ -264,7 +264,7 @@ private fun ReleasePageScreen(page: DetailPage) {
             }
             if (page.suggestedSongs.isNotEmpty() && isOwned) {
                 item { Spacer(Modifier.height(20.dp)); SectionHeader("Suggestions") }
-                items(page.suggestedSongs, key = { "sg" + it.videoId }) { song ->
+                items(page.suggestedSongs.distinctBy { "sg" + it.videoId }, key = { "sg" + it.videoId }) { song ->
                     SongRow(
                         song.title,
                         song.artist,
@@ -277,7 +277,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                     )
                 }
             }
-            items(page.sections, key = { "sec" + it.title }) { shelf ->
+            items(page.sections.distinctBy { "sec" + it.title }, key = { "sec" + it.title }) { shelf ->
                 Spacer(Modifier.height(22.dp))
                 ShelfSection(shelf)
             }
@@ -438,7 +438,7 @@ private fun ArtistPageScreen(page: DetailPage) {
                         TextAction("See all", color = onTint.copy(alpha = 0.75f)) { g.push(Route.Discography(page.browseId, page.title)) }
                     }
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(shelf.items, key = { it.browseId ?: it.title }) { item ->
+                        items(shelf.items.distinctBy { it.browseId ?: it.title }, key = { it.browseId ?: it.title }) { item ->
                             ArtistCard(item, 136.dp, onTint, dim) { g.openShelfItem(item, page.title) }
                         }
                     }
@@ -448,7 +448,7 @@ private fun ArtistPageScreen(page: DetailPage) {
                 item(key = "fans") {
                     Text("Fans also like", style = GlowType.title.copy(fontSize = 18.sp), color = onTint, modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 10.dp))
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(fans.items, key = { it.browseId ?: it.title }) { item ->
+                        items(fans.items.distinctBy { it.browseId ?: it.title }, key = { it.browseId ?: it.title }) { item ->
                             Column(
                                 Modifier.width(96.dp).clip(RoundedCornerShape(12.dp)).clickable { g.openArtist(item.browseId, item.title) },
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -461,7 +461,7 @@ private fun ArtistPageScreen(page: DetailPage) {
                     }
                 }
             }
-            items(others, key = { "o" + it.title }) { shelf ->
+            items(others.distinctBy { "o" + it.title }, key = { "o" + it.title }) { shelf ->
                 Spacer(Modifier.height(22.dp))
                 CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides onTint) { ShelfSection(shelf, 136.dp) }
             }
@@ -655,7 +655,7 @@ fun DiscographyScreen(route: Route.Discography) {
                 Spacer(Modifier.height(12.dp))
             }
             val shelf = tabs.getOrNull(tab.coerceAtMost(tabs.lastIndex))?.second
-            items(shelf?.items.orEmpty(), key = { "d" + (it.browseId ?: it.videoId ?: it.title) }) { item ->
+            items(shelf?.items.orEmpty().distinctBy { "d" + (it.browseId ?: it.videoId ?: it.title) }, key = { "d" + (it.browseId ?: it.videoId ?: it.title) }) { item ->
                 SongRow(
                     item.title,
                     item.subtitle,

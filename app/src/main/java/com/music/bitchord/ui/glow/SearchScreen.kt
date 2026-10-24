@@ -326,7 +326,7 @@ private fun SearchTyping(query: String, onBack: () -> Unit) {
             if (suggestions.isNotEmpty() && typeahead.isNotEmpty()) {
                 item { CardDivider(Modifier.padding(vertical = 8.dp), start = 20.dp) }
             }
-            items(typeahead.take(6), key = { "t" + resultKey(it) }) { r -> ResultRow(r, compact = true) }
+            items(typeahead.take(6).distinctBy { "t" + resultKey(it) }, key = { "t" + resultKey(it) }) { r -> ResultRow(r, compact = true) }
         }
     }
 }
@@ -401,7 +401,7 @@ private fun SearchResults(query: String, onBack: () -> Unit) {
                     } else if (filter == SearchFilter.ALL) {
                         topResults(state.data)
                     } else {
-                        items(state.data, key = { resultKey(it) }) { r -> ResultRow(r) }
+                        items(state.data.distinctBy { resultKey(it) }, key = { resultKey(it) }) { r -> ResultRow(r) }
                         item {
                             LaunchedEffect(state.data.size) { vm.loadMoreSearchResults() }
                             if (loadingMore) SkeletonRows(2, Modifier.padding(top = 8.dp))
@@ -431,7 +431,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.topResults(rows: List
     if (top != null) item { TopResultCard(top) }
     if (songs.isNotEmpty()) {
         item { Spacer(Modifier.height(16.dp)); SectionHeader("Songs") }
-        items(songs.take(4), key = { "song" + it.videoId }) { s -> ResultRow(SearchResult.Track(s)) }
+        items(songs.take(4).distinctBy { "song" + it.videoId }, key = { "song" + it.videoId }) { s -> ResultRow(SearchResult.Track(s)) }
     }
     browseShelf("Albums", albums)
     browseShelf("Artists", artists, circle = true)
@@ -447,7 +447,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.browseShelf(title: St
             Spacer(Modifier.height(16.dp))
             SectionHeader(title)
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(items, key = { it.browseId }) { item ->
+                items(items.distinctBy { it.browseId }, key = { it.browseId }) { item ->
                     Column(
                         Modifier.width(130.dp).clickable {
                             g.recordBrowse(item)

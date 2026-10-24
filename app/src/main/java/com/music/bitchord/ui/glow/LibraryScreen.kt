@@ -107,6 +107,18 @@ fun LibraryScreen() {
     val likedAll by LikedSongsCache.songs.collectAsStateWithLifecycle()
     val refreshing by vm.refreshing.collectAsStateWithLifecycle()
     val page = (library as? UiState.Success)?.data
+    var songSort by rememberSaveable { mutableStateOf(SongSort.TITLE) }
+    // Read only while the Downloads tab is open.
+    val downloaded = if (tab == 4) rememberDownloadedSongs() else DownloadedSongs(emptyList(), emptyMap())
+    val librarySongs = page?.librarySongs.orEmpty()
+    // Sorted once per change, not on every recomposition of the page.
+    val sortedLibrarySongs = remember(librarySongs, songSort) {
+        when (songSort) {
+            SongSort.RECENT -> librarySongs
+            SongSort.TITLE -> librarySongs.sortedBy { it.title.lowercase() }
+            SongSort.ARTIST -> librarySongs.sortedBy { it.artist.lowercase() }
+        }
+    }
 
     GlowScreen(glowUrl = g.player.song?.thumbnailUrl) {
         // Pull down to sync the library with the YouTube account.
@@ -130,7 +142,7 @@ fun LibraryScreen() {
                 Spacer(Modifier.height(10.dp))
             }
             if (tab == 4) {
-                downloadsContent(g, inline = true)
+                downloadsContent(g, inline = true, downloaded)
                 return@LazyColumn
             }
             if (!signedIn) {
@@ -146,7 +158,7 @@ fun LibraryScreen() {
                 }
                 is UiState.Success -> when (tab) {
                     0 -> playlistsTab(g, state.data.shelves, likedAll?.size ?: state.data.likedSongs.size, likedExact = likedAll != null)
-                    1 -> songsTab(g, state.data.librarySongs)
+                    1 -> songsTab(g, sortedLibrarySongs, songSort) { songSort = it }
                     2 -> albumsTab(g, state.data.shelves.firstOrNull { it.title == "Albums" }?.items.orEmpty())
                     else -> artistsTab(
                         g,
@@ -295,21 +307,20 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
 
 private enum class SongSort(val label: String) { RECENT("Recently added"), TITLE("Title A–Z"), ARTIST("Artist A–Z") }
 
-private fun LazyListScope.songsTab(g: GlowState, songs: List<Song>) {
-    item {
-        var sort by rememberSaveable { mutableStateOf(SongSort.TITLE) }
+/**
+ * One list item per song, so only the rows on screen are built; the whole library used to
+ * be composed as a single item, every row at once. The sort lives with the caller, since a
+ * lazy list's builder can't hold state.
+ */
+private fun LazyListScope.songsTab(g: GlowState, sorted: List<Song>, sort: SongSort, onSort: (SongSort) -> Unit) {
+    item(key = "songs-header") {
         val c = Glow.colors
-        val sorted = when (sort) {
-            SongSort.RECENT -> songs
-            SongSort.TITLE -> songs.sortedBy { it.title.lowercase() }
-            SongSort.ARTIST -> songs.sortedBy { it.artist.lowercase() }
-        }
         Column {
             Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${songs.size} songs", style = GlowType.bodyRegular, color = c.textSecondary, modifier = Modifier.weight(1f))
+                Text("${sorted.size} songs", style = GlowType.bodyRegular, color = c.textSecondary, modifier = Modifier.weight(1f))
                 Row(
                     Modifier.clip(RoundedCornerShape(8.dp)).clickable {
-                        sort = SongSort.entries[(sort.ordinal + 1) % SongSort.entries.size]
+                        onSort(SongSort.entries[(sort.ordinal + 1) % SongSort.entries.size])
                     }.padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -318,7 +329,7 @@ private fun LazyListScope.songsTab(g: GlowState, songs: List<Song>) {
                     Text(sort.label, style = GlowType.bodyRegular, color = c.textSecondary)
                 }
             }
-            if (songs.isEmpty()) {
+            if (sorted.isEmpty()) {
                 Text("Songs you add to your library show up here.", style = GlowType.secondary, color = c.textSecondary, modifier = Modifier.padding(20.dp))
             } else {
                 SongRow(
@@ -332,17 +343,17 @@ private fun LazyListScope.songsTab(g: GlowState, songs: List<Song>) {
                     },
                     onClick = { g.actions.shuffle(sorted, g.source("Library", PlaybackSourceType.BROWSE)) },
                 )
-                androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted) {
-                    sorted.forEachIndexed { i, song ->
-                        TrackRow(
-                            song,
-                            onClick = { g.playList(sorted, i, "Library", PlaybackSourceType.BROWSE) },
-                            onMore = { g.openSongMenu(song) },
-                            active = g.player.song?.videoId == song.videoId,
-                        )
-                    }
-                }
             }
+        }
+    }
+    itemsIndexed(sorted, key = { i, song -> "song-$i-${song.videoId}" }) { i, song ->
+        androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted) {
+            TrackRow(
+                song,
+                onClick = { g.playList(sorted, i, "Library", PlaybackSourceType.BROWSE) },
+                onMore = { g.openSongMenu(song) },
+                active = g.player.song?.videoId == song.videoId,
+            )
         }
     }
 }
@@ -490,7 +501,8 @@ fun LikedSongsScreen() {
                 Spacer(Modifier.height(10.dp))
             }
             if (songs.isEmpty() && library is UiState.Loading) item { SkeletonRows(6) }
-            itemsIndexed(sorted, key = { _, s -> s.videoId }) { i, song ->
+            // The position is part of the key: a song liked twice (it happens) must not crash the list.
+            itemsIndexed(sorted, key = { i, s -> "$i-${s.videoId}" }) { i, song ->
                 TrackRow(
                     song,
                     onClick = { g.playList(sorted, i, "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC) },
@@ -516,6 +528,7 @@ fun formatLongDuration(ms: Long): String {
 fun DownloadsScreen() {
     val g = LocalGlow.current
     var selecting by remember { mutableStateOf(false) }
+    val downloaded = rememberDownloadedSongs()
     GlowScreen(glowUrl = g.player.song?.thumbnailUrl) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
@@ -523,24 +536,38 @@ fun DownloadsScreen() {
                 Text("Downloads", style = GlowType.display.copy(fontSize = 34.sp), color = Glow.colors.text, modifier = Modifier.padding(horizontal = 20.dp))
                 Spacer(Modifier.height(14.dp))
             }
-            downloadsContent(g, inline = false)
+            downloadsContent(g, inline = false, downloaded)
         }
     }
 }
 
-private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean) {
+/** The downloaded songs and each one's size on disk, read again whenever the downloads change. */
+private class DownloadedSongs(val songs: List<Song>, val sizes: Map<String, Long>)
+
+@Composable
+private fun rememberDownloadedSongs(): DownloadedSongs {
+    val context = LocalContext.current
+    val saved by Downloads.saved.collectAsStateWithLifecycle()
+    val songs by produceState(emptyList<Song>(), saved) { value = Downloads.getDownloadedSongs(context) }
+    val sizes by produceState(emptyMap<String, Long>(), saved) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            saved.mapValues { (_, uri) -> fileSize(context, uri) }
+        }
+    }
+    return remember(songs, sizes) { DownloadedSongs(songs, sizes) }
+}
+
+/**
+ * The downloads page. The summary and the songs in progress are one item; each downloaded
+ * song is an item of its own, so only the rows on screen are built.
+ */
+private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean, downloaded: DownloadedSongs) {
+    val songs = downloaded.songs
+    val sizes = downloaded.sizes
     item(key = "downloads") {
-        val context = LocalContext.current
         val c = Glow.colors
         val scope = rememberCoroutineScope()
-        val saved by Downloads.saved.collectAsStateWithLifecycle()
         val session by DownloadSession.state.collectAsStateWithLifecycle()
-        val songs by produceState(emptyList<Song>(), saved) { value = Downloads.getDownloadedSongs(context) }
-        val sizes by produceState(emptyMap<String, Long>(), saved) {
-            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                saved.mapValues { (_, uri) -> fileSize(context, uri) }
-            }
-        }
         val pending = session.items.filter { !it.progress.settled }
         val totalBytes = sizes.values.sum()
         val free = remember { runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(0L) }
@@ -620,22 +647,23 @@ private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean) {
                 SectionHeader("Downloaded", action = "Shuffle all") {
                     g.actions.shuffle(songs, g.source("Downloads", PlaybackSourceType.QUEUE))
                 }
-                songs.forEachIndexed { i, song ->
-                    SongRow(
-                        song.title,
-                        "✓ ${song.artist}" + (sizes[song.videoId]?.takeIf { it > 0 }?.let { " · ${it.formatBytes()}" } ?: ""),
-                        song.thumbnailUrl,
-                        active = g.player.song?.videoId == song.videoId,
-                        onClick = { g.playList(songs, i, "Downloads", PlaybackSourceType.QUEUE) },
-                        trailing = {
-                            IconTap(Icons.Rounded.Delete, "Delete download", tint = c.textSecondary) {
-                                g.actions.removeDownload(song.videoId)
-                            }
-                        },
-                    )
-                }
             }
         }
+    }
+    itemsIndexed(songs, key = { i, song -> "dl-$i-${song.videoId}" }) { i, song ->
+        val c = Glow.colors
+        SongRow(
+            song.title,
+            song.artist + (sizes[song.videoId]?.takeIf { it > 0 }?.let { " · ${it.formatBytes()}" } ?: ""),
+            song.thumbnailUrl,
+            active = g.player.song?.videoId == song.videoId,
+            onClick = { g.playList(songs, i, "Downloads", PlaybackSourceType.QUEUE) },
+            trailing = {
+                IconTap(Icons.Rounded.Delete, "Delete download", tint = c.textSecondary) {
+                    g.actions.removeDownload(song.videoId)
+                }
+            },
+        )
     }
 }
 

@@ -137,6 +137,8 @@ fun GlowLyrics(
     var scrollTargetIndex by remember { mutableIntStateOf(-1) }
     var previousScrollActiveIndices by remember { mutableStateOf(emptySet<Int>()) }
     var currentPositionState by remember { mutableLongStateOf(0L) }
+    // Lines read the frame's position through this, so only the lines it affects redraw.
+    val readPosition = remember { { currentPositionState } }
     var deferredCurrentLineIndex by remember { mutableIntStateOf(0) }
     var isSelectionModeActive by remember { mutableStateOf(false) }
     val selectedIndices = remember { mutableStateListOf<Int>() }
@@ -471,7 +473,7 @@ fun GlowLyrics(
                                         bgVisible = bgVisible,
                                         isSelected = index in selectedIndices,
                                         isSelectionModeActive = isSelectionModeActive,
-                                        currentPositionState = currentPositionState,
+                                        currentPosition = readPosition,
                                         lyricsOffset = lyricsOffsetMs,
                                         positionProvider = positionProvider,
                                         isPlayingProvider = isPlayingProvider,

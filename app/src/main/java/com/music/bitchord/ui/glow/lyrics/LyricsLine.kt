@@ -111,7 +111,8 @@ internal fun LyricsLine(
     bgVisible: Boolean,
     isSelected: Boolean,
     isSelectionModeActive: Boolean,
-    currentPositionState: Long,
+    /** Read when needed rather than passed as a value, so a new frame doesn't rebuild every line. */
+    currentPosition: () -> Long,
     lyricsOffset: Long,
     positionProvider: () -> Long,
     isPlayingProvider: () -> Boolean,
@@ -205,7 +206,7 @@ internal fun LyricsLine(
                         mainText = mainText,
                         words = effectiveWords,
                         isActiveLine = isActiveLine,
-                        currentPositionState = currentPositionState,
+                        currentPosition = currentPosition,
                         lyricsOffset = lyricsOffset,
                         positionProvider = positionProvider,
                         isPlayingProvider = isPlayingProvider,
@@ -267,7 +268,8 @@ private fun WordLevelLyrics(
     mainText: String,
     words: List<WordTimestamp>,
     isActiveLine: Boolean,
-    currentPositionState: Long,
+    /** Read when needed rather than passed as a value, so a new frame doesn't rebuild every line. */
+    currentPosition: () -> Long,
     lyricsOffset: Long,
     positionProvider: () -> Long,
     isPlayingProvider: () -> Boolean,
@@ -290,7 +292,7 @@ private fun WordLevelLyrics(
     }
 
     // The active line runs its own frame clock between player readings.
-    var smoothPosition by remember { mutableLongStateOf(currentPositionState + lyricsOffset) }
+    var smoothPosition by remember { mutableLongStateOf(currentPosition() + lyricsOffset) }
     LaunchedEffect(isActiveLine) {
         if (isActiveLine) {
             var lastPlayerPos = positionProvider()
@@ -309,8 +311,15 @@ private fun WordLevelLyrics(
             }
         }
     }
-    LaunchedEffect(isActiveLine, currentPositionState) {
-        if (!isActiveLine) smoothPosition = currentPositionState + lyricsOffset
+    // A line that isn't being sung only changes look near its own words (a last word fading
+    // out, a swell). Outside that window it is the same whatever the time, so the position is
+    // held at the window's edge and the line isn't redrawn on every frame of the song.
+    LaunchedEffect(isActiveLine, words, lyricsOffset) {
+        if (isActiveLine || words.isEmpty()) return@LaunchedEffect
+        val from = (words.minOf { it.startTime } * 1000).toLong() - 1
+        val until = (words.maxOf { it.endTime } * 1000).toLong() + 1000
+        androidx.compose.runtime.snapshotFlow { (currentPosition() + lyricsOffset).coerceIn(from, until) }
+            .collect { smoothPosition = it }
     }
 
     // Hyphenated words ("la-la-la") are split so each part can be sung in turn.

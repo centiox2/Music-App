@@ -185,6 +185,30 @@ class GlowScreenshotTest {
         return bitmap
     }
 
+    /** A switch must end with only the new pane on screen (the old one once stayed, drawn over it). */
+    @Test
+    fun paneSwitchSettles() {
+        launch(playing = true)
+        click("Despacito")
+        // The big cover is the only image labelled with the song's title.
+        fun coverShown() = rule.onAllNodes(hasContentDescription("Despacito")).fetchSemanticsNodes().isNotEmpty()
+        assertTrue("cover missing on the player", coverShown())
+        rule.onAllNodes(hasContentDescription("Up next"))[0].performClick()
+        settle(4)
+        // Drawn with the clock held so the frame is current (shot() can catch the one before).
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(500)
+        shotNow("pss-queue")
+        rule.mainClock.autoAdvance = true
+        assertTrue("player pane still on screen after switching to Up next", !coverShown())
+        rule.onAllNodes(hasContentDescription("Up next"))[0].performClick()
+        settle(4)
+        assertTrue("cover missing after switching back", coverShown())
+        rule.onAllNodes(hasContentDescription("Lyrics"))[0].performClick()
+        settle(4)
+        assertTrue("player pane still on screen after switching to Lyrics", !coverShown())
+    }
+
     @Test
     fun songMenu() {
         launch(playing = true)

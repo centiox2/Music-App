@@ -43,6 +43,7 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.music.bitchord.ui.graphics.forPixelAccess
 import com.music.bitchord.ui.graphics.toImageBitmap
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -78,6 +79,12 @@ fun LiquidArtwork(
     var previous by remember { mutableStateOf<ImageBitmap?>(null) }
     val fade = remember { Animatable(1f) }
     LaunchedEffect(url) {
+        // A song change during the last cross-fade cancelled it half way; finish it first,
+        // or the cover before stayed drawn under the new one for good.
+        if (previous != null || fade.value < 1f) {
+            fade.snapTo(1f)
+            previous = null
+        }
         if (url == null) return@LaunchedEffect
         val image = LiquidCovers.get(url) ?: run {
             val request = ImageRequest.Builder(context).data(url).size(200).forPixelAccess().build()
@@ -88,9 +95,12 @@ fun LiquidArtwork(
         // The old cover stays until the new one has loaded, then cross-fades out.
         previous = current
         current = image
-        fade.snapTo(if (previous == null) 1f else 0f)
-        fade.animateTo(1f, tween(1400))
-        previous = null
+        try {
+            fade.snapTo(if (previous == null) 1f else 0f)
+            fade.animateTo(1f, tween(1400))
+        } finally {
+            previous = null
+        }
     }
 
     // Time in 30 fps ticks, which is the unit the original's speeds are in.
@@ -99,12 +109,13 @@ fun LiquidArtwork(
         if (!moving) return@LaunchedEffect
         var last = withFrameMillis { it }
         while (isActive) {
+            // Sleep between ticks rather than wake on every frame: on a 120Hz screen that
+            // was 120 wake-ups a second to draw 30.
+            delay(30)
             withFrameMillis { now ->
-                if (now - last >= 33) {
-                    ticks += (now - last).coerceAtMost(100) / 33.333f
-                    LiquidCovers.ticks = ticks
-                    last = now
-                }
+                ticks += (now - last).coerceAtMost(100) / 33.333f
+                LiquidCovers.ticks = ticks
+                last = now
             }
         }
     }
@@ -175,6 +186,7 @@ private fun DrawScope.sprite(image: ImageBitmap, center: Offset, side: Float, ra
 }
 
 /** Twist (Android 13+), then blur, then saturation — the original's filter order. */
+@RequiresApi(Build.VERSION_CODES.S)
 private fun liquidEffect(w: Int, h: Int, dark: Boolean): RenderEffect {
     // The original blurs by about a twelfth of its window's width.
     val sigma = (maxOf(w, h) / 11f).coerceAtLeast(4f)

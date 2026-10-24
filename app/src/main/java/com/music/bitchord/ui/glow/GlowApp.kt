@@ -67,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -514,8 +515,6 @@ private fun MiniPlayer(state: GlowState) {
     val c = Glow.colors
     val player = state.player
     val song = player.song ?: return
-    val progress = if (player.durationMs > 0) player.position.positionMs.toFloat() / player.durationMs else 0f
-    val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), tween(300), label = "miniProgress")
     val swipe by GlowPrefs.swipeMiniPlayer.collectAsStateWithLifecycle()
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     // Wears the cover's colour, darkened for legibility, and fades with each song.
@@ -611,7 +610,8 @@ private fun MiniPlayer(state: GlowState) {
                 label = "miniSong",
             ) { s ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Cover(s.thumbnailUrl, size = 46.dp, shape = RoundedCornerShape(8.dp))
+                    // The full player's own image (PLAYER_ART_PX), so opening the player finds it already loaded.
+                    Cover(s.thumbnailUrl, size = 46.dp, shape = RoundedCornerShape(8.dp), px = PLAYER_ART_PX)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -645,9 +645,24 @@ private fun MiniPlayer(state: GlowState) {
                 .height(2.dp)
                 .background(c.glass),
         ) {
-            Box(Modifier.fillMaxWidth(animatedProgress).height(2.dp).background(c.text))
+            MiniProgress(player, c.text)
         }
     }
+}
+
+/**
+ * The mini player's progress line. On its own, and drawn rather than laid out, so a
+ * position report redraws two dp of line instead of rebuilding the whole mini player.
+ */
+@Composable
+private fun MiniProgress(player: com.music.bitchord.playback.PlayerState, color: androidx.compose.ui.graphics.Color) {
+    val progress = if (player.durationMs > 0) player.position.positionMs.toFloat() / player.durationMs else 0f
+    val animated = animateFloatAsState(progress.coerceIn(0f, 1f), tween(300), label = "miniProgress")
+    Box(
+        Modifier.fillMaxWidth().height(2.dp).drawBehind {
+            drawRect(color, size = androidx.compose.ui.geometry.Size(size.width * animated.value, size.height))
+        },
+    )
 }
 
 private val RailWidth = 88.dp

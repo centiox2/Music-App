@@ -125,6 +125,7 @@ import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.playback.toggleAutoplay
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -175,13 +176,35 @@ fun PlayerScreen() {
  */
 private val PANE_MARGIN = 20.dp
 
+/**
+ * The size the playing song's cover is fetched at, everywhere it is shown (player, mini
+ * player, lyrics header), so all of them share one downloaded image.
+ */
+internal const val PLAYER_ART_PX = 1080
+
 @Composable
 private fun PaneSwitcher(
     pane: PlayerPane,
     modifier: Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.(PlayerPane) -> Unit,
 ) {
-    val transition = androidx.compose.animation.core.updateTransition(pane, label = "pane")
+    // The panes on screen and how opaque each is. Driven by plain animations that always end
+    // by dropping the panes switched away from: built on updateTransition, the pane being left
+    // sometimes never finished leaving and stayed drawn over the new one.
+    var shown by remember { mutableStateOf(listOf(pane)) }
+    val alphas = remember { mutableMapOf(pane to androidx.compose.animation.core.Animatable(1f)) }
+    LaunchedEffect(pane) {
+        if (pane !in shown) shown = shown + pane
+        val incoming = alphas.getOrPut(pane) { androidx.compose.animation.core.Animatable(0f) }
+        kotlinx.coroutines.coroutineScope {
+            launch { incoming.animateTo(1f, tween(200)) }
+            for (other in shown) {
+                if (other != pane) alphas[other]?.let { launch { it.animateTo(0f, tween(150)) } }
+            }
+        }
+        shown = listOf(pane)
+        alphas.keys.retainAll(setOf(pane))
+    }
     // A fading layer is clipped to its own bounds while it fades. The player's 20dp side
     // margin is therefore moved inside each pane's layer, so the layer reaches the screen
     // edges and the cover's side shadows have room to be drawn mid-switch.
@@ -196,22 +219,19 @@ private fun PaneSwitcher(
             layout((placeable.width - 2 * margin).coerceIn(constraints.minWidth, constraints.maxWidth), placeable.height) { placeable.place(-margin, 0) }
         },
     ) {
-        // The pane leaving and the one arriving; just the one when nothing is switching.
-        listOf(transition.currentState, transition.targetState).distinct().forEach { shown ->
-            androidx.compose.runtime.key(shown) {
-                val alpha by transition.animateFloat(
-                    transitionSpec = { tween(if (targetState == shown) 200 else 150) },
-                    label = "paneAlpha",
-                ) { if (it == shown) 1f else 0f }
+        // The pane switched to is drawn last, so it is on top and takes the touches.
+        shown.sortedBy { it == pane }.forEach { each ->
+            androidx.compose.runtime.key(each) {
+                val alpha = alphas[each]
                 Column(
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            this.alpha = alpha
+                            this.alpha = alpha?.value ?: 1f
                             compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
                         }
                         .padding(horizontal = PANE_MARGIN),
-                ) { content(shown) }
+                ) { content(each) }
             }
         }
     }
@@ -517,7 +537,7 @@ private fun Artwork(song: Song, modifier: Modifier) {
             },
             label = "art",
         ) { url ->
-            ArtImage(url, 1080, Modifier.fillMaxSize(), contentDescription = song.title)
+            ArtImage(url, PLAYER_ART_PX, Modifier.fillMaxSize(), contentDescription = song.title)
         }
         val error = g.player.error
         if (error != null) PlaybackErrorCard(error)
@@ -577,7 +597,7 @@ private fun TitleRow(song: Song, large: Boolean) {
     val liked = likes[song.videoId] == LikeStatus.LIKE
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (!large) {
-            Cover(song.thumbnailUrl, size = 52.dp, shape = RoundedCornerShape(8.dp))
+            Cover(song.thumbnailUrl, size = 52.dp, shape = RoundedCornerShape(8.dp), px = PLAYER_ART_PX)
             Spacer(Modifier.width(14.dp))
         }
         AnimatedContent(

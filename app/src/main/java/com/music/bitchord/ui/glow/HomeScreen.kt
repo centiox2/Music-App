@@ -287,7 +287,7 @@ fun ShelfSection(shelf: HomeShelf, cardSize: androidx.compose.ui.unit.Dp = 140.d
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(shelf.items, key = { (it.videoId ?: it.browseId ?: it.title) + it.subtitle }) { item ->
+            items(shelf.items.distinctBy { (it.videoId ?: it.browseId ?: it.title) + it.subtitle }, key = { (it.videoId ?: it.browseId ?: it.title) + it.subtitle }) { item ->
                 val asSong = item.asSong()
                 ShelfCard(
                     item,
