@@ -120,6 +120,7 @@ fun GlowLyrics(
     onSeek: (Long) -> Unit,
     onShare: (String) -> Unit,
     modifier: Modifier = Modifier,
+    translated: List<LyricLine>? = null,
     sourceLabel: String? = null,
     textSize: Float = 30f,
     emptyContent: @Composable () -> Unit = {},
@@ -128,7 +129,7 @@ fun GlowLyrics(
     val accent = Glow.colors.text
     val scope = rememberCoroutineScope()
 
-    val (lines, isSynced) = remember(lyrics) { lyrics.orEmpty().toLyricsEntries() }
+    val (lines, isSynced) = remember(lyrics, translated) { lyrics.orEmpty().toLyricsEntries(translated) }
     val mergedLyricsList = remember(lines) { buildMergedList(lines) }
     val hasWordTimings = remember(lines) { lines.any { it.words?.isNotEmpty() == true } }
 
@@ -140,7 +141,7 @@ fun GlowLyrics(
     var isSelectionModeActive by remember { mutableStateOf(false) }
     val selectedIndices = remember { mutableStateListOf<Int>() }
     var isAutoScrollEnabled by remember { mutableStateOf(true) }
-    var lastMainMaxSeen by remember(lines) { mutableIntStateOf(-1) }
+    var lastMainMaxSeen by remember(lyrics) { mutableIntStateOf(-1) }
 
     BackHandler(enabled = isSelectionModeActive) {
         isSelectionModeActive = false
@@ -213,7 +214,7 @@ fun GlowLyrics(
     }
 
     var userManualOffset by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(lines) {
+    LaunchedEffect(lyrics) {
         isAutoScrollEnabled = true
         userManualOffset = 0f
         scrollTargetIndex = -1

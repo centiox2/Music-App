@@ -223,6 +223,30 @@ internal fun LyricsLine(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+
+                item.translation?.let { translation ->
+                    val translationAlpha by animateFloatAsState(
+                        when {
+                            !isSynced || isActiveLine -> 0.7f
+                            item.isBackground -> focusedAlpha * 0.8f
+                            else -> (animatedAlpha * 1.4f).coerceAtMost(0.5f)
+                        },
+                        tween(250),
+                        label = "translationAlpha",
+                    )
+                    val translationSize = lyricsTextSize * if (item.isBackground) 0.45f else 0.56f
+                    Text(
+                        text = translation,
+                        style = lyricStyle.copy(
+                            fontSize = translationSize.sp,
+                            lineHeight = (translationSize * 1.3f).sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.sp,
+                            color = accent.copy(alpha = translationAlpha),
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    )
+                }
             }
         }
 

@@ -33,6 +33,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -96,7 +100,7 @@ import kotlin.math.roundToInt
 
 /** A pushed settings page: back + title, scrolling content, no tab bar. */
 @Composable
-private fun SettingsPage(
+internal fun SettingsPage(
     title: String,
     large: Boolean = false,
     glow: Boolean = false,
@@ -138,6 +142,8 @@ fun SettingsScreen() {
     val wifiOnly by AppSettings.wifiOnlyDownloads.collectAsStateWithLifecycle()
     val lastfmUser by AppSettings.lastfmUsername.collectAsStateWithLifecycle()
     val lastfmKey by AppSettings.lastfmSessionKey.collectAsStateWithLifecycle()
+    val translate by com.music.bitchord.ui.glow.lyrics.TranslationPrefs.showTranslation.collectAsStateWithLifecycle()
+    val translateProvider by com.music.bitchord.ui.glow.lyrics.TranslationPrefs.provider.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     var accountMenu by remember { mutableStateOf(false) }
 
@@ -168,11 +174,17 @@ fun SettingsScreen() {
         SettingEntry("Autoplay", "Player & audio") {
             SwitchRow("Autoplay", autoplay, AppSettings::setAutoplay, icon = Icons.Rounded.Autorenew, subtitle = "Keep playing similar songs when the queue ends")
         },
+        SettingEntry("Playback", "Player & audio") {
+            SettingRow("Playback", icon = Icons.Rounded.PlayCircle, subtitle = "Automix, sound, queue and player", chevron = true) { g.push(Route.SettingsPlaybackOptions) }
+        },
         SettingEntry("Lyrics sources", "Lyrics") {
             SettingRow("Lyrics sources", icon = Icons.Rounded.Lyrics, chevron = true) { g.push(Route.SettingsLyrics) }
         },
         SettingEntry("Synced lyrics", "Lyrics") {
             SwitchRow("Synced lyrics", synced, AppSettings::setSyncedLyrics, icon = Icons.Rounded.Lyrics, subtitle = "Follow along line by line")
+        },
+        SettingEntry("Lyrics translation", "Lyrics") {
+            SettingRow("Translation", icon = Icons.Rounded.Translate, value = if (translate) translateProvider.label else "Off", chevron = true) { g.push(Route.SettingsTranslation) }
         },
         SettingEntry("Downloads & storage", "Downloads") {
             SettingRow("Downloads & storage", icon = Icons.Rounded.Storage, chevron = true) { g.push(Route.SettingsStorage) }
@@ -180,8 +192,14 @@ fun SettingsScreen() {
         SettingEntry("Download on Wi-Fi only", "Downloads") {
             SwitchRow("Download on Wi-Fi only", wifiOnly, AppSettings::setWifiOnlyDownloads, icon = Icons.Rounded.Wifi)
         },
-        SettingEntry("Last.fm", "Scrobbling") {
-            SettingRow("Last.fm", icon = Icons.Rounded.Link, value = if (lastfmKey.isNotBlank()) lastfmUser else "Off", chevron = true) { g.push(Route.SettingsLastFm) }
+        SettingEntry("Last.fm & ListenBrainz", "Scrobbling") {
+            SettingRow("Last.fm & ListenBrainz", icon = Icons.Rounded.Link, value = if (lastfmKey.isNotBlank()) lastfmUser else "Off", chevron = true) { g.push(Route.SettingsLastFm) }
+        },
+        SettingEntry("Privacy", "Privacy & data") {
+            SettingRow("History", icon = Icons.Rounded.History, subtitle = "Pause or clear listening and search history", chevron = true) { g.push(Route.SettingsPrivacy) }
+        },
+        SettingEntry("Backup & restore", "Privacy & data") {
+            SettingRow("Backup & restore", icon = Icons.Rounded.Backup, chevron = true) { g.push(Route.SettingsBackup) }
         },
         SettingEntry("About", "About") {
             SettingRow("Version", icon = Icons.Rounded.Info, value = BuildConfig.VERSION_NAME)
@@ -402,6 +420,7 @@ fun LyricsSourcesScreen() {
             Spacer(Modifier.width(12.dp))
             Text("%+.1f s".format(offset / 1000f), style = GlowType.body, color = c.text, modifier = Modifier.width(60.dp))
         }
+        LyricsDisplaySection()
     }
 }
 
@@ -573,7 +592,7 @@ fun LastFmScreen() {
     var loading by remember { mutableStateOf(false) }
     val connected = sessionKey.isNotBlank()
 
-    SettingsPage("Last.fm") {
+    SettingsPage("Scrobbling") {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(c.glass), contentAlignment = Alignment.Center) {
                 Icon(Icons.Rounded.Link, null, tint = c.text)
@@ -666,12 +685,13 @@ fun LastFmScreen() {
         }
         if (connected) {
             Spacer(Modifier.height(16.dp))
-            PillButton("Disconnect", Modifier.padding(horizontal = 20.dp).fillMaxWidth(), danger = true, height = 48.dp) {
+            PillButton("Disconnect Last.fm", Modifier.padding(horizontal = 20.dp).fillMaxWidth(), danger = true, height = 48.dp) {
                 AppSettings.setLastfmSessionKey("")
                 AppSettings.setLastfmUsername("")
                 AppSettings.setLastfmEnabled(false)
             }
         }
+        ScrobbleRulesSection()
     }
 }
 

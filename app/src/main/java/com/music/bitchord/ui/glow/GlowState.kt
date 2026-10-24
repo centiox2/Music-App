@@ -21,6 +21,7 @@ import com.music.bitchord.playback.QueueSource
 import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.ui.MainViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** Pages pushed over the three tabs. */
 sealed interface Route {
@@ -35,6 +36,10 @@ sealed interface Route {
     data object Settings : Route
     data object SettingsTheme : Route
     data object SettingsLyrics : Route
+    data object SettingsTranslation : Route
+    data object SettingsPlaybackOptions : Route
+    data object SettingsPrivacy : Route
+    data object SettingsBackup : Route
     data object SettingsStorage : Route
     data object SettingsLastFm : Route
     data object SettingsPlayback : Route
@@ -78,6 +83,24 @@ class GlowState(
     val stack = mutableStateListOf<Route>()
 
     var playerOpen by mutableStateOf(false)
+
+    /** How far the open player has been pulled down, in px; it follows the finger. */
+    var playerDrag by androidx.compose.runtime.mutableFloatStateOf(0f)
+
+    /** Pull-to-close: past a third of the way (or flung), the player closes; otherwise it springs back. */
+    fun releasePlayerDrag(screenHeight: Float, velocity: Float = 0f) {
+        if (playerDrag > screenHeight * 0.22f || velocity > 1800f) {
+            playerOpen = false
+        } else {
+            val from = playerDrag
+            scope.launch {
+                androidx.compose.animation.core.Animatable(from).animateTo(
+                    0f,
+                    androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 400f),
+                ) { playerDrag = value }
+            }
+        }
+    }
     var playerPane by mutableStateOf(PlayerPane.NOW_PLAYING)
     var devicesOpen by mutableStateOf(false)
     var signInOpen by mutableStateOf(false)

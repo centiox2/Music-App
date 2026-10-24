@@ -1,6 +1,16 @@
 package com.music.bitchord.ui.glow
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -299,14 +309,17 @@ fun IconTap(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val animatedTint by animateColorAsState(tint.copy(alpha = if (enabled) tint.alpha else 0.35f), label = "iconTint")
     Box(
         modifier
             .size(size)
+            .pressScale(interaction, 0.86f)
             .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(interaction, ripple(bounded = true), enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription, tint = tint.copy(alpha = if (enabled) tint.alpha else 0.35f), modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription, tint = animatedTint, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -319,12 +332,14 @@ fun GlassCircle(
     onClick: () -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Box(
         modifier
             .size(size)
+            .pressScale(interaction, 0.9f)
             .clip(CircleShape)
             .background(background)
-            .clickable(onClick = onClick),
+            .clickable(interaction, ripple(), onClick = onClick),
         contentAlignment = Alignment.Center,
         content = content,
     )
@@ -342,15 +357,28 @@ fun PrimaryCircle(
     onClick: () -> Unit,
 ) {
     val c = Glow.colors
+    val interaction = remember { MutableInteractionSource() }
     Box(
         modifier
             .size(size)
+            .pressScale(interaction, 0.88f)
             .clip(CircleShape)
             .background(if (enabled) c.primary else c.primary.copy(alpha = 0.45f))
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
+            .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription, tint = c.onPrimary, modifier = Modifier.size(iconSize))
+        // Play ⇄ pause: the old glyph shrinks away as the new one grows in.
+        AnimatedContent(
+            targetState = icon,
+            transitionSpec = {
+                (scaleIn(tween(220), initialScale = 0.6f) + fadeIn(tween(160))) togetherWith
+                    (scaleOut(tween(180), targetScale = 0.6f) + fadeOut(tween(120)))
+            },
+            label = "primaryIcon",
+        ) { glyph ->
+            Icon(glyph, null, tint = c.onPrimary, modifier = Modifier.size(iconSize))
+        }
     }
 }
 
@@ -366,12 +394,14 @@ fun GlowChip(
     val c = Glow.colors
     val bg by animateColorAsState(if (selected) c.primary else c.glass, label = "chip")
     val fg by animateColorAsState(if (selected) c.onPrimary else c.text, label = "chipText")
+    val interaction = remember { MutableInteractionSource() }
     Box(
         modifier
             .height(if (pill) 40.dp else 34.dp)
+            .pressScale(interaction, 0.93f)
             .clip(if (pill) CircleShape else RoundedCornerShape(10.dp))
             .background(bg)
-            .clickable(onClick = onClick)
+            .clickable(interaction, ripple(), onClick = onClick)
             .padding(horizontal = if (pill) 16.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -426,13 +456,15 @@ fun PillButton(
         primary -> c.onPrimary
         else -> c.text
     }
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier
             .height(height)
+            .pressScale(interaction, 0.96f)
             .clip(CircleShape)
             .background(bg)
             .alpha(if (enabled) 1f else 0.5f)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -534,10 +566,12 @@ fun SongRow(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = Glow.colors
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .pressScale(interaction, 0.98f)
+            .combinedClickable(interaction, ripple(), onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 20.dp, vertical = 5.dp)
             .alpha(if (dimmed) 0.45f else 1f),
         verticalAlignment = Alignment.CenterVertically,
@@ -590,6 +624,7 @@ fun TrackRow(
         active = active,
         dimmed = dimmed,
         onClick = onClick,
+        onLongClick = onMore,
         trailing = trailing ?: { MoreButton(onMore) },
     )
 }

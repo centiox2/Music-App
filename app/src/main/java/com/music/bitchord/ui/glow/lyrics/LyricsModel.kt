@@ -38,6 +38,8 @@ data class LyricsEntry(
     val isBackground: Boolean = false,
     /** The provider's own end for a line without word timing, when it states one. */
     val endMs: Long? = null,
+    /** The line translated, romanized or transcribed, shown beneath it. */
+    val translation: String? = null,
 )
 
 sealed class LyricsListItem {
@@ -58,17 +60,22 @@ private const val UNSYNCED_BASE_TIME = 1_000_000_000L
  * BitChord's lines → Metrolist entries. Synced lyrics get Metrolist's blank
  * head entry so a quiet intro shows the interval indicator.
  */
-fun List<LyricLine>.toLyricsEntries(): Pair<List<LyricsEntry>, Boolean> {
+fun List<LyricLine>.toLyricsEntries(translated: List<LyricLine>? = null): Pair<List<LyricsEntry>, Boolean> {
     val synced = any { it.timeMs > 0 } || any { it.isWordSynced }
+    // Translations come back in the same shape as the lines they translate.
+    val tr = translated?.takeIf { it.size == size }
+    fun String?.orNullIfSame(original: String) = this?.trim()?.takeIf { it.isNotBlank() && !it.equals(original.trim(), ignoreCase = true) }
     if (!synced) {
-        return filterNot { it.isGap }.mapIndexed { i, line ->
-            LyricsEntry(UNSYNCED_BASE_TIME + i, line.text)
+        return indices.filterNot { this[it].isGap }.mapIndexed { i, li ->
+            LyricsEntry(UNSYNCED_BASE_TIME + i, this[li].text, translation = tr?.get(li)?.text.orNullIfSame(this[li].text))
         } to false
     }
     val out = mutableListOf(LyricsEntry(0L, ""))
-    for (line in this) {
-        out += line.toEntry(isBackground = false)
-        line.background?.let { out += it.toEntry(isBackground = true) }
+    for ((li, line) in withIndex()) {
+        out += line.toEntry(isBackground = false).copy(translation = tr?.get(li)?.text.orNullIfSame(line.text))
+        line.background?.let { bg ->
+            out += bg.toEntry(isBackground = true).copy(translation = tr?.get(li)?.background?.text.orNullIfSame(bg.text))
+        }
     }
     return out.sortedWith(compareBy<LyricsEntry> { it.time }.thenBy { it.isBackground }) to true
 }

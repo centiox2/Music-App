@@ -87,6 +87,7 @@ object SearchHistory {
      * Matching is by id so re-tapping an existing entity updates its timestamp.
      */
     fun record(entity: SearchHistoryEntity) {
+        if (paused) return
         val deduped = _recent.value.filterNot { it.id.equals(entity.id, ignoreCase = true) }
         save((listOf(entity) + deduped).take(MAX_ENTRIES))
     }
@@ -96,6 +97,10 @@ object SearchHistory {
     }
 
     fun clear() = save(emptyList())
+
+    /** While true, nothing new is remembered; what's there stays. */
+    @Volatile
+    var paused: Boolean = false
 
     private fun save(value: List<SearchHistoryEntity>) {
         _recent.value = value

@@ -64,6 +64,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalView
 import com.music.bitchord.ui.glow.lyrics.GlowLyrics
+import com.music.bitchord.ui.glow.lyrics.LyricsTranslator
+import com.music.bitchord.ui.glow.lyrics.TranslationPrefs
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -104,6 +116,17 @@ fun PlayerScreen() {
     val player = g.player
     val song = player.song ?: return
     val c = Glow.colors
+    val hideStatus by GlowPrefs.hideStatusBarInPlayer.collectAsStateWithLifecycle()
+    val view = LocalView.current
+    DisposableEffect(hideStatus, view) {
+        val window = (view.context as? android.app.Activity)?.window
+        val insets = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+        if (hideStatus) {
+            insets?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insets?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+        }
+        onDispose { if (hideStatus) insets?.show(androidx.core.view.WindowInsetsCompat.Type.statusBars()) }
+    }
 
     Box(
         Modifier
@@ -279,7 +302,7 @@ private fun PlayerHeader(song: Song) {
         Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .pointerInput(Unit) { detectVerticalDragGestures { _, drag -> if (drag > 18f) g.playerOpen = false } },
+            .pullToClose(g),
     ) {
         IconTap(Icons.Rounded.KeyboardArrowDown, "Close player", iconSize = 32.dp, modifier = Modifier.align(Alignment.CenterStart).offset(x = (-10).dp)) {
             g.playerOpen = false
@@ -307,6 +330,42 @@ private fun PlayerHeader(song: Song) {
         if (g.playerPane == PlayerPane.QUEUE) {
             TextAction("Clear", Modifier.align(Alignment.CenterEnd)) { g.actions.clearUpcoming() }
         }
+        if (g.playerPane == PlayerPane.LYRICS && !lyrics.isNullOrEmpty()) {
+            val translating by TranslationPrefs.showTranslation.collectAsStateWithLifecycle()
+            val tint by animateColorAsState(if (translating) c.onPrimary else c.text, label = "translateTint")
+            val bg by animateColorAsState(if (translating) c.primary else Color.Transparent, label = "translateBg")
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(bg)
+                    .clickable { TranslationPrefs.setShowTranslation(!translating) }
+                    .semantics { contentDescription = if (translating) "Hide translation" else "Translate lyrics" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Translate, null, tint = tint, modifier = Modifier.size(22.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Drags anywhere it's applied pull the whole player down with the finger;
+ * letting go far enough (or with a flick) closes it, otherwise it springs back.
+ */
+private fun Modifier.pullToClose(g: GlowState): Modifier = pointerInput(Unit) {
+    val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+    val screen = (g.context.resources.displayMetrics.heightPixels).toFloat()
+    detectVerticalDragGestures(
+        onDragStart = { tracker.resetTracking() },
+        onDragEnd = { g.releasePlayerDrag(screen, tracker.calculateVelocity().y) },
+        onDragCancel = { g.releasePlayerDrag(screen) },
+    ) { change, dy ->
+        change.consume()
+        g.playerDrag = (g.playerDrag + dy).coerceAtLeast(0f)
+        // The player moves with the finger, so track the drag itself, not the pointer's local position.
+        tracker.addPosition(change.uptimeMillis, androidx.compose.ui.geometry.Offset(0f, g.playerDrag))
     }
 }
 
@@ -315,11 +374,28 @@ private fun PlayerHeader(song: Song) {
 private fun Artwork(song: Song, modifier: Modifier) {
     val g = LocalGlow.current
     val c = Glow.colors
+    val reduce = rememberReduceMotion()
     var dragX by remember { mutableFloatStateOf(0f) }
     val offset by animateFloatAsState(dragX, label = "swipe")
+    // Like a record that's stopped: the cover settles back a little while paused.
+    val playScale by animateFloatAsState(
+        if (g.player.isPlaying || reduce) 1f else 0.88f,
+        androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 260f),
+        label = "artScale",
+    )
+    val shadow by animateFloatAsState(if (g.player.isPlaying) 1f else 0.4f, tween(500), label = "artShadow")
     Box(
         modifier
-            .graphicsLayer { translationX = offset * 0.35f }
+            .graphicsLayer {
+                translationX = offset * 0.35f
+                rotationZ = offset * 0.004f
+                scaleX = playScale
+                scaleY = playScale
+                shadowElevation = 28.dp.toPx() * shadow
+                shape = RoundedCornerShape(12.dp)
+                clip = false
+            }
+            .pullToClose(g)
             .clip(RoundedCornerShape(12.dp))
             .background(c.glassStrong)
             .pointerInput(song.videoId) {
@@ -336,7 +412,15 @@ private fun Artwork(song: Song, modifier: Modifier) {
                 ) { _, delta -> dragX += delta }
             },
     ) {
-        AsyncImage(song.thumbnailUrl.artworkAt(1080), song.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        AnimatedContent(
+            targetState = song.thumbnailUrl,
+            transitionSpec = {
+                (fadeIn(tween(420)) + androidx.compose.animation.scaleIn(tween(420), initialScale = 1.06f)) togetherWith fadeOut(tween(300))
+            },
+            label = "art",
+        ) { url ->
+            AsyncImage(url.artworkAt(1080), song.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
         val error = g.player.error
         if (error != null) PlaybackErrorCard(error)
     }
@@ -398,7 +482,16 @@ private fun TitleRow(song: Song, large: Boolean) {
             Cover(song.thumbnailUrl, size = 52.dp, shape = RoundedCornerShape(8.dp))
             Spacer(Modifier.width(14.dp))
         }
-        Column(Modifier.weight(1f)) {
+        AnimatedContent(
+            targetState = song,
+            transitionSpec = {
+                (fadeIn(tween(320, 80)) + slideInVertically(tween(320, 80)) { it / 3 }) togetherWith fadeOut(tween(160))
+            },
+            contentKey = { it.videoId },
+            modifier = Modifier.weight(1f),
+            label = "title",
+        ) { song ->
+        Column(Modifier.fillMaxWidth()) {
             Text(
                 song.title,
                 style = if (large) GlowType.playerTitle else GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 17.sp),
@@ -419,8 +512,17 @@ private fun TitleRow(song: Song, large: Boolean) {
                 },
             )
         }
+        }
         if (signedIn) {
-            IconTap(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) "Unlike" else "Like", iconSize = 24.dp) {
+            val haptic = rememberHaptic()
+            IconTap(
+                if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                if (liked) "Unlike" else "Like",
+                iconSize = 24.dp,
+                tint = if (liked) Color(0xFFFF5A6A) else c.text,
+                modifier = Modifier.popOnChange(liked, enabled = liked),
+            ) {
+                haptic()
                 vm.toggleLike(song.videoId)
             }
         }
@@ -492,21 +594,23 @@ private fun Controls() {
     val player = g.player
     val controller = g.controller
     val shuffle by AppSettings.shuffleEnabled.collectAsStateWithLifecycle()
+    val haptic = rememberHaptic()
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        IconTap(Icons.Rounded.Shuffle, "Shuffle", tint = if (shuffle) c.text else c.textSecondary, iconSize = 24.dp) { g.toggleShuffle() }
-        IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 56.dp, iconSize = 40.dp) { controller?.seekToPrevious() }
+        IconTap(Icons.Rounded.Shuffle, "Shuffle", tint = if (shuffle) c.text else c.textSecondary, iconSize = 24.dp, modifier = Modifier.popOnChange(shuffle)) { g.toggleShuffle() }
+        IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 56.dp, iconSize = 40.dp) { haptic(); controller?.seekToPrevious() }
         PrimaryCircle(
             if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
             if (player.isPlaying) "Pause" else "Play",
             size = 68.dp,
             iconSize = 34.dp,
-        ) { g.actions.togglePlayPause() }
-        IconTap(Icons.Rounded.SkipNext, "Next", size = 56.dp, iconSize = 40.dp, enabled = player.hasNext) { controller?.seekToNext() }
+        ) { haptic(); g.actions.togglePlayPause() }
+        IconTap(Icons.Rounded.SkipNext, "Next", size = 56.dp, iconSize = 40.dp, enabled = player.hasNext) { haptic(); controller?.seekToNext() }
         IconTap(
             if (player.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
             "Repeat",
             tint = if (player.repeatMode == Player.REPEAT_MODE_OFF) c.textSecondary else c.text,
             iconSize = 24.dp,
+            modifier = Modifier.popOnChange(player.repeatMode),
         ) { g.cycleRepeat() }
     }
 }
@@ -561,28 +665,92 @@ private fun LyricsPane(modifier: Modifier) {
     val checked by vm.lyricsChecked.collectAsStateWithLifecycle()
     val source by vm.lyricsSource.collectAsStateWithLifecycle()
     val offsetMs by AppSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val textSize by GlowPrefs.lyricsTextSize.collectAsStateWithLifecycle()
+    val keepOn by GlowPrefs.lyricsKeepScreenOn.collectAsStateWithLifecycle()
+    val translate by TranslationPrefs.showTranslation.collectAsStateWithLifecycle()
+    val provider by TranslationPrefs.provider.collectAsStateWithLifecycle()
+    val mode by TranslationPrefs.mode.collectAsStateWithLifecycle()
+    val model by TranslationPrefs.model.collectAsStateWithLifecycle()
+    val language by AppSettings.translationLanguage.collectAsStateWithLifecycle()
+    val status by LyricsTranslator.status.collectAsStateWithLifecycle()
     val player by rememberUpdatedState(g.player)
+    val trackId = g.player.song?.videoId.orEmpty()
     val view = LocalView.current
-    DisposableEffect(view) {
+    DisposableEffect(view, keepOn) {
         val was = view.keepScreenOn
-        view.keepScreenOn = true
+        if (keepOn) view.keepScreenOn = true
         onDispose { view.keepScreenOn = was }
     }
-    GlowLyrics(
-        lyrics = lyrics,
-        checked = checked,
-        positionProvider = { g.controller?.currentPosition ?: player.position.positionMs },
-        isPlayingProvider = { g.controller?.isPlaying ?: player.isPlaying },
-        lyricsOffsetMs = offsetMs.toLong(),
-        onSeek = { ms -> if (!g.actions.refusedByHost()) g.controller?.seekTo(ms) },
-        onShare = { text -> g.shareUrl(player.song?.title.orEmpty(), text) },
-        sourceLabel = source?.label,
-        modifier = modifier.fillMaxWidth(),
+    val translated by produceState<List<LyricLine>?>(null, lyrics, translate, provider, mode, model, language, trackId) {
+        value = null
+        val lines = lyrics
+        if (!translate || lines.isNullOrEmpty()) {
+            LyricsTranslator.reset()
+            return@produceState
+        }
+        value = LyricsTranslator.translate(trackId, lines)
+    }
+    Box(modifier.fillMaxWidth()) {
+        GlowLyrics(
+            lyrics = lyrics,
+            checked = checked,
+            positionProvider = { g.controller?.currentPosition ?: player.position.positionMs },
+            isPlayingProvider = { g.controller?.isPlaying ?: player.isPlaying },
+            lyricsOffsetMs = offsetMs.toLong(),
+            onSeek = { ms -> if (!g.actions.refusedByHost()) g.controller?.seekTo(ms) },
+            onShare = { text -> g.shareUrl(player.song?.title.orEmpty(), text) },
+            translated = translated,
+            sourceLabel = source?.label,
+            textSize = textSize,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("No lyrics for this song", style = GlowType.title, color = c.textSecondary)
+                Spacer(Modifier.height(8.dp))
+                TextAction("Lyrics sources") { g.playerOpen = false; g.push(Route.SettingsLyrics) }
+            }
+        }
+        TranslationStatusPill(
+            status = if (translate) status else LyricsTranslator.Status.Idle,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
+        ) { g.playerOpen = false; g.push(Route.SettingsTranslation) }
+    }
+}
+
+/** Metrolist's translation header, as a Glow pill: working, done, or what went wrong. */
+@Composable
+private fun TranslationStatusPill(status: LyricsTranslator.Status, modifier: Modifier, onOpenSettings: () -> Unit) {
+    val c = Glow.colors
+    var last by remember { mutableStateOf(status) }
+    if (status !is LyricsTranslator.Status.Idle) last = status
+    AnimatedVisibility(
+        visible = status !is LyricsTranslator.Status.Idle,
+        enter = fadeIn(tween(200)) + slideInVertically(tween(260)) { -it / 2 },
+        exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { -it / 2 },
+        modifier = modifier,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No lyrics for this song", style = GlowType.title, color = c.textSecondary)
-            Spacer(Modifier.height(8.dp))
-            TextAction("Lyrics sources") { g.playerOpen = false; g.push(Route.SettingsLyrics) }
+        val (text, error) = when (val s = last) {
+            LyricsTranslator.Status.Translating -> "Translating lyrics…" to false
+            LyricsTranslator.Status.Done -> "Lyrics translated" to false
+            is LyricsTranslator.Status.Same -> s.message to false
+            is LyricsTranslator.Status.Error -> s.message to true
+            LyricsTranslator.Status.Idle -> "" to false
+        }
+        Row(
+            Modifier
+                .clip(CircleShape)
+                .background(if (error) c.danger.copy(alpha = 0.9f) else c.glassStrong)
+                .clickable(enabled = error, onClick = onOpenSettings)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when (last) {
+                LyricsTranslator.Status.Translating -> CircularProgressIndicator(Modifier.size(14.dp), color = c.text, strokeWidth = 2.dp)
+                LyricsTranslator.Status.Done -> Icon(Icons.Rounded.Check, null, tint = c.text, modifier = Modifier.size(16.dp))
+                else -> Icon(Icons.Rounded.Translate, null, tint = if (error) Color.White else c.text, modifier = Modifier.size(16.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = GlowType.label, color = if (error) Color.White else c.text, maxLines = 2)
         }
     }
 }

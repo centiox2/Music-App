@@ -1,5 +1,10 @@
 package com.music.bitchord.ui.glow
 
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import kotlinx.coroutines.launch
+import androidx.compose.animation.core.animateFloatAsState
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -54,6 +59,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -138,7 +144,7 @@ private fun GlowRoot(state: GlowState) {
     // ---- side effects that keep BitChord's logic fed ----
 
     LaunchedEffect(player.song?.videoId) {
-        player.song?.let { PlayHistory.record(it) }
+        if (!GlowPrefs.pauseListenHistory.value) player.song?.let { PlayHistory.record(it) }
     }
     val syncedLyrics by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
@@ -261,6 +267,10 @@ private fun GlowRoot(state: GlowState) {
                     Route.Settings -> SettingsScreen()
                     Route.SettingsTheme -> ThemeScreen()
                     Route.SettingsLyrics -> LyricsSourcesScreen()
+                    Route.SettingsTranslation -> TranslationSettingsScreen()
+                    Route.SettingsPlaybackOptions -> PlaybackSettingsScreen()
+                    Route.SettingsPrivacy -> PrivacyScreen()
+                    Route.SettingsBackup -> BackupScreen()
                     Route.SettingsStorage -> StorageScreen()
                     Route.SettingsLastFm -> LastFmScreen()
                     Route.SettingsPlayback -> StreamingQualityScreen()
@@ -274,6 +284,7 @@ private fun GlowRoot(state: GlowState) {
         val chromeHidden = state.top in setOf(
             Route.Settings, Route.SettingsTheme, Route.SettingsLyrics, Route.SettingsStorage,
             Route.SettingsLastFm, Route.SettingsPlayback, Route.Equalizer, Route.JoinSession,
+            Route.SettingsTranslation, Route.SettingsPlaybackOptions, Route.SettingsPrivacy, Route.SettingsBackup,
         ) || state.top is Route.EditPlaylist || state.top is Route.Discography
         if (!chromeHidden) {
             Column(
@@ -287,7 +298,11 @@ private fun GlowRoot(state: GlowState) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ToastHost(state)
-                if (player.song != null) MiniPlayer(state)
+                AnimatedVisibility(
+                    visible = player.song != null,
+                    enter = slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 380f)) { it } + fadeIn(),
+                    exit = slideOutVertically { it } + fadeOut(),
+                ) { MiniPlayer(state) }
                 if (!state.wide) BottomTabs(state)
             }
         } else {
@@ -302,12 +317,29 @@ private fun GlowRoot(state: GlowState) {
         if (state.wide) SideRail(state)
 
         // The player is a full-screen take-over.
+        LaunchedEffect(state.playerOpen) { if (state.playerOpen) state.playerDrag = 0f }
         AnimatedVisibility(
             visible = state.playerOpen && player.song != null,
-            enter = slideInVertically(tween(320)) { it },
-            exit = slideOutVertically(tween(260)) { it },
+            enter = slideInVertically(tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } +
+                fadeIn(tween(200)),
+            exit = slideOutVertically(tween(280, easing = androidx.compose.animation.core.FastOutLinearInEasing)) { it },
         ) {
-            PlayerScreen()
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val radius = with(density) { 28.dp.toPx() }
+            Box(
+                Modifier.graphicsLayer {
+                    val drag = state.playerDrag
+                    val f = (drag / size.height).coerceIn(0f, 1f)
+                    translationY = drag
+                    // Pulled down, the player shrinks a touch and rounds like a card.
+                    scaleX = 1f - f * 0.08f
+                    scaleY = 1f - f * 0.08f
+                    shape = RoundedCornerShape((radius * (f * 6f).coerceAtMost(1f)).let { with(density) { it.toDp() } })
+                    clip = drag > 0f
+                },
+            ) {
+                PlayerScreen()
+            }
         }
         AnimatedVisibility(
             visible = state.devicesOpen,
@@ -424,34 +456,87 @@ private fun MiniPlayer(state: GlowState) {
     val player = state.player
     val song = player.song ?: return
     val progress = if (player.durationMs > 0) player.position.positionMs.toFloat() / player.durationMs else 0f
+    val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), tween(300), label = "miniProgress")
+    val swipe by GlowPrefs.swipeMiniPlayer.collectAsStateWithLifecycle()
+    val haptic = rememberHaptic()
+    val scope = rememberCoroutineScope()
+    val dragX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         Modifier
             .fillMaxWidth()
+            .pressScale(interaction, 0.98f)
+            .graphicsLayer {
+                translationX = dragX.value
+                alpha = 1f - (kotlin.math.abs(dragX.value) / size.width).coerceIn(0f, 0.6f)
+            }
             .clip(RoundedCornerShape(16.dp))
             .background(c.miniPlayer)
-            .clickable { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
+            .clickable(interaction, androidx.compose.material3.ripple()) { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, drag -> if (drag < -12f) state.playerOpen = true }
+            }
+            .pointerInput(swipe, player.hasNext) {
+                if (!swipe) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        val threshold = size.width * 0.28f
+                        scope.launch {
+                            val x = dragX.value
+                            val controller = state.controller
+                            when {
+                                x < -threshold && player.hasNext -> {
+                                    haptic()
+                                    dragX.animateTo(-size.width.toFloat(), tween(160))
+                                    controller?.seekToNext()
+                                    dragX.snapTo(size.width * 0.5f)
+                                }
+                                x > threshold -> {
+                                    haptic()
+                                    dragX.animateTo(size.width.toFloat(), tween(160))
+                                    controller?.seekToPrevious()
+                                    dragX.snapTo(-size.width * 0.5f)
+                                }
+                            }
+                            dragX.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f))
+                        }
+                    },
+                    onDragCancel = { scope.launch { dragX.animateTo(0f) } },
+                ) { change, dx ->
+                    change.consume()
+                    scope.launch { dragX.snapTo(dragX.value + dx) }
+                }
             },
     ) {
         Row(
             Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Cover(song.thumbnailUrl, size = 46.dp, shape = RoundedCornerShape(8.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                GlowText(song.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                GlowText(song.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+            AnimatedContent(
+                targetState = song,
+                contentKey = { it.videoId },
+                transitionSpec = { (fadeIn(tween(280)) + slideInVertically(tween(280)) { it / 3 }) togetherWith fadeOut(tween(160)) },
+                modifier = Modifier.weight(1f),
+                label = "miniSong",
+            ) { s ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Cover(s.thumbnailUrl, size = 46.dp, shape = RoundedCornerShape(8.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        GlowText(s.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                        GlowText(s.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+                    }
+                }
             }
             PrimaryCircle(
                 if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 if (player.isPlaying) "Pause" else "Play",
                 size = 44.dp,
                 iconSize = 22.dp,
-            ) { state.actions.togglePlayPause() }
+            ) { haptic(); state.actions.togglePlayPause() }
             Spacer(Modifier.width(6.dp))
             IconTap(Icons.Rounded.SkipNext, "Next", size = 44.dp, iconSize = 28.dp, enabled = player.hasNext) {
+                haptic()
                 state.controller?.seekToNext()
             }
         }
@@ -463,7 +548,7 @@ private fun MiniPlayer(state: GlowState) {
                 .height(2.dp)
                 .background(c.glass),
         ) {
-            Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(2.dp).background(c.text))
+            Box(Modifier.fillMaxWidth(animatedProgress).height(2.dp).background(c.text))
         }
     }
 }
@@ -543,20 +628,28 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(
     onClick: () -> Unit,
 ) {
     val c = Glow.colors
+    val tint by androidx.compose.animation.animateColorAsState(if (selected) c.text else c.textSecondary, tween(220), label = "tabTint")
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Column(
         Modifier
             .weight(1f)
             .fillMaxSize()
-            .clickable(onClick = onClick),
+            .clickable(interaction, null, onClick = onClick)
+            .semantics(mergeDescendants = true) { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(if (selected) selectedIcon else icon, null, tint = if (selected) c.text else c.textSecondary, modifier = Modifier.size(24.dp))
+        Icon(
+            if (selected) selectedIcon else icon,
+            null,
+            tint = tint,
+            modifier = Modifier.size(24.dp).pressScale(interaction, 0.8f).popOnChange(selected, enabled = selected),
+        )
         Spacer(Modifier.height(3.dp))
         Text(
             label,
             style = GlowType.caption.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
-            color = if (selected) c.text else c.textSecondary,
+            color = tint,
         )
     }
 }

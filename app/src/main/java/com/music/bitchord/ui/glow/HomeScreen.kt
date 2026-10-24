@@ -7,6 +7,8 @@ import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -144,7 +146,7 @@ fun HomeScreen() {
                             Spacer(Modifier.height(22.dp))
                         }
                         featured?.let { (shelf, item) ->
-                            item { FeaturedCard(shelf.title, item) }
+                            item { Box(Modifier.staggeredEntrance(0, item.title)) { FeaturedCard(shelf.title, item) } }
                         }
                         quick?.let { shelf ->
                             item {
@@ -155,9 +157,10 @@ fun HomeScreen() {
                                 }
                             }
                             val songs = shelf.items.mapNotNull { it.asSong() }
-                            items(songs.take(8), key = { "q" + it.videoId }) { song ->
+                            itemsIndexed(songs.take(8), key = { _, it -> "q" + it.videoId }) { i, song ->
                                 TrackRow(
                                     song,
+                                    modifier = Modifier.staggeredEntrance(i + 2, song.videoId),
                                     onClick = { g.playSingle(song, shelf.title) },
                                     onMore = { g.openSongMenu(song) },
                                     active = g.player.song?.videoId == song.videoId,
@@ -165,9 +168,11 @@ fun HomeScreen() {
                             }
                         }
                         val rest = state.data.filter { it !== quick }
-                        items(rest, key = { "s" + it.title }) { shelf ->
-                            Spacer(Modifier.height(22.dp))
-                            ShelfSection(shelf)
+                        itemsIndexed(rest, key = { _, it -> "s" + it.title }) { i, shelf ->
+                            Column(Modifier.staggeredEntrance(i + 6, shelf.title)) {
+                                Spacer(Modifier.height(22.dp))
+                                ShelfSection(shelf)
+                            }
                         }
                     }
                 }
@@ -199,14 +204,16 @@ fun AccountAvatar(name: String?, imageUrl: String?, onClick: () -> Unit) {
 @Composable
 private fun FeaturedCard(shelfTitle: String, item: ShelfItem) {
     val g = LocalGlow.current
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         Modifier
             .padding(horizontal = 20.dp)
             .fillMaxWidth()
             .height(190.dp)
+            .pressScale(interaction, 0.97f)
             .clip(RoundedCornerShape(14.dp))
             .background(Glow.colors.glassStrong)
-            .clickable { g.openShelfItem(item, shelfTitle) },
+            .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(item, shelfTitle) },
     ) {
         AsyncImage(
             item.thumbnailUrl.artworkAt(720),
@@ -260,7 +267,13 @@ fun ShelfSection(shelf: HomeShelf, cardSize: androidx.compose.ui.unit.Dp = 140.d
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(shelf.items, key = { (it.videoId ?: it.browseId ?: it.title) + it.subtitle }) { item ->
-                ShelfCard(item, cardSize, circle = item.browseId?.startsWith("UC") == true) {
+                val asSong = item.asSong()
+                ShelfCard(
+                    item,
+                    cardSize,
+                    circle = item.browseId?.startsWith("UC") == true,
+                    onLongClick = asSong?.let { song -> { g.openSongMenu(song) } },
+                ) {
                     g.openShelfItem(item, shelf.title)
                 }
             }
@@ -277,7 +290,13 @@ fun ShelfCard(
     onClick: () -> Unit,
 ) {
     val c = Glow.colors
-    Column(Modifier.width(size).clickable(onClick = onClick)) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Column(
+        Modifier
+            .width(size)
+            .pressScale(interaction, 0.95f)
+            .combinedClickable(interaction, null, onClick = onClick, onLongClick = onLongClick),
+    ) {
         Cover(item.thumbnailUrl, size = size, shape = if (circle) CircleShape else RoundedCornerShape(12.dp), px = 544)
         Spacer(Modifier.height(8.dp))
         Text(item.title, style = GlowType.body, color = c.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
