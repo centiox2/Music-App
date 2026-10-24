@@ -59,7 +59,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalView
+import com.music.bitchord.ui.glow.lyrics.GlowLyrics
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -555,91 +559,30 @@ private fun LyricsPane(modifier: Modifier) {
     val c = Glow.colors
     val lyrics by vm.lyrics.collectAsStateWithLifecycle()
     val checked by vm.lyricsChecked.collectAsStateWithLifecycle()
+    val source by vm.lyricsSource.collectAsStateWithLifecycle()
     val offsetMs by AppSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
-    val lines = lyrics.orEmpty().filterNot { it.isGap }
-    val position = g.player.position.positionMs + offsetMs
-    val synced = lines.any { it.timeMs > 0 }
-    val current by remember(lines) {
-        derivedStateOf {
-            if (!synced) -1 else lines.indexOfLast { it.timeMs <= position }.coerceAtLeast(0)
-        }
+    val player by rememberUpdatedState(g.player)
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val was = view.keepScreenOn
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = was }
     }
-    val listState = rememberLazyListState()
-    LaunchedEffect(current) {
-        if (current >= 0) listState.animateScrollToItem((current - 1).coerceAtLeast(0))
-    }
-    Box(modifier.fillMaxWidth()) {
-        when {
-            lines.isEmpty() && !checked -> SkeletonRows(4, Modifier.padding(top = 30.dp))
-            lines.isEmpty() -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No lyrics for this song", style = GlowType.title, color = c.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                TextAction("Lyrics sources") { g.playerOpen = false; g.push(Route.SettingsLyrics) }
-            }
-            else -> LazyColumn(state = listState, contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)) {
-                itemsIndexed(lines, key = { i, l -> "$i${l.timeMs}" }) { i, line ->
-                    LyricLineView(
-                        line,
-                        state = when {
-                            !synced -> 0
-                            i < current -> -1
-                            i == current -> 0
-                            else -> 1
-                        },
-                        position = position,
-                        onClick = { if (synced) g.controller?.seekTo(line.timeMs) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** state: -1 sung, 0 current (or unsynced), 1 upcoming. */
-@Composable
-private fun LyricLineView(line: LyricLine, state: Int, position: Long, onClick: () -> Unit) {
-    val c = Glow.colors
-    val dim = c.text.copy(alpha = 0.35f)
-    val alpha by animateFloatAsState(if (state == 0) 1f else 0.4f, tween(300), label = "lyricAlpha")
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+    GlowLyrics(
+        lyrics = lyrics,
+        checked = checked,
+        positionProvider = { g.controller?.currentPosition ?: player.position.positionMs },
+        isPlayingProvider = { g.controller?.isPlaying ?: player.isPlaying },
+        lyricsOffsetMs = offsetMs.toLong(),
+        onSeek = { ms -> if (!g.actions.refusedByHost()) g.controller?.seekTo(ms) },
+        onShare = { text -> g.shareUrl(player.song?.title.orEmpty(), text) },
+        sourceLabel = source?.label,
+        modifier = modifier.fillMaxWidth(),
     ) {
-        val text = if (state == 0 && line.isWordSynced) {
-            buildAnnotatedString {
-                var cursor = 0
-                line.words.forEachIndexed { wi, word ->
-                    val span = line.wordSpans.getOrNull(wi) ?: return@forEachIndexed
-                    if (span.first > cursor) {
-                        withStyle(SpanStyle(color = if (position >= word.startMs) c.text else dim)) {
-                            append(line.text.substring(cursor, span.first.coerceAtMost(line.text.length)))
-                        }
-                    }
-                    val sung = word.charsSungAt(position).toInt().coerceIn(0, word.text.length)
-                    withStyle(SpanStyle(color = c.text)) { append(word.text.substring(0, sung)) }
-                    withStyle(SpanStyle(color = dim)) { append(word.text.substring(sung)) }
-                    cursor = (span.last + 1).coerceAtMost(line.text.length)
-                }
-                if (cursor < line.text.length) withStyle(SpanStyle(color = dim)) { append(line.text.substring(cursor)) }
-            }
-        } else {
-            buildAnnotatedString { append(line.text) }
-        }
-        Text(
-            text,
-            style = GlowType.lyric,
-            color = if (state == 0 && !line.isWordSynced) c.text else c.text.copy(alpha = alpha),
-        )
-        line.background?.let { bg ->
-            Text(
-                bg.text,
-                style = GlowType.lyric.copy(fontSize = 18.sp, fontStyle = FontStyle.Italic, lineHeight = 24.sp),
-                color = c.text.copy(alpha = if (state == 0) 0.55f else 0.3f),
-                modifier = Modifier.padding(top = 6.dp),
-            )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("No lyrics for this song", style = GlowType.title, color = c.textSecondary)
+            Spacer(Modifier.height(8.dp))
+            TextAction("Lyrics sources") { g.playerOpen = false; g.push(Route.SettingsLyrics) }
         }
     }
 }

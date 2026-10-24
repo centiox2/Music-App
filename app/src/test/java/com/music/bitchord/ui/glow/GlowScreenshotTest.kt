@@ -54,7 +54,9 @@ class GlowScreenshotTest {
         playbackSource = "Quick picks",
     )
 
-    private fun launch(playing: Boolean = false, light: Boolean = false) {
+    private var lastPlayer: PlayerState? = null
+
+    private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L) {
         assumeTrue("Set GLOW_SHOTS to render screenshots", System.getenv("GLOW_SHOTS") != null)
         val app = RuntimeEnvironment.getApplication()
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
@@ -68,6 +70,7 @@ class GlowScreenshotTest {
         GlowPrefs.setNotificationsAsked()
         val player = if (playing) {
             PlayerState(song = song, isPlaying = true, durationMs = 282_000L, queue = listOf(song), queueIndex = 0)
+                .also { it.position.report(positionMs); lastPlayer = it }
         } else {
             null
         }
@@ -116,13 +119,33 @@ class GlowScreenshotTest {
         launch(playing = true)
         click("Despacito")
         shot("02-player")
+        click("Up next")
+        shot("04-up-next")
+        // Last: while lyrics play, their frame loop keeps Compose from ever idling.
         click("Lyrics")
         settle(10)
         shot("03-lyrics")
-        click("Up next")
-        shot("04-up-next")
+    }
+
+    @Test
+    fun songMenu() {
+        launch(playing = true)
+        click("Despacito")
         click("More options")
         shot("05-song-menu")
+    }
+
+    @Test
+    fun lyrics() {
+        launch(playing = true, positionMs = 62_000L)
+        val player = lastPlayer!!
+        click("Despacito")
+        click("Lyrics")
+        settle(12)
+        shot("03b-lyrics-mid-song")
+        player.position.report(66_400L)
+        settle(4)
+        shot("03c-lyrics-later")
     }
 
     @Test
