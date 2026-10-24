@@ -256,7 +256,7 @@ fun PlaybackSettingsScreen() {
             CardDivider()
             SwitchRow("Don't repeat suggestions", noRepeats, AppSettings::setDontRepeatSuggestions, subtitle = "Skip songs already played this session")
             CardDivider()
-            SwitchRow("Prefer songs over videos", musicOnly, AppSettings::setPreferMusicOnly, subtitle = "Play the audio release when a music video is chosen")
+            SwitchRow("Prefer songs over videos", musicOnly, AppSettings::setPreferMusicOnly, subtitle = "Play the official audio when a music video is chosen; video soundtracks are often a weaker mix")
             CardDivider()
             SwitchRow("Match versions", align, AppSettings::setSmartVersionAlignment, subtitle = "Keep your place when switching to another version of a song")
             CardDivider()

@@ -8,6 +8,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.music.bitchord.playback.contextEntryKey
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -813,30 +822,46 @@ private fun QueuePane(modifier: Modifier) {
     val c = Glow.colors
     val player = g.player
     val autoplay by AppSettings.autoplay.collectAsStateWithLifecycle()
+    val shuffle by AppSettings.shuffleEnabled.collectAsStateWithLifecycle()
+    val snapshot by com.music.bitchord.playback.BoundedContextRequests.snapshot.collectAsStateWithLifecycle()
     val queue = player.queue
     val currentIndex = player.queueIndex
     val current = player.song
+    val history = queue.withIndex().filter { it.index < currentIndex }
     val upcoming = queue.withIndex().filter { it.index > currentIndex }
     val rowHeightPx = with(LocalDensity.current) { 64.dp.toPx() }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
+    // The whole album or playlist being played, not just the part of it loaded into the player:
+    // the player holds a window around the current song and tops it up as it goes.
+    val context = snapshot?.takeIf { snap ->
+        val id = snap.request.source.id
+        id != null && (current?.playbackSourceId == id || queue.any { it.playbackSourceId == id })
+    }
+    val canonical = context?.songs.orEmpty()
+    val loadedKeys = remember(queue) { queue.mapTo(HashSet()) { it.contextEntryKey() } }
+    val currentCanonical = current?.let { cur -> canonical.indexOfFirst { it.contextEntryKey() == cur.contextEntryKey() } } ?: -1
+    val earlierInContext = if (!shuffle && currentCanonical > 0) {
+        canonical.subList(0, currentCanonical).withIndex().filter { it.value.contextEntryKey() !in loadedKeys }
+    } else {
+        emptyList()
+    }
+    val restOfContext = canonical.withIndex().filter { (i, s) ->
+        s.contextEntryKey() !in loadedKeys && (shuffle || i > currentCanonical)
+    }
+    val playAt: (Int) -> Unit = { i ->
+        context?.let { snap -> g.actions.playFrom(snap.songs, i, snap.request.source, boundedContext = true, continuationToken = snap.continuationToken) }
+    }
+    val listState = rememberLazyListState()
+    // Opens on the current song, with what came before it above.
+    LaunchedEffect(Unit) {
+        val before = earlierInContext.size + history.size + (if (earlierInContext.isNotEmpty()) 1 else 0) + (if (history.isNotEmpty()) 1 else 0)
+        if (before > 0) listState.scrollToItem(before)
+    }
+
     Column(modifier.fillMaxWidth()) {
-        if (current != null) {
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.glass).padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Cover(current.thumbnailUrl, size = 48.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    GlowText(current.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                    GlowText(current.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
-                }
-                PlayingBars(Modifier.padding(end = 8.dp), playing = player.isPlaying)
-            }
-        }
-        Row(Modifier.padding(top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Playing from", style = GlowType.secondary, color = c.textSecondary)
                 GlowText(current?.radioName ?: current?.playbackSource ?: "Your queue", GlowType.titleSmall, maxLines = 1)
@@ -845,60 +870,85 @@ private fun QueuePane(modifier: Modifier) {
             Spacer(Modifier.width(10.dp))
             GlowSwitch(autoplay, { g.controller?.toggleAutoplay() })
         }
-        LazyColumn(Modifier.weight(1f)) {
-            itemsIndexed(upcoming, key = { _, s -> (s.value.queueEntryId ?: s.value.videoId) + s.index }) { pos, entry ->
-                val song = entry.value
-                val isDragging = draggingIndex == entry.index
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .graphicsLayer {
-                            translationY = if (isDragging) dragOffset else 0f
-                            shadowElevation = if (isDragging) 12f else 0f
-                        }
-                        .background(if (isDragging) c.sheet else Color.Transparent)
-                        .clickable { g.actions.skipToQueueIndex(entry.index) },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Cover(song.thumbnailUrl, size = 46.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        GlowText(song.title, GlowType.body, maxLines = 1)
-                        GlowText(
-                            song.artist + if (song.fromAutoplay) " · Autoplay" else "",
-                            GlowType.secondary,
-                            color = c.textSecondary,
-                            maxLines = 1,
-                        )
-                    }
-                    Box(
-                        Modifier
-                            .size(44.dp)
-                            .pointerInput(entry.index) {
-                                detectDragGestures(
-                                    onDragStart = { draggingIndex = entry.index; dragOffset = 0f },
-                                    onDragEnd = {
-                                        val from = entry.index
-                                        val steps = (dragOffset / rowHeightPx).roundToInt()
-                                        val to = (from + steps).coerceIn(currentIndex + 1, queue.lastIndex)
-                                        if (to != from) g.actions.moveQueueItem(from, to)
-                                        draggingIndex = null
-                                        dragOffset = 0f
-                                    },
-                                    onDragCancel = { draggingIndex = null; dragOffset = 0f },
-                                ) { change, amount ->
-                                    change.consume()
-                                    dragOffset += amount.y
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
+        LazyColumn(Modifier.weight(1f), state = listState) {
+            if (earlierInContext.isNotEmpty() || history.isNotEmpty()) {
+                item(key = "h-earlier") { QueueHeader("Earlier") }
+                items(earlierInContext, key = { "ec" + it.index + it.value.videoId }) { (i, song) ->
+                    QueueRow(song, dimmed = true, onClick = { playAt(i) })
+                }
+                items(history, key = { "h" + it.index + (it.value.queueEntryId ?: it.value.videoId) }) { entry ->
+                    QueueRow(entry.value, dimmed = true, onClick = { g.actions.skipToQueueIndex(entry.index) }, onRemove = { g.actions.removeQueueItem(entry.index) })
+                }
+            }
+            if (current != null) {
+                item(key = "now") {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(14.dp)).background(c.glass).padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Rounded.DragHandle, "Drag to reorder", tint = c.textSecondary, modifier = Modifier.size(22.dp))
+                        Cover(current.thumbnailUrl, size = 48.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            GlowText(current.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                            GlowText(current.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+                        }
+                        PlayingBars(Modifier.padding(end = 8.dp), playing = player.isPlaying)
                     }
                 }
             }
-            if (upcoming.isEmpty()) {
+            if (upcoming.isNotEmpty()) item(key = "h-next") { QueueHeader("Up next") }
+            itemsIndexed(upcoming, key = { _, s -> "u" + (s.value.queueEntryId ?: s.value.videoId) + s.index }) { _, entry ->
+                val song = entry.value
+                val isDragging = draggingIndex == entry.index
+                Box(
+                    Modifier.graphicsLayer {
+                        translationY = if (isDragging) dragOffset else 0f
+                        shadowElevation = if (isDragging) 12f else 0f
+                    },
+                ) {
+                    QueueRow(
+                        song,
+                        subtitle = song.artist + if (song.fromAutoplay) " · Autoplay" else "",
+                        onClick = { g.actions.skipToQueueIndex(entry.index) },
+                        onRemove = { g.actions.removeQueueItem(entry.index) },
+                        handle = {
+                            Box(
+                                Modifier
+                                    .size(40.dp)
+                                    .pointerInput(entry.index) {
+                                        detectDragGestures(
+                                            onDragStart = { draggingIndex = entry.index; dragOffset = 0f },
+                                            onDragEnd = {
+                                                val from = entry.index
+                                                val to = (from + (dragOffset / rowHeightPx).roundToInt()).coerceIn(currentIndex + 1, queue.lastIndex)
+                                                if (to != from) g.actions.moveQueueItem(from, to)
+                                                draggingIndex = null
+                                                dragOffset = 0f
+                                            },
+                                            onDragCancel = { draggingIndex = null; dragOffset = 0f },
+                                        ) { change, amount ->
+                                            change.consume()
+                                            dragOffset += amount.y
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(Icons.Rounded.DragHandle, "Drag to reorder", tint = c.textSecondary, modifier = Modifier.size(22.dp)) }
+                        },
+                    )
+                }
+            }
+            if (restOfContext.isNotEmpty()) {
+                item(key = "h-rest") {
+                    QueueHeader(
+                        if (shuffle) "Rest of ${context?.request?.source?.title ?: "the playlist"} · plays in random order"
+                        else "Later in ${context?.request?.source?.title ?: "the playlist"}",
+                    )
+                }
+                items(restOfContext, key = { "rc" + it.index + it.value.videoId }) { (i, song) ->
+                    QueueRow(song, onClick = { playAt(i) })
+                }
+            }
+            if (upcoming.isEmpty() && restOfContext.isEmpty()) {
                 item {
                     Text(
                         if (autoplay) "Autoplay will add similar songs." else "Nothing else is queued.",
@@ -910,4 +960,66 @@ private fun QueuePane(modifier: Modifier) {
             }
         }
     }
+}
+
+@Composable
+private fun QueueHeader(text: String) {
+    Text(
+        text,
+        style = GlowType.label.copy(fontSize = 13.sp),
+        color = Glow.colors.textSecondary,
+        maxLines = 1,
+        modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
+    )
+}
+
+/** One queue row; swipe it away (or tap ✕) to take it out of the queue. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QueueRow(
+    song: Song,
+    subtitle: String = song.artist,
+    dimmed: Boolean = false,
+    onClick: () -> Unit,
+    onRemove: (() -> Unit)? = null,
+    handle: (@Composable () -> Unit)? = null,
+) {
+    val c = Glow.colors
+    val content: @Composable () -> Unit = {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .background(c.base.copy(alpha = 0.001f))
+                .clickable(onClick = onClick)
+                .alpha(if (dimmed) 0.55f else 1f),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Cover(song.thumbnailUrl, size = 46.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                GlowText(song.title, GlowType.body, maxLines = 1)
+                GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+            }
+            if (onRemove != null) IconTap(Icons.Rounded.Close, "Remove from queue", tint = c.textTertiary, size = 40.dp, iconSize = 18.dp, onClick = onRemove)
+            handle?.invoke()
+        }
+    }
+    if (onRemove == null) {
+        content()
+        return
+    }
+    val state = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
+        if (value != SwipeToDismissBoxValue.Settled) onRemove()
+        value != SwipeToDismissBoxValue.Settled
+    })
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(c.danger.copy(alpha = 0.25f)).padding(horizontal = 18.dp),
+                contentAlignment = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+            ) { Icon(Icons.Rounded.Delete, "Remove", tint = c.danger) }
+        },
+    ) { content() }
 }

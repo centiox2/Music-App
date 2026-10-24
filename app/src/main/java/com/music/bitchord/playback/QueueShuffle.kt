@@ -222,6 +222,17 @@ object QueueShuffle {
         if (c != null && !isCanonicalContextValid(player, c)) {
             clearCanonicalContext()
         }
+        // Learn the album or playlist's order before anything moves, so turning shuffle off can put it back.
+        if (ctx == null) {
+            val contextItems = player.queueItems().filter { it.queueTier == QueueTier.CONTEXT }
+            if (contextItems.isNotEmpty()) setCanonicalContext(contextItems)
+        }
+        // Shuffle means the whole album or playlist, not just what's after the current song:
+        // the context songs already played (or skipped past) join the shuffled part too.
+        val earlier = (0 until player.currentMediaItemIndex).takeWhile {
+            player.getMediaItemAt(it).queueTier == QueueTier.CONTEXT
+        }.size
+        if (earlier > 0) player.moveMediaItems(0, earlier, player.mediaItemCount)
         val items = player.queueItems()
         val currentIndex = player.currentMediaItemIndex
         val imminent = isNextItemImminent(player)
