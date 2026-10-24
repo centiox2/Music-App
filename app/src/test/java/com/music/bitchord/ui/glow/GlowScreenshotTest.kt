@@ -19,6 +19,7 @@ import com.music.bitchord.playback.PlayerState
 import com.music.bitchord.ui.MainViewModel
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -146,22 +147,34 @@ class GlowScreenshotTest {
         GlowPrefs.setLiquidBackground(false)
         click("Despacito")
         val matcher = hasContentDescription("Up next")
-        fun frames(prefix: String) {
+        // How much darker it is just left of the cover than at the screen edge: the side shadow.
+        fun sideShadow(b: Bitmap): Int {
+            fun lum(x: Int) = b.getPixel(x, b.height * 4 / 10).let { (android.graphics.Color.red(it) + android.graphics.Color.green(it) + android.graphics.Color.blue(it)) / 3 }
+            return lum(5) - lum(40)
+        }
+        fun frames(prefix: String): List<Int> {
             rule.mainClock.autoAdvance = false
             rule.onAllNodes(matcher)[0].performClick()
-            for (i in 0 until 14) {
+            val shadows = (0 until 14).map { i ->
                 rule.mainClock.advanceTimeBy(20)
-                shotNow("%s-%02d".format(prefix, i))
+                sideShadow(shotNow("%s-%02d".format(prefix, i)))
             }
             rule.mainClock.autoAdvance = true
             settle(4)
+            return shadows
         }
-        frames("pf-to-queue")
-        frames("pf-to-player")
+        val out = frames("pf-to-queue")
+        val back = frames("pf-to-player")
+        // The side shadow fades with the cover; it must not vanish the moment a switch starts
+        // (it was clipped off for the whole transition).
+        val rest = out.first()
+        assertTrue("side shadow at rest: $out", rest > 6)
+        assertTrue("side shadow cut off leaving the player: $out", out[2] > rest / 2)
+        assertTrue("side shadow cut off returning to the player: $back", back[4] > rest / 2)
         GlowPrefs.setLiquidBackground(true)
     }
 
-    private fun shotNow(name: String) {
+    private fun shotNow(name: String): Bitmap {
         val dir = File(System.getenv("GLOW_SHOTS")!!).apply { mkdirs() }
         val view = rule.activity.window.decorView
         rule.runOnUiThread { view.invalidate() }
@@ -169,6 +182,7 @@ class GlowScreenshotTest {
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         rule.runOnUiThread { view.draw(Canvas(bitmap)) }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        return bitmap
     }
 
     @Test

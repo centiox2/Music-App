@@ -102,6 +102,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -164,18 +165,55 @@ fun PlayerScreen() {
 }
 
 /**
- * Fades a pane in and out by modulating the alpha of what it draws rather than
- * compositing it offscreen, so shadows outside its bounds aren't clipped.
+ * Cross-fades the player's panes (cover, lyrics, queue) without clipping them.
+ *
+ * Not AnimatedContent: for the length of a switch it wraps each pane in a layer
+ * that clips to the pane's bounds, and the cover is exactly as wide as the
+ * pane, so its side shadows were cut off until the switch ended. Here each pane
+ * fades by modulating the alpha of what it draws, in no clipped or offscreen
+ * layer, so the shadow is drawn whole throughout.
  */
+private val PANE_MARGIN = 20.dp
+
 @Composable
-private fun Modifier.paneFade(scope: androidx.compose.animation.AnimatedVisibilityScope): Modifier {
-    val alpha by scope.transition.animateFloat(
-        transitionSpec = { tween(if (targetState == androidx.compose.animation.EnterExitState.Visible) 200 else 150) },
-        label = "paneAlpha",
-    ) { if (it == androidx.compose.animation.EnterExitState.Visible) 1f else 0f }
-    return graphicsLayer {
-        this.alpha = alpha
-        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+private fun PaneSwitcher(
+    pane: PlayerPane,
+    modifier: Modifier,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.(PlayerPane) -> Unit,
+) {
+    val transition = androidx.compose.animation.core.updateTransition(pane, label = "pane")
+    // A fading layer is clipped to its own bounds while it fades. The player's 20dp side
+    // margin is therefore moved inside each pane's layer, so the layer reaches the screen
+    // edges and the cover's side shadows have room to be drawn mid-switch.
+    Box(
+        modifier.layout { measurable, constraints ->
+            val margin = PANE_MARGIN.roundToPx()
+            val wide = constraints.copy(
+                minWidth = constraints.minWidth + 2 * margin,
+                maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + 2 * margin else constraints.maxWidth,
+            )
+            val placeable = measurable.measure(wide)
+            layout((placeable.width - 2 * margin).coerceIn(constraints.minWidth, constraints.maxWidth), placeable.height) { placeable.place(-margin, 0) }
+        },
+    ) {
+        // The pane leaving and the one arriving; just the one when nothing is switching.
+        listOf(transition.currentState, transition.targetState).distinct().forEach { shown ->
+            androidx.compose.runtime.key(shown) {
+                val alpha by transition.animateFloat(
+                    transitionSpec = { tween(if (targetState == shown) 200 else 150) },
+                    label = "paneAlpha",
+                ) { if (it == shown) 1f else 0f }
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            this.alpha = alpha
+                            compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+                        }
+                        .padding(horizontal = PANE_MARGIN),
+                ) { content(shown) }
+            }
+        }
     }
 }
 
@@ -232,34 +270,22 @@ private fun PortraitPlayer(song: Song) {
             .padding(horizontal = 20.dp),
     ) {
         PlayerHeader(song)
-        AnimatedContent(
-            targetState = g.playerPane,
-            // The fade is drawn by paneFade below, not by AnimatedContent: its own fade renders
-            // each pane into an offscreen layer the size of the pane, which cut the cover's
-            // shadow off mid-switch and only drew it once the fade had finished.
-            // clip = false: while a switch runs, AnimatedContent otherwise clips to its own bounds,
-            // and the cover is as wide as the pane, so its side shadows vanished until the end.
-            transitionSpec = { (EnterTransition.None togetherWith ExitTransition.None) using androidx.compose.animation.SizeTransform(clip = false) },
-            modifier = Modifier.weight(1f),
-            label = "pane",
-        ) { pane ->
-            Column(Modifier.fillMaxSize().paneFade(this)) {
-                when (pane) {
-                    PlayerPane.NOW_PLAYING -> {
-                        // Laid out like the reference: cover, title, seek bar and controls sit
-                        // together at set gaps above the bottom bar; spare height goes above the cover.
-                        Spacer(Modifier.weight(1f))
-                        Artwork(song, Modifier.fillMaxWidth().aspectRatio(1f))
-                        Spacer(Modifier.height(30.dp))
-                        TitleRow(song, large = true)
-                    }
-                    PlayerPane.LYRICS -> {
-                        LyricsPane(Modifier.weight(1f))
-                        Spacer(Modifier.height(12.dp))
-                        TitleRow(song, large = false)
-                    }
-                    PlayerPane.QUEUE -> QueuePane(Modifier.weight(1f))
+        PaneSwitcher(g.playerPane, Modifier.weight(1f)) { pane ->
+            when (pane) {
+                PlayerPane.NOW_PLAYING -> {
+                    // Laid out like the reference: cover, title, seek bar and controls sit
+                    // together at set gaps above the bottom bar; spare height goes above the cover.
+                    Spacer(Modifier.weight(1f))
+                    Artwork(song, Modifier.fillMaxWidth().aspectRatio(1f))
+                    Spacer(Modifier.height(30.dp))
+                    TitleRow(song, large = true)
                 }
+                PlayerPane.LYRICS -> {
+                    LyricsPane(Modifier.weight(1f))
+                    Spacer(Modifier.height(12.dp))
+                    TitleRow(song, large = false)
+                }
+                PlayerPane.QUEUE -> QueuePane(Modifier.weight(1f))
             }
         }
         Spacer(Modifier.height(26.dp))
