@@ -175,20 +175,21 @@ private fun PlayerBackdrop(song: Song) {
         return
     }
     val cover = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
-    val colors = when {
-        !fromArtwork -> Color(fixed).let { f -> listOf(f, lerp(f, Color.White, 0.25f), lerp(f, Color.Black, 0.3f), f) }
-        else -> cover ?: ArtworkPalettes.last ?: listOf(c.glassStrong, c.glass, c.glassStrong, c.glass)
+    val palette = when {
+        !fromArtwork -> Color(fixed).let { f -> CoverPalette(listOf(f, lerp(f, Color.White, 0.25f)), listOf(0.8f, 0.2f)) }
+        else -> cover ?: ArtworkPalettes.last ?: CoverPalette(listOf(c.base), listOf(1f))
     }
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = (0.55f + 0.4f * intensity).coerceAtMost(1f) }) {
-        GlowMesh(colors, moving = !reduce)
+    // Opaque at the default strength, so the colours on screen are the cover's.
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = intensity.coerceIn(0.3f, 1f) }) {
+        GlowMesh(palette, moving = !reduce, dark = c.isDark)
     }
-    // Keeps the controls readable where the colour is brightest.
+    // Only enough shade to keep the controls readable, mostly at the bottom where they are.
     Box(
         Modifier.fillMaxSize().background(
             androidx.compose.ui.graphics.Brush.verticalGradient(
-                0f to c.base.copy(alpha = if (c.isDark) 0.25f else 0.35f),
-                0.55f to c.base.copy(alpha = if (c.isDark) 0.35f else 0.5f),
-                1f to c.base.copy(alpha = if (c.isDark) 0.82f else 0.85f),
+                0f to c.base.copy(alpha = 0.12f),
+                0.55f to c.base.copy(alpha = 0.18f),
+                1f to c.base.copy(alpha = if (c.isDark) 0.7f else 0.75f),
             ),
         ),
     )

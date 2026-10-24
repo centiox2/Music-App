@@ -344,7 +344,7 @@ private fun ArtistPageScreen(page: DetailPage) {
 
     // The page wears the artist photo's colour, darkened, as the design does.
     val palette = rememberGlowPalette(page.thumbnailUrl)
-    val tintTarget = palette?.firstOrNull()?.let { artistTint(it, c.isDark) } ?: c.base
+    val tintTarget = palette?.dominant?.let { artistTint(it, c.isDark) } ?: c.base
     val tint by androidx.compose.animation.animateColorAsState(tintTarget, tween(600), label = "artistTint")
     val onTint = if (c.isDark || tint.luminance() < 0.4f) Color.White else Color(0xFF111111)
     val dim = onTint.copy(alpha = 0.65f)

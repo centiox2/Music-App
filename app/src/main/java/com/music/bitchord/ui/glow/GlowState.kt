@@ -228,9 +228,12 @@ class GlowState(
         vm.loadPlaylists()
         GlowPrefs.setLastSync(System.currentTimeMillis())
         scope.launch {
-            com.music.bitchord.data.YtMusicRepository.allSongs(com.music.bitchord.data.YtMusicRepository.LIKED_MUSIC).onSuccess {
-                LikedSongsCache.songs.value = it
-                LikedSongsCache.complete.value = true
+            // The full liked list is many pages; a background sync leaves it for when Library opens.
+            if (!quiet || LikedSongsCache.songs.value != null) {
+                com.music.bitchord.data.YtMusicRepository.allSongs(com.music.bitchord.data.YtMusicRepository.LIKED_MUSIC).onSuccess {
+                    LikedSongsCache.songs.value = it
+                    LikedSongsCache.complete.value = true
+                }
             }
             if (!quiet) notify("Library synced with YouTube Music")
         }

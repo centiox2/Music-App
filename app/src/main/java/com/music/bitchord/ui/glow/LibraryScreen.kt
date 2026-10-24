@@ -94,6 +94,7 @@ fun LibraryScreen() {
     var tab by rememberSaveable { mutableStateOf(0) }
     LaunchedEffect(signedIn) {
         if (!signedIn) return@LaunchedEffect
+        vm.ensureLibrary()
         vm.onLibraryShown()
         // The full liked list, read once in the background, so its count is right before Liked songs is opened.
         if (LikedSongsCache.songs.value == null) {

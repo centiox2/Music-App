@@ -169,7 +169,11 @@ fun CoverGlow(
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
     // Cached per cover, so reopening a screen starts on the right colours instead of flashing stock ones.
-    val palette = rememberGlowPalette(if (fromArtwork) artworkUrl else null) ?: ArtworkPalettes.last.takeIf { artworkUrl != null }.orEmpty()
+    val cover = rememberGlowPalette(if (fromArtwork) artworkUrl else null) ?: ArtworkPalettes.last.takeIf { artworkUrl != null }
+    val palette = cover?.colors.orEmpty()
+    // The second bloom is as strong as that colour's share of the cover allows, so a sliver of red stays a hint.
+    val secondShare = cover?.weights?.let { w -> if (w.size >= 2) (w[1] / w[0]).coerceIn(0.15f, 1f) else 0f } ?: 1f
+    val second by animateFloatAsState(secondShare, tween(1200), label = "glowSecond")
     val baseColors = if (fromArtwork && artworkUrl != null && palette.size >= 2) {
         palette
     } else {
@@ -192,7 +196,7 @@ fun CoverGlow(
         )
         drawRect(
             Brush.radialGradient(
-                listOf(b.copy(alpha = strength * 0.85f), Color.Transparent),
+                listOf(b.copy(alpha = strength * 0.85f * second), Color.Transparent),
                 center = Offset(w * 0.8f, h * 0.3f),
                 radius = w * 0.6f,
             ),

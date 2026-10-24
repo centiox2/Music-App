@@ -240,6 +240,31 @@ class GlowScreenshotTest {
     }
 
     @Test
+    fun meshAccuracy() {
+        assumeTrue(System.getenv("GLOW_SHOTS") != null)
+        GlowPrefs.init(RuntimeEnvironment.getApplication())
+        rule.setContent {
+            GlowTheme {
+                androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    GlowMesh(
+                        CoverPalette(listOf(androidx.compose.ui.graphics.Color.Black, androidx.compose.ui.graphics.Color(0xFFD01010)), listOf(0.9f, 0.1f)),
+                        androidx.compose.ui.Modifier.weight(1f), moving = false,
+                    )
+                    GlowMesh(
+                        CoverPalette(
+                            listOf(androidx.compose.ui.graphics.Color(0xFF1F3A5F), androidx.compose.ui.graphics.Color(0xFFF2A541), androidx.compose.ui.graphics.Color.White),
+                            listOf(0.6f, 0.3f, 0.1f),
+                        ),
+                        androidx.compose.ui.Modifier.weight(1f), moving = false,
+                    )
+                }
+            }
+        }
+        settle(4)
+        shot("85-mesh")
+    }
+
+    @Test
     fun homeLate() {
         launch(playing = true)
         shot("80-home-a")

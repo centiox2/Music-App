@@ -62,6 +62,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -158,7 +159,12 @@ private fun GlowRoot(state: GlowState) {
     }
     val syncedLyrics by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
-    LaunchedEffect(player.song?.videoId, player.durationMs, syncedLyrics, lyricsSources) {
+    // Lyrics are looked up once the player has been opened, not at launch: the lookup races every
+    // provider at once and was competing with Home for the network while the app was starting.
+    var lyricsWanted by remember { androidx.compose.runtime.mutableStateOf(false) }
+    LaunchedEffect(state.playerOpen) { if (state.playerOpen) lyricsWanted = true }
+    LaunchedEffect(player.song?.videoId, player.durationMs, syncedLyrics, lyricsSources, lyricsWanted) {
+        if (!lyricsWanted) return@LaunchedEffect
         player.song?.let {
             vm.loadLyrics(
                 it.videoId,
@@ -235,8 +241,12 @@ private fun GlowRoot(state: GlowState) {
     // Automatic account sync: when the app comes back to the front after 15 minutes or more.
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
+        // Only after the app has really been in the background: a cold start already loads the
+        // library, and syncing on top of it doubled the work while the app was opening.
+        var backgrounded = false
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && GlowPrefs.autoSync.value &&
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) backgrounded = true
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && backgrounded && GlowPrefs.autoSync.value &&
                 System.currentTimeMillis() - GlowPrefs.lastSync.value > 15 * 60_000L
             ) {
                 GlowPrefs.setLastSync(System.currentTimeMillis())

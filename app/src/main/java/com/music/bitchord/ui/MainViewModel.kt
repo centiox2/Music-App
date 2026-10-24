@@ -57,6 +57,7 @@ import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.download.Downloads
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -607,6 +608,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val history: StateFlow<UiState<List<Song>>> = _history.asStateFlow()
 
     private val _library = MutableStateFlow<UiState<LibraryPage>>(UiState.Loading)
+    private var deferredLibrary: Job? = null
+    private var libraryStarted = false
     val library: StateFlow<UiState<LibraryPage>> = _library.asStateFlow()
 
     /** In-memory cache is partitioned by account and profile; it is never shared. */
@@ -1468,9 +1471,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         loadHome()
         loadExplore()
         if (_signedIn.value) {
-            loadLibrary()
             loadAccount()
-            loadPlaylists()
+            // Home first: the library is many pages and was competing with the screen
+            // being looked at. It follows once Home is in (or after a few seconds), or at
+            // once if Library is opened before then — see [ensureLibrary].
+            deferredLibrary = viewModelScope.launch {
+                kotlinx.coroutines.withTimeoutOrNull(4_000) { _home.first { it !is UiState.Loading } }
+                ensureLibrary()
+            }
         }
         viewModelScope.launch {
             // drop(1): the current value is just the count so far, not a play.
@@ -1807,13 +1815,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Starts the first library load if it hasn't started yet. */
+    fun ensureLibrary() {
+        if (libraryStarted || !_signedIn.value) return
+        libraryStarted = true
+        deferredLibrary?.cancel()
+        loadLibrary()
+        loadPlaylists()
+    }
+
     fun loadLibrary() {
+        libraryStarted = true
         if (!_signedIn.value) return
         val identity = listenerKey()
-        // Last session's library first, so the tab isn't blank while every page is read again.
-        val snapshot = com.music.bitchord.data.LibrarySnapshot.load(getApplication(), identity)
-        _library.value = snapshot?.let { UiState.Success(it) } ?: UiState.Loading
-        viewModelScope.launch { fetchLibrary(identity) }
+        _library.value = UiState.Loading
+        viewModelScope.launch {
+            // Last session's library first, so the tab isn't blank while every page is read again.
+            // Read off the main thread: it can be a few hundred kilobytes of JSON at startup.
+            val snapshot = kotlinx.coroutines.withContext(Dispatchers.IO) { com.music.bitchord.data.LibrarySnapshot.load(getApplication(), identity) }
+            if (snapshot != null && _library.value is UiState.Loading && identity == listenerKey()) _library.value = UiState.Success<LibraryPage>(snapshot)
+            fetchLibrary(identity)
+        }
     }
 
     private suspend fun fetchLibrary(identity: String?) {
@@ -1826,7 +1848,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 page.likedContinuation?.let { token -> syncLikedMusic(identity, token) }
                 if (page.isEmpty) UiState.Error(text(R.string.library_empty))
                 else UiState.Success(page.copy(likedContinuation = null)).also {
-                    com.music.bitchord.data.LibrarySnapshot.save(getApplication(), identity, it.data)
+                    val data = it.data
+                    viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LibrarySnapshot.save(getApplication(), identity, data) }
                 }
             },
             onFailure = { UiState.Error(it.friendly()) },
