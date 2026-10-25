@@ -40,6 +40,8 @@ sealed interface Route {
     data object SettingsPlaybackOptions : Route
     data object SettingsPrivacy : Route
     data object SettingsBackup : Route
+    data object SettingsLogs : Route
+    data class LogView(val path: String, val title: String) : Route
     data object SettingsStorage : Route
     data object SettingsLastFm : Route
     data object SettingsPlayback : Route
@@ -138,10 +140,12 @@ class GlowState(
     fun push(route: Route) {
         // Opening the page that's already showing does nothing (and two copies would share saved state).
         if (stack.lastOrNull() == route) return
+        com.music.bitchord.data.AppLog.event("Open ${route.logName()}")
         stack.add(route)
     }
 
     fun selectTab(index: Int) {
+        com.music.bitchord.data.AppLog.event("Tab $index")
         if (tab == index) {
             popToRoot()
         } else {
@@ -273,6 +277,7 @@ class GlowState(
         )
 
     fun openSongMenu(song: Song, fromPlayer: Boolean = false, playlist: String? = null) {
+        com.music.bitchord.data.AppLog.event("Song menu: ${song.title} (${song.videoId})")
         songMenuFromPlayer = fromPlayer
         songMenuPlaylist = playlist
         songMenu = song
@@ -346,6 +351,9 @@ class GlowState(
         context.startActivity(Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
+
+/** A route as it reads in the log: its kind, without the data it carries. */
+private fun Route.logName(): String = this::class.simpleName ?: toString()
 
 val LocalGlow = staticCompositionLocalOf<GlowState> { error("GlowState not provided") }
 

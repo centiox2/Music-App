@@ -46,17 +46,17 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        // First, so a crash anywhere below is caught and the log covers the whole launch.
+        com.music.bitchord.data.AppLog.install(this)
         AndroidStreamHooks.installEarly()
-        // The shared data layer (lyrics, the YouTube Music client) logs to
-        // logcat on debug builds only, as the app's own DebugLog always has.
-        if (BuildConfig.DEBUG) {
-            DebugLog.sink = DebugLog.Sink { level, tag, message, error ->
-                when (level) {
-                    'D' -> android.util.Log.d(tag, message, error)
-                    'I' -> android.util.Log.i(tag, message, error)
-                    'W' -> android.util.Log.w(tag, message, error)
-                    else -> android.util.Log.e(tag, message, error)
-                }
+        // The shared data layer (lyrics, the YouTube Music client) logs to logcat on every
+        // build, so the in-app log (Settings → Logs) has what happened there too.
+        DebugLog.sink = DebugLog.Sink { level, tag, message, error ->
+            when (level) {
+                'D' -> android.util.Log.d(tag, message, error)
+                'I' -> android.util.Log.i(tag, message, error)
+                'W' -> android.util.Log.w(tag, message, error)
+                else -> android.util.Log.e(tag, message, error)
             }
         }
         // The Spotify library and import live in the shared module; the tokens are the WebView's.

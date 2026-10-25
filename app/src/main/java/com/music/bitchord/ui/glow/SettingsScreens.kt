@@ -46,6 +46,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Lyrics
@@ -213,6 +214,9 @@ fun SettingsScreen() {
         },
         SettingEntry("Backup & restore", "Privacy & data") {
             SettingRow("Backup & restore", icon = Icons.Rounded.Backup, chevron = true) { g.push(Route.SettingsBackup) }
+        },
+        SettingEntry("Logs", "About") {
+            SettingRow("Logs", icon = Icons.Rounded.BugReport, subtitle = "What the app has been doing, and any crashes", chevron = true) { g.push(Route.SettingsLogs) }
         },
         SettingEntry("About", "About") {
             SettingRow("Version", icon = Icons.Rounded.Info, value = BuildConfig.VERSION_NAME)

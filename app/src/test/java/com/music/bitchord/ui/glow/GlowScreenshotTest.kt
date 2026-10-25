@@ -209,6 +209,41 @@ class GlowScreenshotTest {
         assertTrue("player pane still on screen after switching to Lyrics", !coverShown())
     }
 
+    /** Swiping the mini player away stops playback and empties the queue; the app must survive it. */
+    @Test
+    fun miniPlayerSwipeAwayEmptiesQueue() {
+        assumeTrue(System.getenv("GLOW_SHOTS") != null)
+        val app = RuntimeEnvironment.getApplication()
+        shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
+        AppSettings.setOnboardingComplete()
+        AppSettings.setReduceAnimation(true)
+        GlowPrefs.init(app)
+        GlowPrefs.setNotificationsAsked()
+        val playing = PlayerState(song = song, isPlaying = true, durationMs = 282_000L, queue = listOf(song), queueIndex = 0)
+        var current by androidx.compose.runtime.mutableStateOf<PlayerState?>(playing)
+        rule.setContent { GlowTheme { GlowApp(playerOverride = current) } }
+        settle(12)
+        // Drag the mini player down past its threshold.
+        rule.onAllNodes(hasText("Despacito"))[0].performTouchInput {
+            down(center)
+            repeat(20) { moveBy(androidx.compose.ui.geometry.Offset(0f, 30f)) }
+            up()
+        }
+        // What stop() + clearMediaItems() leaves behind: nothing playing, no queue.
+        current = PlayerState()
+        settle(6)
+        shot("mini-swiped-away")
+        // Still alive, on Home.
+        assertTrue(rule.onAllNodes(hasText("Despacito")).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
+    fun pageSettingsLogs() {
+        launch(playing = true, route = Route.SettingsLogs)
+        shot("38-settings-logs")
+    }
+
     @Test
     fun songMenu() {
         launch(playing = true)

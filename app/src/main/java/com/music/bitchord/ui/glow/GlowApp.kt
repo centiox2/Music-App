@@ -153,6 +153,19 @@ private fun GlowRoot(state: GlowState) {
     val onboardingComplete by AppSettings.onboardingComplete.collectAsStateWithLifecycle()
     val notificationsAsked by GlowPrefs.notificationsAsked.collectAsStateWithLifecycle()
 
+    // If the app closed unexpectedly last time, say so once and offer the report.
+    LaunchedEffect(Unit) {
+        val crash = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.music.bitchord.data.AppLog.takeUnseenCrash(context)
+        } ?: return@LaunchedEffect
+        state.notify(
+            "Sonder closed unexpectedly last time",
+            detail = "The log shows what happened",
+            actionLabel = "View log",
+            action = { state.push(Route.LogView(crash.file.path, crash.title)) },
+        )
+    }
+
     // ---- side effects that keep BitChord's logic fed ----
 
     LaunchedEffect(player.song?.videoId) {
@@ -313,6 +326,8 @@ private fun GlowRoot(state: GlowState) {
                     Route.SettingsPlaybackOptions -> PlaybackSettingsScreen()
                     Route.SettingsPrivacy -> PrivacyScreen()
                     Route.SettingsBackup -> BackupScreen()
+                    Route.SettingsLogs -> LogsScreen()
+                    is Route.LogView -> LogViewScreen(route.path, route.title)
                     Route.SettingsStorage -> StorageScreen()
                     Route.SettingsLastFm -> LastFmScreen()
                     Route.SettingsPlayback -> StreamingQualityScreen()
@@ -328,7 +343,8 @@ private fun GlowRoot(state: GlowState) {
             Route.Settings, Route.SettingsTheme, Route.SettingsLyrics, Route.SettingsStorage,
             Route.SettingsLastFm, Route.SettingsPlayback, Route.Equalizer, Route.JoinSession,
             Route.SettingsTranslation, Route.SettingsPlaybackOptions, Route.SettingsPrivacy, Route.SettingsBackup,
-        ) || state.top is Route.EditPlaylist || state.top is Route.Discography
+            Route.SettingsLogs,
+        ) || state.top is Route.EditPlaylist || state.top is Route.LogView || state.top is Route.Discography
         if (!chromeHidden) {
             Column(
                 Modifier
@@ -549,6 +565,7 @@ private fun MiniPlayer(state: GlowState) {
                             if (dragY.value > size.height * 0.9f) {
                                 haptic()
                                 dragY.animateTo(size.height * 2.5f, tween(180))
+                                com.music.bitchord.data.AppLog.event("Mini player swiped away: stopping and clearing the queue")
                                 state.controller?.let { it.stop(); it.clearMediaItems() }
                                 dragY.snapTo(0f)
                             } else {
