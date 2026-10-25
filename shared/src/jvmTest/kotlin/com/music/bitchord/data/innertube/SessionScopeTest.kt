@@ -60,6 +60,19 @@ class SessionScopeTest {
     }
 
     @Test
+    fun aSlowReadStillLandsAfterRequestsStopWaiting() = runBlocking {
+        Innertube.shellPageForTest = { kotlinx.coroutines.delay(3_000); signedIn }
+        Innertube.cookie = "SAPISID=a; test=5"
+        val started = System.currentTimeMillis()
+        Innertube.ensureSessionScope()
+        assertTrue(System.currentTimeMillis() - started < 2_500, "a request waited for the whole read")
+        assertFalse(Innertube.hasSessionScope)
+        // The read carried on without anyone waiting, and later requests have it.
+        kotlinx.coroutines.delay(2_500)
+        assertTrue(Innertube.hasSessionScope)
+    }
+
+    @Test
     fun aSignedInPageScopesRequests() = runBlocking {
         Innertube.shellPageForTest = { signedIn }
         Innertube.cookie = "SAPISID=a; test=4"

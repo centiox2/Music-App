@@ -22,6 +22,7 @@ import io.ktor.serialization.kotlinx.json.json
 import com.music.bitchord.data.model.LikeStatus
 import com.music.bitchord.data.model.PlaylistMove
 import com.music.bitchord.data.model.PlaylistPrivacy
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -107,6 +108,8 @@ object Innertube {
                 scope = null
                 // A new account gets its own attempt at reading its session.
                 scopeFailedAt = 0L
+                scopeRead?.cancel()
+                scopeRead = null
                 visitorData = null
                 visitorDataIsSessionBound = false
                 // The chosen channel belonged to the account that just left.
@@ -370,32 +373,58 @@ object Innertube {
         // no request waits long for the read; without it requests go out unscoped, which is
         // what this has always fallen back to.
         if (System.currentTimeMillis() - scopeFailedAt < SCOPE_RETRY_MS) return
-        val finished = kotlinx.coroutines.withTimeoutOrNull(SCOPE_WAIT_MS) {
-            readSessionScope(session)
+        // The read runs on its own, with a long limit; callers wait for it only briefly, so
+        // a slow connection delays nothing but the read itself.
+        val read = synchronized(this) {
+            scopeRead?.takeIf { it.isActive } ?: scopeJobs.async {
+                val done = kotlinx.coroutines.withTimeoutOrNull(SCOPE_READ_LIMIT_MS) { readSessionScope(session) }
+                if (done == null && scope == null) {
+                    scopeFailedAt = System.currentTimeMillis()
+                    Log.w(TAG, "session scope: no answer in ${SCOPE_READ_LIMIT_MS}ms")
+                }
+            }.also { scopeRead = it }
         }
-        if (finished == null && scope == null) scopeFailedAt = System.currentTimeMillis()
+        // join, not await: a read cancelled by a network change must not cancel this request.
+        if (kotlinx.coroutines.withTimeoutOrNull(SCOPE_WAIT_MS) { read.join() } == null) {
+            Log.d(TAG, "session scope: not ready after ${SCOPE_WAIT_MS}ms; this request goes ahead without it")
+        }
     }
+
+    private val scopeJobs = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+    @Volatile
+    private var scopeRead: kotlinx.coroutines.Deferred<Unit>? = null
 
     /** Lets the session read be tried again at once, e.g. once the phone is back online. */
     fun onNetworkChanged() {
         scopeFailedAt = 0L
+        // A read stuck on the old network is dropped so the next request starts a fresh one.
+        scopeRead?.cancel()
+        scopeRead = null
     }
 
     @Volatile
     private var scopeFailedAt = 0L
     private const val SCOPE_RETRY_MS = 60_000L
-    private const val SCOPE_WAIT_MS = 8_000L
+    private const val SCOPE_WAIT_MS = 1_500L
+    private const val SCOPE_READ_LIMIT_MS = 20_000L
 
     private suspend fun readSessionScope(session: String) {
         scopeLock.withLock {
             if (scope != null || cookie != session) return
             if (System.currentTimeMillis() - scopeFailedAt < SCOPE_RETRY_MS) return
+            val started = System.currentTimeMillis()
+            Log.d(TAG, "session scope: reading")
             runCatching { fetchSessionScope(session) }
                 .onFailure {
-                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    if (it is kotlinx.coroutines.CancellationException) {
+                        Log.w(TAG, "session scope: stopped after ${System.currentTimeMillis() - started}ms")
+                        throw it
+                    }
                     scopeFailedAt = System.currentTimeMillis()
-                    Log.w(TAG, "could not read the session scope: ${it.message}")
+                    Log.w(TAG, "could not read the session scope after ${System.currentTimeMillis() - started}ms: ${it.message}")
                 }
+                .onSuccess { Log.d(TAG, "session scope: read in ${System.currentTimeMillis() - started}ms") }
                 .getOrNull()
                 ?.let { fresh ->
                     // A login/profile switch can happen while the shell is in

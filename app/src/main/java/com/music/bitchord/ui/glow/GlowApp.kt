@@ -393,7 +393,9 @@ private fun GlowRoot(state: GlowState) {
             Box(
                 Modifier.graphicsLayer {
                     val drag = state.playerDrag
-                    val f = (drag / size.height).coerceIn(0f, 1f)
+                    // fractionOf, not a plain divide: with the song gone (swiped away from the mini
+                    // player) this box is 0 tall, and 0 / 0 made NaN corners that crashed the app.
+                    val f = fractionOf(drag, size.height)
                     translationY = drag
                     // Pulled down, the player shrinks a touch and rounds like a card.
                     scaleX = 1f - f * 0.08f
@@ -552,7 +554,8 @@ private fun MiniPlayer(state: GlowState) {
             .graphicsLayer {
                 translationX = dragX.value
                 translationY = dragY.value
-                alpha = 1f - (kotlin.math.abs(dragX.value) / size.width).coerceIn(0f, 0.6f) - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.6f)
+                alpha = 1f - fractionOf(kotlin.math.abs(dragX.value), size.width).coerceAtMost(0.6f) -
+                    fractionOf(dragY.value, size.height * 2f).coerceAtMost(0.6f)
             }
             .clip(RoundedCornerShape(16.dp))
             .background(miniColor)
@@ -877,4 +880,13 @@ private fun SelectionAction(icon: ImageVector, label: String, danger: Boolean = 
         Spacer(Modifier.height(4.dp))
         Text(label, style = GlowType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium), color = tint, maxLines = 1)
     }
+}
+
+/**
+ * [part] as a share of [whole], between 0 and 1. A zero, unmeasured or collapsing
+ * [whole] gives 0 rather than NaN or infinity, which a shape or alpha can't take.
+ */
+internal fun fractionOf(part: Float, whole: Float): Float {
+    if (!(whole > 0f) || !whole.isFinite() || !part.isFinite()) return 0f
+    return (part / whole).coerceIn(0f, 1f)
 }

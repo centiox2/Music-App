@@ -1648,38 +1648,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             },
             onFailure = { UiState.Error(it.friendly()) },
         )
+        // No artwork pass: Sonder's mood tiles are coloured, not pictured, and resolving a
+        // picture per category was ~50 requests at every launch, racing Home for the network.
         _explore.value = state
-        (state as? UiState.Success)?.data?.let(::loadMoodGenreArtwork)
-    }
-
-    /**
-     * Category buttons do not carry thumbnails themselves. Resolve a small
-     * number at a time from the shelves they open, so the grid gains real art
-     * without saturating the browse client or delaying the category list.
-     */
-    private fun loadMoodGenreArtwork(sections: List<MoodGenreSection>) {
-        viewModelScope.launch {
-            val limiter = Semaphore(4)
-            coroutineScope {
-                sections.flatMap(MoodGenreSection::items).forEach { item ->
-                    launch {
-                        val artwork = limiter.withPermit {
-                            YtMusicRepository.moodGenreArtwork(item.browseId, item.params).getOrNull()
-                        } ?: return@launch
-                        val current = (_explore.value as? UiState.Success)?.data ?: return@launch
-                        _explore.value = UiState.Success(current.map { section ->
-                            section.copy(items = section.items.map { currentItem ->
-                                if (currentItem.browseId == item.browseId && currentItem.params == item.params) {
-                                    currentItem.copy(thumbnailUrl = artwork)
-                                } else {
-                                    currentItem
-                                }
-                            })
-                        })
-                    }
-                }
-            }
-        }
     }
 
     fun openMoodGenre(item: MoodGenre) {

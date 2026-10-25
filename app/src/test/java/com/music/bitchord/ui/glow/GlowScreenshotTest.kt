@@ -237,6 +237,29 @@ class GlowScreenshotTest {
         assertTrue(rule.onAllNodes(hasText("Despacito")).fetchSemanticsNodes().isEmpty())
     }
 
+    /**
+     * The crash from the field: the queue emptied while the player was on screen (or on its
+     * way out) left the player's box 0 tall, and 0 / 0 gave its rounded corners NaN.
+     */
+    @Test
+    fun queueEmptiedWithThePlayerOpen() {
+        assumeTrue(System.getenv("GLOW_SHOTS") != null)
+        val app = RuntimeEnvironment.getApplication()
+        shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
+        AppSettings.setOnboardingComplete()
+        AppSettings.setReduceAnimation(true)
+        GlowPrefs.init(app)
+        GlowPrefs.setNotificationsAsked()
+        val playing = PlayerState(song = song, isPlaying = true, durationMs = 282_000L, queue = listOf(song), queueIndex = 0)
+        var current by androidx.compose.runtime.mutableStateOf<PlayerState?>(playing)
+        rule.setContent { GlowTheme { GlowApp(playerOverride = current) } }
+        settle(12)
+        click("Despacito")
+        current = PlayerState()
+        settle(6)
+        shot("player-queue-emptied")
+    }
+
     @Test
     @Config(sdk = [35], qualifiers = "w400dp-h1900dp-xhdpi")
     fun pageSettingsLogs() {
