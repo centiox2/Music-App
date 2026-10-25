@@ -436,7 +436,7 @@ offered this list and hasn't chosen yet:
 | `251da24` | network: pings, eviction, session-scope backoff |
 | `9d91106` | in-app logs and crash reports |
 | `1ff5dbe` | mini-player swipe crash (NaN corners); launch: session wait, mood artwork requests |
-| `650c7a3` | glow visible on dark covers; white heart; mini player tint and play glyph; hearts in every song row; working sort/filter sheets; playlist header like Liked songs; pin playlists; Listen Together page; manual lyrics search |
+| `b5aa563` | glow visible on dark covers; white heart; mini player tint and play glyph; hearts in every song row; working sort/filter sheets; playlist header like Liked songs; pin playlists; Listen Together page; manual lyrics search |
 
 `git log` has the full detail; the commit messages explain causes as well as changes.
 
