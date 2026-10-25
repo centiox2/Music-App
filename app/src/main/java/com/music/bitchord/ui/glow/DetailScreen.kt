@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
@@ -115,11 +116,23 @@ private fun ReleasePageScreen(page: DetailPage) {
     var searching by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
+    var sortSheetOpen by remember { mutableStateOf(false) }
+    // Playlists get the Liked songs treatment: playlist order by default, or sorted by name or artist.
+    var songSort by rememberSaveable(page.browseId) { androidx.compose.runtime.mutableIntStateOf(0) }
+    var downloadedOnly by rememberSaveable(page.browseId) { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(page.browseId) { vm.resolvePlaylistOwnership(page.browseId) }
 
     val songs = (page.songs as? UiState.Success)?.data.orEmpty()
-    val shown = if (filter.isBlank()) songs else songs.filter {
+    val matched = if (filter.isBlank()) songs else songs.filter {
         it.title.contains(filter, true) || it.artist.contains(filter, true)
+    }
+    val shown = remember(matched, songSort, downloadedOnly, saved) {
+        val list = when (songSort) {
+            1 -> matched.sortedBy { it.title.lowercase() }
+            2 -> matched.sortedBy { it.artist.lowercase() }
+            else -> matched
+        }
+        if (downloadedOnly) list.filter { it.videoId in saved } else list
     }
     val totalMs = songs.sumOf { it.durationMillis() }
     // Fully downloaded only when every track on the page is on disk, not merely asked for.
@@ -145,9 +158,30 @@ private fun ReleasePageScreen(page: DetailPage) {
                     }
                 } else {
                     TopBar(onBack = { g.pop() }) {
+                        if (isPlaylist) IconTap(Icons.Rounded.MoreHoriz, "More options") { menuOpen = true }
                         IconTap(Icons.Rounded.Search, "Find in page") { searching = true }
                     }
                 }
+                if (isPlaylist) {
+                    PlaylistHeader(
+                        page = page,
+                        songs = songs,
+                        totalMs = totalMs,
+                        downloaded = downloaded,
+                        savedToLibrary = page.library?.saved == true,
+                        canSave = signedIn && page.library != null && !isOwned,
+                        sortLabel = PLAYLIST_SORTS[songSort.coerceIn(0, PLAYLIST_SORTS.lastIndex)],
+                        onSort = { sortSheetOpen = true },
+                        onDownload = {
+                            if (downloaded) g.notify("Already downloaded") else g.actions.download(songs, target)
+                        },
+                        onSave = { vm.toggleLibrary(page.browseId) },
+                        onPlay = { if (shown.isNotEmpty()) g.actions.playDetail(page, shown, 0, vm::takePlaybackContext) },
+                        onShuffle = {
+                            if (songs.isNotEmpty()) g.actions.playDetail(page, songs, songs.indices.random(), vm::takePlaybackContext, shuffle = true)
+                        },
+                    )
+                } else {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box {
                         Cover(page.thumbnailUrl, size = 200.dp, shape = RoundedCornerShape(12.dp), px = 720)
@@ -169,7 +203,8 @@ private fun ReleasePageScreen(page: DetailPage) {
                                 .clickable(enabled = artist?.browseId != null) { g.openArtist(artist?.browseId, artist?.name ?: "") },
                         )
                     }
-                    val meta = (subtitleParts.drop(1) + listOfNotNull(
+                    // The page's own "2 tracks" and our "2 songs" say the same thing, twice.
+                    val meta = (subtitleParts.drop(1).filterNot { TRACK_COUNT.matches(it) } + listOfNotNull(
                         songs.size.takeIf { it > 0 }?.let { "$it songs" },
                         totalMs.takeIf { it > 0 }?.let { formatLongDuration(it) },
                     )).joinToString(" · ")
@@ -219,6 +254,7 @@ private fun ReleasePageScreen(page: DetailPage) {
                     }
                     Spacer(Modifier.height(14.dp))
                 }
+                }
             }
             when (val state = page.songs) {
                 is UiState.Loading -> item { SkeletonRows(6) }
@@ -227,7 +263,9 @@ private fun ReleasePageScreen(page: DetailPage) {
                 }
                 is UiState.Success -> itemsIndexed(shown, key = { i, s -> "$i" + s.videoId }) { i, song ->
                     val active = g.player.song?.videoId == song.videoId
-                    val index = songs.indexOf(song)
+                    val index = shown.indexOf(song)
+                    // The track number stays the album's own, even while the list is filtered.
+                    val albumIndex = songs.indexOf(song)
                     SongRow(
                         song.title,
                         listOfNotNull(song.artist.ifBlank { null }, song.durationText).joinToString(" · "),
@@ -239,14 +277,14 @@ private fun ReleasePageScreen(page: DetailPage) {
                                     if (active) {
                                         PlayingBars(playing = g.player.isPlaying)
                                     } else {
-                                        Text("${song.trackNumber ?: (index + 1)}", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.textSecondary)
+                                        Text("${song.trackNumber ?: (albumIndex + 1)}", style = GlowType.bodyRegular.copy(fontSize = 16.sp), color = c.textSecondary)
                                     }
                                 }
                             }
                         } else {
                             null
                         },
-                        onClick = { g.actions.playDetail(page, songs, index, vm::takePlaybackContext) },
+                        onClick = { g.actions.playDetail(page, shown, index, vm::takePlaybackContext) },
                         song = song,
                         trailing = {
                             if (song.videoId in saved) {
@@ -288,6 +326,108 @@ private fun ReleasePageScreen(page: DetailPage) {
     if (menuOpen) {
         ReleaseMenuSheet(page, songs, isOwned, onDismiss = { menuOpen = false })
     }
+    if (sortSheetOpen) {
+        SortSheet(
+            title = "Sort songs",
+            options = PLAYLIST_SORTS,
+            selected = songSort.coerceIn(0, PLAYLIST_SORTS.lastIndex),
+            downloadedOnly = downloadedOnly,
+            onSelect = { songSort = it },
+            onDownloadedOnly = { downloadedOnly = it },
+            onDismiss = { sortSheetOpen = false },
+        )
+    }
+}
+
+/** "2 tracks" and "2 songs" both describe the same thing; one of them is enough. */
+private val TRACK_COUNT = Regex("^\\d+\\s+(tracks?|songs?|videos?)$", RegexOption.IGNORE_CASE)
+
+/**
+ * A playlist's top, laid out like Liked songs: the cover at the left, the name
+ * and one count beside it, then the sort pill and the play controls in a row.
+ * The centred album layout stays for albums.
+ */
+@Composable
+private fun PlaylistHeader(
+    page: DetailPage,
+    songs: List<Song>,
+    totalMs: Long,
+    downloaded: Boolean,
+    savedToLibrary: Boolean,
+    canSave: Boolean,
+    sortLabel: String,
+    onSort: () -> Unit,
+    onDownload: () -> Unit,
+    onSave: () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    val c = Glow.colors
+    val owner = page.subtitle.split(" • ", " · ").map { it.trim() }
+        .firstOrNull { it.isNotBlank() && !TRACK_COUNT.matches(it) && it !in setOf("Playlist", "Album", "Single", "EP") }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Box {
+                Cover(page.thumbnailUrl, size = 120.dp, shape = RoundedCornerShape(14.dp), px = 720)
+                if (downloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(8.dp), size = 24.dp)
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    page.title,
+                    style = GlowType.display,
+                    color = c.text,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                val count = buildString {
+                    append(if (songs.size == 1) "1 song" else "${songs.size} songs")
+                    if (totalMs > 0) append(" · ${formatLongDuration(totalMs)}")
+                }
+                Text(count, style = GlowType.bodyRegular, color = c.textSecondary)
+                if (owner != null) {
+                    Text(owner, style = GlowType.secondary, color = c.textSecondary, maxLines = 1)
+                }
+                if (downloaded) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        DownloadedMark(c.textSecondary)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Downloaded", style = GlowType.secondary, color = c.textSecondary)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SortPill(sortLabel, onClick = onSort)
+            Spacer(Modifier.weight(1f))
+            IconTap(
+                if (downloaded) Icons.Rounded.DownloadForOffline else Icons.Rounded.Download,
+                if (downloaded) "Downloaded" else "Download",
+                onClick = onDownload,
+            )
+            if (canSave) {
+                IconTap(
+                    if (savedToLibrary) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    if (savedToLibrary) "Remove from library" else "Save to library",
+                    onClick = onSave,
+                )
+            }
+            IconTap(Icons.Rounded.Shuffle, "Shuffle", onClick = onShuffle)
+            Spacer(Modifier.width(8.dp))
+            PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 52.dp, enabled = songs.isNotEmpty(), onClick = onPlay)
+        }
+        if (!page.description.isNullOrBlank()) {
+            Text(
+                page.description!!,
+                style = GlowType.secondary.copy(fontSize = 14.sp),
+                color = c.textSecondary,
+                maxLines = 3,
+                modifier = Modifier.padding(top = 14.dp),
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+    }
 }
 
 @Composable
@@ -304,6 +444,14 @@ private fun ReleaseMenuSheet(page: DetailPage, songs: List<Song>, owned: Boolean
             }
         }
         Spacer(Modifier.height(10.dp))
+        // Albums aren't listed in the library's playlist tab, so pinning is for playlists only.
+        if (page.type == BrowseType.PLAYLIST || page.type == BrowseType.OTHER) {
+            val pinned by GlowPrefs.pinnedPlaylists.collectAsStateWithLifecycle()
+            MenuRow(Icons.Rounded.PushPin, if (pinned.contains(page.browseId)) "Unpin from the top" else "Pin to the top") {
+                GlowPrefs.togglePinnedPlaylist(page.browseId)
+                onDismiss()
+            }
+        }
         MenuRow(Icons.Rounded.SkipNext, "Play next") { g.actions.queueSongs(songs, next = true); onDismiss() }
         MenuRow(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { g.actions.queueSongs(songs, next = false); onDismiss() }
         MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Save to playlist") { g.saveToPlaylist = songs; onDismiss() }
@@ -344,7 +492,9 @@ private fun ArtistPageScreen(page: DetailPage) {
     val singles = shelves.firstOrNull { it.title.contains("single", true) || it.title.contains(" ep", true) }
     val fans = shelves.firstOrNull { s -> s.title.contains("fans", true) || (s.items.isNotEmpty() && s.items.all { it.browseId?.startsWith("UC") == true }) }
     val others = shelves - setOfNotNull(albums, singles, fans)
-    val latest = (singles?.items.orEmpty() + albums?.items.orEmpty()).firstOrNull()
+    // Albums count as a latest release too: each shelf is newest-first on its
+    // own, so the year printed under each card is what decides between them.
+    val latest = latestRelease(albums?.items.orEmpty(), singles?.items.orEmpty())
 
     // The page wears the artist photo's colour, darkened, as the design does.
     val palette = rememberGlowPalette(page.thumbnailUrl)
@@ -496,6 +646,26 @@ private fun ArtistPageScreen(page: DetailPage) {
             background = Color.Black.copy(alpha = 0.35f),
             onClick = { g.pop() },
         ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(22.dp)) }
+    }
+}
+
+/** The year a release card prints ("Album • 2024"), or 0 when it prints none. */
+private fun releaseYear(item: ShelfItem): Int =
+    Regex("(19|20)\\d{2}").find(item.subtitle)?.value?.toIntOrNull() ?: 0
+
+/**
+ * The artist's newest release, albums and singles together. With no year to go
+ * on, an album wins: the page used to show a single whenever both shelves had
+ * anything, so a new album was never the latest release.
+ */
+private fun latestRelease(albums: List<ShelfItem>, singles: List<ShelfItem>): ShelfItem? {
+    val album = albums.firstOrNull()
+    val single = singles.firstOrNull()
+    return when {
+        album == null -> single
+        single == null -> album
+        releaseYear(album) >= releaseYear(single) -> album
+        else -> single
     }
 }
 

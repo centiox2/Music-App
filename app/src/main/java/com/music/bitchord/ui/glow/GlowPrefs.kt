@@ -78,6 +78,10 @@ object GlowPrefs {
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
+    /** Playlists pinned to the top of the library, by browse id. */
+    private val _pinnedPlaylists = MutableStateFlow<Set<String>>(emptySet())
+    val pinnedPlaylists: StateFlow<Set<String>> = _pinnedPlaylists.asStateFlow()
+
     fun init(context: Context) {
         com.music.bitchord.ui.glow.lyrics.TranslationPrefs.init(context)
         if (prefs != null) return
@@ -102,6 +106,8 @@ object GlowPrefs {
         _lastSync.value = p.getLong("last_sync", 0L)
         _liquidBackground.value = p.getBoolean("liquid_background", true)
         _coverShadow.value = p.getFloat("cover_shadow", 0.7f)
+        // The set read back is the one stored; copying keeps a later edit from touching it.
+        _pinnedPlaylists.value = p.getStringSet("pinned_playlists", emptySet())?.toSet().orEmpty()
     }
 
     /** Every Cover Glow preference, for a settings backup. */
@@ -148,4 +154,11 @@ object GlowPrefs {
     fun setCoverShadow(value: Float) { _coverShadow.value = value; prefs?.edit()?.putFloat("cover_shadow", value)?.apply() }
     fun setAutoSync(value: Boolean) { _autoSync.value = value; prefs?.edit()?.putBoolean("auto_sync", value)?.apply() }
     fun setLastSync(value: Long) { _lastSync.value = value; prefs?.edit()?.putLong("last_sync", value)?.apply() }
+
+    fun togglePinnedPlaylist(browseId: String): Boolean {
+        val now = if (browseId in _pinnedPlaylists.value) _pinnedPlaylists.value - browseId else _pinnedPlaylists.value + browseId
+        _pinnedPlaylists.value = now
+        prefs?.edit()?.putStringSet("pinned_playlists", now)?.apply()
+        return browseId in now
+    }
 }

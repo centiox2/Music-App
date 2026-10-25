@@ -57,6 +57,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Search
@@ -80,6 +81,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -218,6 +220,8 @@ fun CoverGlow(
     modifier: Modifier = Modifier,
     height: Dp = 420.dp,
     intensity: Float = 0.75f,
+    /** A colour to glow with when there is no artwork to read one from (Liked songs' heart tile). */
+    seedColor: Color? = null,
 ) {
     val c = Glow.colors
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
@@ -228,11 +232,16 @@ fun CoverGlow(
     // The second bloom is as strong as that colour's share of the cover allows, so a sliver of red stays a hint.
     val secondShare = cover?.weights?.let { w -> if (w.size >= 2) (w[1] / w[0]).coerceIn(0.15f, 1f) else 0f } ?: 1f
     val second by animateFloatAsState(secondShare, tween(1200), label = "glowSecond")
-    val baseColors = if (fromArtwork && artworkUrl != null && palette.size >= 2) {
-        palette
-    } else {
-        val f = Color(fixed)
-        listOf(f, f.copy(alpha = 0.8f).compositeOverBlack(1.25f), f, f)
+    val baseColors = when {
+        seedColor != null -> {
+            val s = glowTint(seedColor, c.isDark)
+            listOf(s, s, s, s)
+        }
+        fromArtwork && artworkUrl != null && palette.size >= 2 -> palette.map { glowTint(it, c.isDark) }
+        else -> {
+            val f = glowTint(Color(fixed), c.isDark)
+            listOf(f, f.copy(alpha = 0.8f).compositeOverBlack(1.25f), f, f)
+        }
     }
     val a by animateColorAsState(baseColors[0], tween(1200), label = "glowA")
     val b by animateColorAsState(baseColors.getOrElse(1) { baseColors[0] }, tween(1200), label = "glowB")
@@ -259,6 +268,23 @@ fun CoverGlow(
     }
 }
 
+/**
+ * A cover colour made fit to glow with.
+ *
+ * The palette is the cover's real colours, and a black cover's dominant colour is
+ * black — which, painted at 75% over a near-black page, is not a glow at all:
+ * that is why dark covers showed none while white ones bloomed. Lightness is
+ * therefore held inside a range that reads against the page, keeping the hue and
+ * most of the saturation so the bloom is still the cover's own colour.
+ */
+internal fun glowTint(seed: Color, dark: Boolean): Color {
+    val hsl = seed.toHsl()
+    val lightness = if (dark) hsl[2].coerceAtLeast(0.5f) else hsl[2].coerceIn(0.45f, 0.72f)
+    // A nearly grey cover would otherwise make a grey bloom; a little saturation keeps it alive.
+    val saturation = hsl[1].coerceAtLeast(0.12f).coerceAtMost(0.9f)
+    return hslColor(hsl[0], saturation, lightness)
+}
+
 private fun Color.compositeOverBlack(lift: Float): Color =
     Color(
         red = (red * lift).coerceIn(0f, 1f),
@@ -272,10 +298,11 @@ private fun Color.compositeOverBlack(lift: Float): Color =
 fun GlowScreen(
     glowUrl: String? = null,
     showGlow: Boolean = true,
+    glowSeed: Color? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(Modifier.fillMaxSize().background(Glow.colors.base)) {
-        if (showGlow) CoverGlow(glowUrl)
+        if (showGlow) CoverGlow(glowUrl, seedColor = glowSeed)
         content()
     }
 }
@@ -629,6 +656,8 @@ fun SongRow(
     song: Song? = null,
     /** Marks the cover as a release downloaded in full. */
     downloaded: Boolean = false,
+    /** The small heart after the title, showing that this song is in Liked songs. */
+    showLiked: Boolean = true,
 ) {
     val c = Glow.colors
     val g = LocalGlow.current
@@ -695,6 +724,16 @@ fun SongRow(
             )
             if (subtitle.isNotEmpty()) GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
         }
+        // A small heart between the text and the row's own action, so what is
+        // liked is visible from any list — not only from Liked songs.
+        if (showLiked && song != null && rememberIsLiked(song.videoId)) {
+            Icon(
+                Icons.Rounded.Favorite,
+                "Liked",
+                tint = c.text.copy(alpha = 0.75f),
+                modifier = Modifier.padding(start = 8.dp).size(14.dp),
+            )
+        }
         trailing?.invoke()
     }
 }
@@ -719,6 +758,7 @@ fun TrackRow(
     subtitle: String = song.artist,
     active: Boolean = false,
     dimmed: Boolean = false,
+    showLiked: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     SongRow(
@@ -732,7 +772,28 @@ fun TrackRow(
         trailing = trailing ?: { MoreButton(onMore) },
         videoId = song.videoId,
         song = song,
+        showLiked = showLiked,
     )
+}
+
+/**
+ * Whether [videoId] is in Liked songs.
+ *
+ * The ratings map alone is not enough: it starts from the library's first page
+ * of liked songs, and the rest of them are only in [LikedSongsCache]. Readings
+ * from this session (a like or unlike just made) win over both.
+ */
+@Composable
+fun rememberIsLiked(videoId: String?): Boolean {
+    if (videoId == null) return false
+    val vm = LocalGlow.current.vm
+    val likes by vm.likeStatuses.collectAsStateWithLifecycle()
+    val cached by LikedSongsCache.songs.collectAsStateWithLifecycle()
+    return when (likes[videoId]) {
+        com.music.bitchord.data.model.LikeStatus.LIKE -> true
+        null -> cached?.any { it.videoId == videoId } == true
+        else -> false
+    }
 }
 
 /** Rounded translucent card that groups rows. */

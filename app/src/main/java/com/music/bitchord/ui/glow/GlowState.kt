@@ -46,6 +46,7 @@ sealed interface Route {
     data object SettingsLastFm : Route
     data object SettingsPlayback : Route
     data object Equalizer : Route
+    data object ListenTogether : Route
     data object JoinSession : Route
 }
 
@@ -87,6 +88,7 @@ class GlowState(
     var playerOpen by mutableStateOf(false)
     var lyricsMenuOpen by mutableStateOf(false)
     var lyricsEditorOpen by mutableStateOf(false)
+    var lyricsSearchOpen by mutableStateOf(false)
 
     /** How far the open player has been pulled down, in px; it follows the finger. */
     var playerDrag by androidx.compose.runtime.mutableFloatStateOf(0f)

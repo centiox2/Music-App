@@ -24,7 +24,7 @@ test and ship it, what the owner cares about, and what is still open.
 | UI code | `app/src/main/java/com/music/bitchord/ui/glow/` (~13k lines, all written for Sonder) |
 | Entry point | `MainActivity` → `setContent { GlowApp() }` |
 | Owner's phone | OPPO CPH2727, Android 16 (API 36), ColorOS. Logs from it are full of harmless OEM noise (`UAH_JNI`, `IJankManager`, `SchedAssist`) |
-| Tests | 1,085 app unit tests + 81 shared-module tests, all passing at hand-off |
+| Tests | 1,092 app unit tests + 81 shared-module tests, all passing at hand-off. The test JVM needs **JDK 21+**: InnerTubeX ships Java 21 classes (file version 65), and a JDK 17 test JVM fails with `UnsupportedClassVersionError` in every Robolectric test |
 
 ### Git rules the owner set
 - Commit and push only to `claude/elegant-clarke-w6bo53`: `git push -u origin claude/elegant-clarke-w6bo53`.
@@ -83,7 +83,8 @@ The old BitChord UI was removed in the first round. `ui/` now holds only `MainVi
 | `EditPlaylistScreen.kt` | Reorder/remove/rename a playlist |
 | `Sheets.kt` | Song menu, save-to-playlist, new playlist, sleep timer, song details |
 | `LyricsMenu.kt` | Lyrics menu (Metrolist style): source picker, refetch, edit, offset, translation |
-| `DevicesScreen.kt` | Output devices, Listen Together, volume slider |
+| `DevicesScreen.kt`, `ListenTogetherScreen.kt` | Output devices and volume; Listen Together now has a page of its own (the devices sheet just links to it) |
+| `FilterSheets.kt` | The sort/filter sheet and pill shared by Liked songs, playlists and the library's songs |
 | `SettingsScreens.kt`, `SettingsMore.kt` | Settings home and sub-pages (theme, playback, storage, lyrics, translation, privacy, backup, Last.fm/ListenBrainz…) |
 | `LogsScreen.kt` | Settings → Logs list and the log viewer |
 | `SignInScreens.kt` | Onboarding and sign-in |
@@ -132,8 +133,8 @@ The owner supplied a reference picture and is particular about positions. Portra
   bar sits.
 - On a 390×844dp screen this matches the reference within about 2dp (cover 124–474, seek ~588,
   controls ~675, bar 742–788).
-- The title row has heart (when signed in) and ⋯ on the right. The cover does **not** shrink when
-  paused; the owner asked for that to be removed.
+- The title row has heart (when signed in) and ⋯ on the right. The heart is white like the other
+  controls, not red. The cover does **not** shrink when paused; the owner asked for that to be removed.
 
 ### 5.2 Liquid background (`LiquidArtwork.kt`)
 Built from the owner's research note on Apple Music's web player, using the values recovered from
@@ -174,8 +175,15 @@ the reconstructed implementation:
 - `coverPalette()` runs k-means (k=6) in OKLab on a 64px decode, merges near-identical clusters and
   drops colours under 1.5%. The weights are real proportions; the owner wanted accurate colours,
   not boosted ones.
-- `miniPlayerTint()`: the mini player and the menus opened from the player (song menu, lyrics menu)
-  take the cover's dominant colour at fixed lightness (0.2 dark / 0.86 light).
+- `glowTint()`: the glow is drawn from the real palette, but a black cover's colour is black, so it
+  painted no glow at all while white covers bloomed. Lightness is now held at 0.5 or above in dark
+  and inside 0.45–0.72 in light, keeping the hue; saturation has a small floor so a grey cover still
+  gives some colour. Liked songs has no cover of its own, so it passes `glowSeed` (the white heart
+  tile) to `GlowScreen`.
+- `miniPlayerTint()`: the mini player (and menus opened from the player: song menu, lyrics menu)
+  take the cover's dominant colour at fixed lightness (0.28 dark / 0.86 light). It always reads the
+  playing cover, whatever the "colour from artwork" setting says, and when the dominant colour is
+  grey it takes the most colourful of the cover's three largest areas instead.
 
 ### 5.5 Images
 - `Cover()` fetches at about 1.25× its on-screen pixel size (120–544px) unless `px` is given. List
@@ -195,6 +203,10 @@ the reconstructed implementation:
   `filesDir/lyrics_cache` (JSON, max 3,000 files, least recently used pruned). Read before the
   network, so lyrics show instantly and offline. "Refetch" in the lyrics menu bypasses it; picking a
   provider by hand overwrites it. Settings → Storage → "Clear saved lyrics".
+- Manual search: the menu's "Search for lyrics" opens a dialog with the title and artist filled in.
+  `MainViewModel.searchLyrics()` asks every enabled source by those names — the video-keyed sources
+  are left out, since they would return the same wrong match — and applies and caches the find
+  against the playing video. This is the way around a YouTube upload whose "artist" is the channel.
 - User edits: `data/UserLyrics.kt` (`filesDir/lyrics_edits/*.lrc`) win over everything.
 - Lyrics are only looked up once the player has been opened (`lyricsWanted` in `GlowApp`), to keep
   launch light.
@@ -211,11 +223,19 @@ the reconstructed implementation:
 - Songs tab and Downloads page are **one lazy item per song**. They used to compose the whole
   library at once; keep it that way.
 - Lists with remote keys drop duplicates (`distinctBy` with the key). A duplicate key crashes a
-  `LazyColumn`, and YouTube does send duplicates.
-- Fully downloaded playlists and albums show `DownloadedBadge` (top-right of the cover) in Library
+  `LazyColumn`, and YouTube does send duplicates.- Fully downloaded playlists and albums show `DownloadedBadge` (top-right of the cover) in Library
   list and grid, on the detail page and on Liked songs. `isFullyDownloaded()` requires **every
-  track on disk**, not merely requested. Downloaded songs show `DownloadedMark` (download icon), not
-  ticks.
+track on disk**, not merely requested. Downloaded songs show `DownloadedMark` (download icon), not
+ticks.
+- Playlists can be **pinned** (`GlowPrefs.pinnedPlaylists`): the pin button on a library row or tile,
+  long-press on a row, or the ⋯ menu on the playlist page. Pinned playlists sort above the rest.
+- Library sorts used to be a label that silently cycled to the next order when tapped. They now open
+  `SortSheet` (checkmarks, plus a "Downloaded only" switch where it applies): playlists, library
+  songs and Liked songs all use it.
+- Liked songs also has a search field and a "Select" action in its top bar, so several liked songs
+  can be added to a playlist without knowing about long-press. Every song row outside Liked songs
+  shows a small heart when the track is liked (`rememberIsLiked`, which merges the library's ratings
+  with the full `LikedSongsCache`).
 
 ### 5.8 Queue
 - The queue pane shows Earlier / Up next / Rest of playlist from BitChord's bounded-context
@@ -227,6 +247,7 @@ the reconstructed implementation:
 - Tap opens the player. Swipe up opens it, swipe sideways skips, and swipe **down stops playback
   and clears the queue** (`controller.stop(); clearMediaItems()`). The swipe can be turned off in
   settings.
+- Play/pause is a bare icon, not the white primary circle; on the tinted bar the disc looked pasted on.
 - The progress line is its own small composable (`MiniProgress`) that only redraws.
 - **Crash fixed in the last round:** with the queue empty, the player's container is 0 tall, and
   the drag effects divided by its height (0 ÷ 0 = NaN corners). Always use `fractionOf(part, whole)`
@@ -282,12 +303,23 @@ the reconstructed implementation:
 
 Kotlin may print `e: … metadata version` lines during the release build; they are non-fatal.
 
-**Signing.** The APK the owner installs is signed with a self-made key that lived in the session's
-scratch folder: `signing/coverglow.jks`, with the password in `signing/password.txt`. **That folder
-is temporary and won't survive the container.** If the key is lost, a new key means the owner must
-uninstall the old app before installing (Android rejects updates signed with a different key), and
-the app's data is lost with it. Ask the owner whether they kept a copy of the key, or agree on a new
-one and keep it somewhere durable (not in the repo).
+**Signing.** The APK the owner installs is signed with a self-made key that lives outside the repo
+(the owner keeps a copy of `coverglow.jks` and its password). If the key is lost, a new key means the
+owner must uninstall the old app before installing (Android rejects updates signed with a different
+key), and the app's data is lost with it.
+
+With a `keystore.properties` file at the repo root (gitignored) naming the key, Gradle signs the
+release itself:
+
+```properties
+storeFile=C:/path/to/coverglow.jks
+storePassword=…
+keyAlias=coverglow
+keyPassword=…
+```
+
+Otherwise the release build comes out unsigned and the manual `zipalign`/`apksigner` steps below
+apply.
 
 ```bash
 BT=$(dirname "$(find / -name zipalign -type f 2>/dev/null | head -1)")
@@ -404,6 +436,7 @@ offered this list and hasn't chosen yet:
 | `251da24` | network: pings, eviction, session-scope backoff |
 | `9d91106` | in-app logs and crash reports |
 | `1ff5dbe` | mini-player swipe crash (NaN corners); launch: session wait, mood artwork requests |
+| `650c7a3` | glow visible on dark covers; white heart; mini player tint and play glyph; hearts in every song row; working sort/filter sheets; playlist header like Liked songs; pin playlists; Listen Together page; manual lyrics search |
 
 `git log` has the full detail; the commit messages explain causes as well as changes.
 

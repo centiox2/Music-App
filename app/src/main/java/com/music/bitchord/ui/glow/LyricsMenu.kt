@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -41,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +61,7 @@ import com.music.bitchord.data.lyrics.toEnhancedLrc
 import com.music.bitchord.data.lyrics.toLrc
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.ui.LyricsProviderState
+import com.music.bitchord.ui.MainViewModel
 import com.music.bitchord.ui.glow.lyrics.TranslationPrefs
 
 @Composable
@@ -90,6 +95,10 @@ fun LyricsMenuSheet(onDismiss: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         MenuRow(Icons.Rounded.Refresh, "Refetch lyrics") { close { vm.refetchLyrics() } }
         MenuRow(Icons.Rounded.Edit, if (lyrics.isNullOrEmpty()) "Write lyrics" else "Edit lyrics") { close { g.lyricsEditorOpen = true } }
+        // The video's artist is often the channel that uploaded it, not the
+        // artist on the record, so the automatic lookup can miss. This asks
+        // the sources about a name the user types instead.
+        MenuRow(Icons.Rounded.Search, "Search for lyrics") { close { g.lyricsSearchOpen = true } }
         if (edited) MenuRow(Icons.Rounded.Restore, "Undo my edit") { close { vm.resetEditedLyrics() } }
         MenuRow(Icons.Rounded.Translate, if (translate) "Hide translation" else "Translate") {
             close { TranslationPrefs.setShowTranslation(!translate) }
@@ -217,3 +226,86 @@ fun LyricsEditor(onDismiss: () -> Unit) {
 }
 
 private fun Modifier.clickableNoRipple(onClick: () -> Unit) = this.then(Modifier.clickable(onClick = onClick))
+
+/**
+ * "Find lyrics": searches the enabled sources by a title and artist the user
+ * types, instead of by the video's own metadata. A found result is applied to
+ * the playing song straight away and cached against it, so the fix lasts.
+ */
+@Composable
+fun LyricsSearchDialog(onDismiss: () -> Unit) {
+    val g = LocalGlow.current
+    val vm = g.vm
+    val c = Glow.colors
+    val song = g.player.song
+    val state by vm.lyricsSearch.collectAsStateWithLifecycle()
+    var title by rememberSaveable { mutableStateOf(song?.title.orEmpty()) }
+    var artist by rememberSaveable { mutableStateOf(song?.artist.orEmpty()) }
+    val close: () -> Unit = { vm.clearLyricsSearch(); onDismiss() }
+
+    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.fillMaxSize().background(c.base).statusBarsPadding().navigationBarsPadding().imePadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconTap(Icons.Rounded.Close, "Close", onClick = close)
+                Column(Modifier.weight(1f)) {
+                    Text("Find lyrics", style = GlowType.titleSmall, color = c.text)
+                    Text(
+                        song?.title.orEmpty(),
+                        style = GlowType.secondary,
+                        color = c.textSecondary,
+                        maxLines = 1,
+                    )
+                }
+            }
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+            ) {
+                Text(
+                    "The artist on a YouTube upload is often the channel, not the one on the record. " +
+                        "Type the song and its artist as they appear on the release.",
+                    style = GlowType.bodyRegular,
+                    color = c.textSecondary,
+                )
+                Spacer(Modifier.height(20.dp))
+                GlowTextField(title, { title = it }, label = "Song title")
+                Spacer(Modifier.height(12.dp))
+                GlowTextField(artist, { artist = it }, label = "Artist")
+                Spacer(Modifier.height(18.dp))
+                PillButton(
+                    if (state is MainViewModel.LyricsSearchState.Searching) "Searching…" else "Search",
+                    Modifier.fillMaxWidth(),
+                    enabled = title.isNotBlank() && state !is MainViewModel.LyricsSearchState.Searching,
+                ) { vm.searchLyrics(title, artist) }
+                Spacer(Modifier.height(18.dp))
+                when (val s = state) {
+                    is MainViewModel.LyricsSearchState.Searching -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(16.dp), color = c.textSecondary, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Asking the sources…", style = GlowType.secondary, color = c.textSecondary)
+                    }
+                    is MainViewModel.LyricsSearchState.Found -> {
+                        Text("Found · ${s.source.label}", style = GlowType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.text)
+                        Spacer(Modifier.height(4.dp))
+                        Text("These lyrics are showing now, and saved for this song.", style = GlowType.secondary, color = c.textSecondary)
+                        Spacer(Modifier.height(12.dp))
+                        PillButton("Back to the song", Modifier.fillMaxWidth(), primary = false, height = 46.dp) { close() }
+                    }
+                    MainViewModel.LyricsSearchState.Idle -> Unit
+                    is MainViewModel.LyricsSearchState.NotFound -> {
+                        Text("Nothing found", style = GlowType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.text)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "No source had lyrics for \"${s.title}\" by ${s.artist.ifBlank { "that artist" }}. Try a shorter title, or the artist's name only.",
+                            style = GlowType.secondary,
+                            color = c.textSecondary,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(30.dp))
+            }
+        }
+    }
+}

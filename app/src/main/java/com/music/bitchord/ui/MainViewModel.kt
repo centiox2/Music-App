@@ -396,6 +396,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _lyrics.value = null
         _lyricsSource.value = null
         _lyricsEdited.value = false
+        clearLyricsSearch()
         lyricsJob?.cancel()
         if (sources.isEmpty()) {
             // Switched off, or every source unticked. Nothing to look up, and
@@ -460,6 +461,73 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _lyricsChecked.value = true
             selected?.let { saveLyrics(videoId, it) }
         }
+    }
+
+    /**
+     * What the lyrics menu's manual search is doing.
+     *
+     * A YouTube video's artist is the channel that uploaded it, so a cover, a
+     * lyric video or a label channel's upload can leave the automatic lookup
+     * with a name nobody catalogued. This is the way out: search the sources
+     * with a title and artist the user types.
+     */
+    sealed interface LyricsSearchState {
+        data object Idle : LyricsSearchState
+        data object Searching : LyricsSearchState
+        data class Found(val source: LyricsSource) : LyricsSearchState
+        data class NotFound(val title: String, val artist: String) : LyricsSearchState
+    }
+
+    private val _lyricsSearch = MutableStateFlow<LyricsSearchState>(LyricsSearchState.Idle)
+    val lyricsSearch: StateFlow<LyricsSearchState> = _lyricsSearch.asStateFlow()
+
+    private var lyricsSearchJob: Job? = null
+
+    /**
+     * Searches by name rather than by video.
+     *
+     * The video-keyed sources are left out on purpose: asked again about the same
+     * video they would hand back exactly the lyrics the search is trying to replace.
+     * A find is cached against the playing video, so it is what shows next time.
+     */
+    fun searchLyrics(title: String, artist: String) {
+        val request = currentLyricsRequest ?: return
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return
+        val sources = AppSettings.lyricsSources.value -
+            setOf(LyricsSource.SIMP_MUSIC, LyricsSource.YOUTUBE_TRANSCRIPT, LyricsSource.YOUTUBE_MUSIC)
+        if (sources.isEmpty()) {
+            _lyricsSearch.value = LyricsSearchState.NotFound(cleanTitle, artist.trim())
+            return
+        }
+        lyricsSearchJob?.cancel()
+        _lyricsSearch.value = LyricsSearchState.Searching
+        val generation = lyricsGeneration
+        lyricsSearchJob = viewModelScope.launch {
+            val found = LyricsRepository.lyrics(
+                // Not the playing video: this lookup is about the name typed below.
+                videoId = "",
+                title = cleanTitle,
+                artist = artist.trim(),
+                durationMs = request.durationMs,
+                album = null,
+                sources = sources,
+                order = AppSettings.lyricsSourceOrder.value,
+                prioritizeSyllableSync = AppSettings.prioritizeSyllableSync.value,
+            )
+            if (generation != lyricsGeneration) return@launch
+            if (found == null) {
+                _lyricsSearch.value = LyricsSearchState.NotFound(cleanTitle, artist.trim())
+            } else {
+                showLyricsResult(found)
+                _lyricsSearch.value = LyricsSearchState.Found(found.source)
+            }
+        }
+    }
+
+    fun clearLyricsSearch() {
+        lyricsSearchJob?.cancel()
+        _lyricsSearch.value = LyricsSearchState.Idle
     }
 
     private fun saveLyrics(videoId: String, result: LyricsRepository.Result) {

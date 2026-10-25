@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -173,12 +172,61 @@ private fun fromOklab(lab: DoubleArray): Color {
  * colour, pushed dark enough that white text stays readable on it.
  */
 fun miniPlayerTint(palette: CoverPalette?, base: Color, isDark: Boolean): Color {
-    val seed = palette?.dominant ?: return base
+    val seed = palette?.colorToTint() ?: return base
     // Lightness is set, not derived: darkening a near-black cover gave a black bar
     // that vanished into the page, and a pale one gave white text nothing to sit on.
-    val hsl = FloatArray(3)
-    androidx.core.graphics.ColorUtils.colorToHSL(seed.toArgb(), hsl)
-    hsl[1] = (hsl[1] * 0.75f).coerceAtMost(0.5f)
-    hsl[2] = if (isDark) 0.2f else 0.86f
-    return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
+    val hsl = seed.toHsl()
+    // Enough saturation that the hue is readable in the bar: a cover that is
+    // mostly black and grey still needs the bar to look like it.
+    val saturation = (hsl[1] * 0.9f).coerceIn(0.18f, 0.65f)
+    return hslColor(hsl[0], saturation, if (isDark) 0.28f else 0.86f)
 }
+
+/**
+ * The colour a bar or a menu takes from a cover: its dominant colour, or the
+ * most colourful of its three largest areas when the dominant one is grey.
+ * A black cover with a red corner should tint the page red, not grey.
+ */
+private fun CoverPalette.colorToTint(): Color {
+    if (hslSaturation(dominant) >= 0.15f) return dominant
+    for (c in colors.take(3)) if (hslSaturation(c) >= 0.25f) return c
+    return dominant
+}
+
+/** Hue, saturation and lightness of [this], each 0–1 (hue in turns). */
+internal fun Color.toHsl(): FloatArray {
+    val max = maxOf(red, green, blue)
+    val min = minOf(red, green, blue)
+    val l = (max + min) / 2f
+    if (max == min) return floatArrayOf(0f, 0f, l)
+    val d = max - min
+    val s = if (l > 0.5f) d / (2f - max - min) else d / (max + min)
+    val h = when (max) {
+        red -> (green - blue) / d + (if (green < blue) 6f else 0f)
+        green -> (blue - red) / d + 2f
+        else -> (red - green) / d + 4f
+    }
+    return floatArrayOf(h / 6f, s, l)
+}
+
+internal fun hslColor(hue: Float, saturation: Float, lightness: Float): Color {
+    if (saturation <= 0f) return Color(lightness, lightness, lightness)
+    val q = if (lightness < 0.5f) lightness * (1f + saturation) else lightness + saturation - lightness * saturation
+    val p = 2f * lightness - q
+    fun channel(t: Float): Float {
+        val v = when {
+            t < 0f -> t + 1f
+            t > 1f -> t - 1f
+            else -> t
+        }
+        return when {
+            v < 1f / 6f -> p + (q - p) * 6f * v
+            v < 1f / 2f -> q
+            v < 2f / 3f -> p + (q - p) * (2f / 3f - v) * 6f
+            else -> p
+        }
+    }
+    return Color(channel(hue + 1f / 3f), channel(hue), channel(hue - 1f / 3f))
+}
+
+private fun hslSaturation(color: Color): Float = color.toHsl()[1]

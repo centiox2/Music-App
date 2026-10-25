@@ -181,7 +181,12 @@ fun DevicesScreen() {
             }
             Spacer(Modifier.height(8.dp))
             GroupLabel("Listen together")
-            ListenTogetherCard()
+            Box(Modifier.padding(horizontal = 20.dp)) {
+                ListenTogetherEntry {
+                    g.devicesOpen = false
+                    g.push(Route.ListenTogether)
+                }
+            }
             Spacer(Modifier.height(30.dp))
         }
     }
@@ -210,121 +215,6 @@ private fun DeviceRow(
             GlowText(detail, GlowType.secondary, color = c.textSecondary)
         }
         if (active) Icon(Icons.Rounded.Check, "Playing here", tint = c.text, modifier = Modifier.size(22.dp))
-    }
-}
-
-@Composable
-private fun ListenTogetherCard() {
-    val g = LocalGlow.current
-    val c = Glow.colors
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val party by ListenTogether.state.collectAsStateWithLifecycle()
-    val signedIn by g.vm.signedIn.collectAsStateWithLifecycle()
-    var busy by remember { mutableStateOf(false) }
-
-    GlassCard(Modifier.padding(horizontal = 20.dp)) {
-        Column(Modifier.padding(16.dp)) {
-            val code = party.code
-            if (code == null) {
-                Text("Start a session", style = GlowType.title, color = c.text)
-                Text(
-                    "Everyone hears the same song, in sync. Friends join with a code.",
-                    style = GlowType.bodyRegular,
-                    color = c.textSecondary,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                party.error?.let { Text(it, style = GlowType.secondary, color = c.danger, modifier = Modifier.padding(top = 8.dp)) }
-                Spacer(Modifier.height(16.dp))
-                if (!signedIn) {
-                    Text("Sign in to start or join a session.", style = GlowType.secondary, color = c.textSecondary)
-                    Spacer(Modifier.height(10.dp))
-                    PillButton("Sign in", Modifier.fillMaxWidth(), height = 48.dp) { g.devicesOpen = false; g.signInOpen = true }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton(if (busy) "Starting…" else "Start session", Modifier.weight(1f), height = 48.dp, enabled = !busy) {
-                            busy = true
-                            scope.launch {
-                                ListenTogether.createParty().onFailure { g.notify(it.message ?: "Couldn't start a session") }
-                                busy = false
-                            }
-                        }
-                        PillButton("Join", Modifier.weight(1f), primary = false, height = 48.dp) {
-                            g.devicesOpen = false
-                            g.playerOpen = false
-                            g.push(Route.JoinSession)
-                        }
-                    }
-                }
-                return@Column
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Session is live", style = GlowType.title, color = c.text)
-                    Text("Everyone hears the same song, in sync", style = GlowType.bodyRegular, color = c.textSecondary)
-                }
-                Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF5FD9A6)))
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.25f)).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Join code", style = GlowType.secondary, color = c.textSecondary)
-                    Text(
-                        code.chunked(3).joinToString(" - ").uppercase(),
-                        style = GlowType.title.copy(fontSize = 24.sp, letterSpacing = 4.sp),
-                        color = c.text,
-                    )
-                }
-                Text(
-                    "Copy link",
-                    style = GlowType.body.copy(fontWeight = FontWeight.SemiBold),
-                    color = c.text,
-                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(c.glassStrong).clickable {
-                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(ClipData.newPlainText("Invite", JamInvite.url(code)))
-                        g.notify("Invite link copied")
-                    }.padding(horizontal = 14.dp, vertical = 10.dp),
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            party.members.forEachIndexed { i, member ->
-                Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    InitialAvatar(
-                        member.displayName.ifBlank { "?" },
-                        size = 40.dp,
-                        imageUrl = member.avatarUrl,
-                        background = Color(MEMBER_COLORS[i % MEMBER_COLORS.size]),
-                        textColor = Color(0xFF111111),
-                    )
-                    Spacer(Modifier.width(14.dp))
-                    Text(
-                        if (member.memberId == party.you?.memberId) "You" else member.displayName,
-                        style = GlowType.body.copy(fontSize = 16.sp),
-                        color = c.text,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        when {
-                            member.isHost -> "Host"
-                            !member.connected -> "Away"
-                            else -> "Listening"
-                        },
-                        style = GlowType.secondary,
-                        color = c.textSecondary,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PillButton("Invite friends", Modifier.weight(1f), height = 48.dp) { g.shareUrl("Listen with me", JamInvite.url(code)) }
-                PillButton(if (party.you?.isHost == true) "End session" else "Leave", Modifier.weight(1f), primary = false, height = 48.dp) {
-                    scope.launch { ListenTogether.leaveParty() }
-                }
-            }
-        }
     }
 }
 

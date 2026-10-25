@@ -568,6 +568,7 @@ private fun ResultRow(result: SearchResult, compact: Boolean = false) {
                 song.thumbnailUrl,
                 active = g.player.song?.videoId == song.videoId,
                 onClick = { openResult(g, result) },
+                song = song,
                 trailing = if (compact) null else ({ MoreButton { g.openSongMenu(song) } }),
             )
         }
@@ -745,6 +746,7 @@ fun ExploreScreen() {
                                             Cover(song.thumbnailUrl, size = 48.dp)
                                         },
                                         onClick = { g.playList(songs, i, shelf.title, PlaybackSourceType.QUEUE) },
+                                        song = song,
                                         trailing = { MoreButton { g.openSongMenu(song) } },
                                     )
                                 }

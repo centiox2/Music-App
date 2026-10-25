@@ -639,7 +639,9 @@ private fun TitleRow(song: Song, large: Boolean) {
                 if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                 if (liked) "Unlike" else "Like",
                 iconSize = 24.dp,
-                tint = if (liked) Color(0xFFFF5A6A) else c.text,
+                // White, not red: the heart belongs to the player's black-and-white
+                // controls, and the red one was the only spot of colour on them.
+                tint = c.text,
                 modifier = Modifier.popOnChange(liked, enabled = liked),
             ) {
                 haptic()

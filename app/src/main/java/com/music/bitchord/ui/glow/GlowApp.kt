@@ -332,6 +332,7 @@ private fun GlowRoot(state: GlowState) {
                     Route.SettingsLastFm -> LastFmScreen()
                     Route.SettingsPlayback -> StreamingQualityScreen()
                     Route.Equalizer -> EqualizerScreen()
+                    Route.ListenTogether -> ListenTogetherScreen()
                     Route.JoinSession -> JoinSessionScreen()
                 }
             }
@@ -341,7 +342,7 @@ private fun GlowRoot(state: GlowState) {
         // Mini player + tabs, hidden on the full-screen pages that don't show them.
         val chromeHidden = state.top in setOf(
             Route.Settings, Route.SettingsTheme, Route.SettingsLyrics, Route.SettingsStorage,
-            Route.SettingsLastFm, Route.SettingsPlayback, Route.Equalizer, Route.JoinSession,
+            Route.SettingsLastFm, Route.SettingsPlayback, Route.Equalizer, Route.ListenTogether, Route.JoinSession,
             Route.SettingsTranslation, Route.SettingsPlaybackOptions, Route.SettingsPrivacy, Route.SettingsBackup,
             Route.SettingsLogs,
         ) || state.top is Route.EditPlaylist || state.top is Route.LogView || state.top is Route.Discography
@@ -462,6 +463,7 @@ private fun GlowRoot(state: GlowState) {
     }
     if (state.sleepTimerOpen) SleepTimerSheet(onDismiss = { state.sleepTimerOpen = false })
     if (state.lyricsMenuOpen) LyricsMenuSheet(onDismiss = { state.lyricsMenuOpen = false })
+    if (state.lyricsSearchOpen) LyricsSearchDialog(onDismiss = { state.lyricsSearchOpen = false })
     if (state.lyricsEditorOpen) LyricsEditor(onDismiss = { state.lyricsEditorOpen = false })
     state.songDetails?.let { song -> SongDetailsSheet(song, onDismiss = { state.songDetails = null }) }
 }
@@ -534,11 +536,14 @@ private fun MiniPlayer(state: GlowState) {
     val player = state.player
     val song = player.song ?: return
     val swipe by GlowPrefs.swipeMiniPlayer.collectAsStateWithLifecycle()
-    val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     // Wears the cover's colour, darkened for legibility, and fades with each song.
-    val coverColors = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
+    // Not behind "colour from artwork": that setting is about the page's glow,
+    // and the bar should match the cover even when the glow is pinned.
+    // Only this song's palette counts: falling back to the last decoded cover
+    // painted the bar in the previous song's colour while the new one loaded.
+    val coverColors = rememberGlowPalette(song.thumbnailUrl)
     val miniColor by androidx.compose.animation.animateColorAsState(
-        miniPlayerTint(coverColors ?: ArtworkPalettes.last.takeIf { fromArtwork }, c.miniPlayer, c.isDark),
+        miniPlayerTint(coverColors, c.miniPlayer, c.isDark),
         tween(700),
         label = "miniColor",
     )
@@ -645,11 +650,13 @@ private fun MiniPlayer(state: GlowState) {
                     }
                 }
             }
-            PrimaryCircle(
+            // A bare glyph, not the white primary circle: on the tinted bar the
+            // white disc read as a button pasted on.
+            IconTap(
                 if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 if (player.isPlaying) "Pause" else "Play",
                 size = 44.dp,
-                iconSize = 22.dp,
+                iconSize = 26.dp,
             ) { haptic(); state.actions.togglePlayPause() }
             Spacer(Modifier.width(6.dp))
             IconTap(Icons.Rounded.SkipNext, "Next", size = 44.dp, iconSize = 28.dp, enabled = player.hasNext) {

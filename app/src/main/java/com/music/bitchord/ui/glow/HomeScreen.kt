@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.WifiOff
@@ -119,6 +120,10 @@ fun HomeScreen() {
                     PageHeader("Home") {
                         GlassCircle(onClick = { g.selectTab(1) }) {
                             Icon(Icons.Rounded.Search, "Search", tint = c.text, modifier = Modifier.size(20.dp))
+                        }
+                        // Listen together, one tap from the top of the app.
+                        GlassCircle(onClick = { g.push(Route.ListenTogether) }) {
+                            Icon(Icons.Rounded.Groups, "Listen together", tint = c.text, modifier = Modifier.size(20.dp))
                         }
                         AccountAvatar(account?.name, account?.thumbnailUrl) { g.push(Route.Settings) }
                     }
