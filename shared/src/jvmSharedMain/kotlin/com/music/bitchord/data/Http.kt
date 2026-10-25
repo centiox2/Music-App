@@ -135,8 +135,21 @@ object Http {
         .readTimeout(30, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
-        .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+        // A minute of keepalive, not five, and HTTP/2 pings: a connection that died while
+        // the phone slept or changed network was otherwise handed to every request that
+        // followed, each waiting out its timeout, until the app was restarted. The stream
+        // resolver learned the same lesson (see StreamResolver).
+        .connectionPool(ConnectionPool(16, 1, TimeUnit.MINUTES))
+        .pingInterval(15, TimeUnit.SECONDS)
         .addInterceptor(webDavInterceptor)
         .apply { if (USAGE_LOGGING_ENABLED) addNetworkInterceptor(usageInterceptor) }
         .build()
+
+    /**
+     * Drops the pooled connections no request is using, so the next ones are made on the
+     * network the phone is on now. Called when the default network changes.
+     */
+    fun onNetworkChanged() {
+        client.connectionPool.evictAll()
+    }
 }

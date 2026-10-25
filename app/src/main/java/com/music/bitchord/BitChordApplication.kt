@@ -110,6 +110,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        watchNetworkChanges()
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.music.bitchord.playback.audio.LosslessOutput.init(this)
@@ -170,6 +171,38 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
      * HTTP 403 under its User-Agent policy, so every image request carries an
      * identifying agent. Anything else falls through to Coil's own fetchers.
      */
+    /**
+     * When the phone moves to another network (or loses one), idle connections made on the
+     * old one are dropped and a failed account-session read may be retried at once. Before,
+     * those dead connections were reused until the app was force-stopped, which is what made
+     * Home, artist pages and search hang after the phone slept or switched Wi-Fi and data.
+     */
+    private fun watchNetworkChanges() {
+        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            private var current: android.net.Network? = null
+
+            override fun onAvailable(network: android.net.Network) {
+                // The first call only reports the network the app started on.
+                if (current != null && current != network) reset()
+                current = network
+            }
+
+            override fun onLost(network: android.net.Network) {
+                if (network == current) {
+                    current = null
+                    reset()
+                }
+            }
+
+            private fun reset() {
+                com.music.bitchord.data.Http.onNetworkChanged()
+                Innertube.onNetworkChanged()
+            }
+        }
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+    }
+
     private val coilHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor { chain ->

@@ -105,6 +105,8 @@ object Innertube {
                 // and a visitor id minted under the old session is not bound to
                 // the new one — see [SessionScope] and [visitorData].
                 scope = null
+                // A new account gets its own attempt at reading its session.
+                scopeFailedAt = 0L
                 visitorData = null
                 visitorDataIsSessionBound = false
                 // The chosen channel belonged to the account that just left.
@@ -361,10 +363,39 @@ object Innertube {
     suspend fun ensureSessionScope() {
         val session = cookie ?: return
         if (scope != null) return
+        // Every signed-in request comes through here. A failed read used to be forgotten, so
+        // each request after it fetched the whole page again, one at a time behind the lock,
+        // each waiting out its timeout: on a bad connection Home, artist pages and search
+        // crawled until the app was restarted. A failure is now remembered for a while, and
+        // no request waits long for the read; without it requests go out unscoped, which is
+        // what this has always fallen back to.
+        if (System.currentTimeMillis() - scopeFailedAt < SCOPE_RETRY_MS) return
+        val finished = kotlinx.coroutines.withTimeoutOrNull(SCOPE_WAIT_MS) {
+            readSessionScope(session)
+        }
+        if (finished == null && scope == null) scopeFailedAt = System.currentTimeMillis()
+    }
+
+    /** Lets the session read be tried again at once, e.g. once the phone is back online. */
+    fun onNetworkChanged() {
+        scopeFailedAt = 0L
+    }
+
+    @Volatile
+    private var scopeFailedAt = 0L
+    private const val SCOPE_RETRY_MS = 60_000L
+    private const val SCOPE_WAIT_MS = 8_000L
+
+    private suspend fun readSessionScope(session: String) {
         scopeLock.withLock {
             if (scope != null || cookie != session) return
+            if (System.currentTimeMillis() - scopeFailedAt < SCOPE_RETRY_MS) return
             runCatching { fetchSessionScope(session) }
-                .onFailure { Log.w(TAG, "could not read the session scope: ${it.message}") }
+                .onFailure {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    scopeFailedAt = System.currentTimeMillis()
+                    Log.w(TAG, "could not read the session scope: ${it.message}")
+                }
                 .getOrNull()
                 ?.let { fresh ->
                     // A login/profile switch can happen while the shell is in
@@ -407,8 +438,15 @@ object Innertube {
      * values wanted are flat strings in it. A key that moves reads as absent,
      * which is the same as not having asked.
      */
+    /** Tests stand in for music.youtube.com's page here; null asks the real site. */
+    @Volatile
+    internal var shellPageForTest: (suspend (String) -> String)? = null
+
+    /** Whether requests are currently scoped to the signed-in account. For tests. */
+    internal val hasSessionScope: Boolean get() = scope != null
+
     private suspend fun fetchSessionScope(session: String): SessionScope? {
-        val html = client.get("$MUSIC_ORIGIN/") {
+        val html = shellPageForTest?.invoke(session) ?: client.get("$MUSIC_ORIGIN/") {
             header("User-Agent", WEB_USER_AGENT)
             header("Accept-Language", acceptLanguageHeader)
             header("Cookie", session)
