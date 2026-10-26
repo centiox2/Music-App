@@ -188,9 +188,19 @@ the reconstructed implementation:
 ### 5.6 Lyrics
 - Engine: Metrolist port (`ui/glow/lyrics`). Word and syllable sync, background vocals,
   auto-scroll, tap to seek, selection and share.
-- Sources: BitChord's `LyricsRepository` (shared module) races the enabled providers in the user's
-  order. Added NetEase (line sync only; its word-sync API is encrypted). SimpMusic and Megalobiz
-  are dead upstream.
+- **Parsing is Metrolist only.** `lyrics/MetrolistLyricsParser.kt` is a verbatim port of Metrolist's
+  `LyricsUtils`. Provider results are written out as Metrolist's rich-sync LRC
+  (`LyricsModel.toMetrolistText()`) and read back by `MetrolistLyrics.parseLyrics`; BitChord's own
+  syllable split and guessed background vocals are no longer used (they caused the jumpy animation).
+- **Fetching is Metrolist's way** (`MainViewModel.fetchInOrder`): providers one at a time in the
+  user's order, 8s each, 25s in all, word-synced preferred when that setting is on. The query comes
+  from `data/LyricsQuery.kt`: bracketed parts and "official video" words go, and for a music video
+  (or a "VEVO" / "- Topic" channel) the artist is taken from an "Artist - Title" title, since the
+  uploader isn't the artist.
+- **Manual search:** lyrics menu → "Search lyrics" (`LyricsSearch` in `LyricsMenu.kt`): edit title
+  and artist, every enabled provider answers in parallel, tap a result to use and cache it.
+- Added NetEase (line sync only; its word-sync API is encrypted). SimpMusic and Megalobiz are dead
+  upstream.
 - **Cache:** `data/LyricsCache.kt` saves the found lyrics (with word timing) per videoId to
   `filesDir/lyrics_cache` (JSON, max 3,000 files, least recently used pruned). Read before the
   network, so lyrics show instantly and offline. "Refetch" in the lyrics menu bypasses it; picking a
@@ -205,7 +215,19 @@ the reconstructed implementation:
 ### 5.7 Library, playlists, downloads
 - Library loads from a disk snapshot first, then refreshes; pull to refresh syncs. Auto-sync runs
   after the app returns from the background if 15 minutes have passed (setting).
-- Liked songs: full list cached in `LikedSongsCache`, so the count is exact.
+- Liked songs: full list cached in `LikedSongsCache`, so the count is exact. It has search and the
+  shared sort menu, and glows with its own white tile (`GlowScreen(glowColor = …)`).
+- **Playlist pages** (not albums) use `CollectionHeader` (`Collections.kt`), the Liked songs layout:
+  cover beside the title, then sort, download, save, ⋯, shuffle and Play in one row. The count
+  YouTube puts in the subtitle is dropped (`subtitleWithoutCounts`), so "2 tracks" and "2 songs"
+  no longer both show. Sorting (`SongOrder`) plays the sorted list; the default order keeps the
+  page's own queue context.
+- Library → Playlists: sort menu (recent, A–Z, Z–A, downloaded first), grid/list, filters (All,
+  Pinned, Downloaded). Sort and layout live in `GlowPrefs`, not state inside a lazy item.
+  **Pinning:** long-press a playlist, or "Pin to library" in its ⋯ menu; pinned ones stay on top
+  (`GlowPrefs.pinnedPlaylists`).
+- Song rows show a small heart for liked songs (`LikedMark` in `SongRow`), except on Liked songs
+  (`LocalShowLikedMark`). `likeStatuses` now includes the full liked list, not only its first page.
 - Multi-select by long-press, with a bottom selection bar (add to playlist, remove from your
   playlist, queue).
 - Songs tab and Downloads page are **one lazy item per song**. They used to compose the whole
@@ -231,6 +253,22 @@ the reconstructed implementation:
 - **Crash fixed in the last round:** with the queue empty, the player's container is 0 tall, and
   the drag effects divided by its height (0 ÷ 0 = NaN corners). Always use `fractionOf(part, whole)`
   for size-relative maths in `graphicsLayer`.
+
+- Colour: `miniPlayerTint` uses `coverAccent()` (the dominant colour unless it is a backdrop:
+  greyish, near black or near white; then the most vivid colour with a real share). The old tint is
+  kept until the new cover's palette is ready. Play/pause is a bare icon; a heart replaced "next".
+
+### 5.9a Other screens (this round)
+- **Listen together** has its own page (`Route.ListenTogether`, `ListenTogetherScreen` in
+  `DevicesScreen.kt`), opened from a button in Home's top bar (green dot while a session is live)
+  and from a row in the devices sheet.
+- **Cover glow:** `glowVisible()` lifts each glow colour into a visible lightness (keeping its hue),
+  so dark covers glow too; before, near-black colours were drawn at the page's own lightness.
+- **Artist page:** "Latest release" picks the newer of the first album and first single by the
+  year in their subtitles (`latestRelease`); singles used to always win.
+- **Light mode** has its own palette (`LightGlowColors`): bright cool page, solid grey text, white
+  sheets and bars, Sonder teal for primary controls. The status/navigation bar icons now follow
+  the app's theme rather than the phone's.
 
 ### 5.10 Networking (shared module)
 - `shared/.../data/Http.kt`: one OkHttp client shared by Innertube and ExoPlayer. **1-minute
@@ -385,6 +423,17 @@ offered this list and hasn't chosen yet:
   app-icon shortcuts, double-tap cover to like.
 
 ---
+
+**Playback fixes this round** (`PlaybackService.kt`, `StreamResolver.kt`):
+- Download: a song with no Opus stream falls back to AAC, then the playback stream ("No
+  downloadable audio" in the owner's log).
+- Offline: when a song can't play offline, playback jumps to the next downloaded or cached song not
+  heard in the last 30, or appends a shuffled mix of up to 20 saved songs; it used to loop the same
+  few.
+- Quality: the track selector forces the highest bitrate the format offers. `TrackLog` now writes
+  to logcat on all builds, so the in-app log shows the chosen stream and bitrate.
+- Automix was reviewed against the log: transitions ran without errors (DJ cues enter the next
+  song around 16s in, tempo matched about 2–3.5% with pitch kept). Nothing changed.
 
 ## 10. Project history (one commit per round, newest last)
 

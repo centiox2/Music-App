@@ -76,6 +76,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -218,6 +219,8 @@ fun CoverGlow(
     modifier: Modifier = Modifier,
     height: Dp = 420.dp,
     intensity: Float = 0.75f,
+    /** A colour to glow with instead of the cover's, for a page whose cover is drawn, not a picture. */
+    color: Color? = null,
 ) {
     val c = Glow.colors
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
@@ -228,14 +231,16 @@ fun CoverGlow(
     // The second bloom is as strong as that colour's share of the cover allows, so a sliver of red stays a hint.
     val secondShare = cover?.weights?.let { w -> if (w.size >= 2) (w[1] / w[0]).coerceIn(0.15f, 1f) else 0f } ?: 1f
     val second by animateFloatAsState(secondShare, tween(1200), label = "glowSecond")
-    val baseColors = if (fromArtwork && artworkUrl != null && palette.size >= 2) {
+    val baseColors = if (color != null) {
+        listOf(color, color)
+    } else if (fromArtwork && artworkUrl != null && palette.size >= 2) {
         palette
     } else {
         val f = Color(fixed)
         listOf(f, f.copy(alpha = 0.8f).compositeOverBlack(1.25f), f, f)
     }
-    val a by animateColorAsState(baseColors[0], tween(1200), label = "glowA")
-    val b by animateColorAsState(baseColors.getOrElse(1) { baseColors[0] }, tween(1200), label = "glowB")
+    val a by animateColorAsState(glowVisible(baseColors[0], c.isDark), tween(1200), label = "glowA")
+    val b by animateColorAsState(glowVisible(baseColors.getOrElse(1) { baseColors[0] }, c.isDark), tween(1200), label = "glowB")
     val userIntensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
     val strength = ((if (c.isDark) intensity else intensity * 0.55f) * userIntensity).coerceAtMost(1f)
     Canvas(modifier.fillMaxWidth().height(height)) {
@@ -259,6 +264,20 @@ fun CoverGlow(
     }
 }
 
+/**
+ * [color] made bright (or, on light, dark) enough to show against the page. A near-black
+ * cover's colours sit at the page's own lightness, so they glowed with nothing; they keep
+ * their hue and are lifted to where a glow can be seen. White is brought down a little, so
+ * a white cover glows silver rather than flooding the page.
+ */
+fun glowVisible(color: Color, dark: Boolean): Color {
+    val hsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(color.toArgb(), hsl)
+    // On light the glow is a pastel wash, so it is kept light rather than dark.
+    hsl[2] = if (dark) hsl[2].coerceIn(0.34f, 0.74f) else hsl[2].coerceIn(0.58f, 0.84f)
+    return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl)).copy(alpha = color.alpha)
+}
+
 private fun Color.compositeOverBlack(lift: Float): Color =
     Color(
         red = (red * lift).coerceIn(0f, 1f),
@@ -272,10 +291,11 @@ private fun Color.compositeOverBlack(lift: Float): Color =
 fun GlowScreen(
     glowUrl: String? = null,
     showGlow: Boolean = true,
+    glowColor: Color? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(Modifier.fillMaxSize().background(Glow.colors.base)) {
-        if (showGlow) CoverGlow(glowUrl)
+        if (showGlow) CoverGlow(glowUrl, color = glowColor)
         content()
     }
 }
@@ -695,6 +715,7 @@ fun SongRow(
             )
             if (subtitle.isNotEmpty()) GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
         }
+        if (LocalShowLikedMark.current) LikedMark(song?.videoId ?: videoId)
         trailing?.invoke()
     }
 }
@@ -708,6 +729,9 @@ fun MoreButton(onClick: () -> Unit) {
 fun ChevronRight() {
     Icon(Icons.Rounded.ChevronRight, null, tint = Glow.colors.textTertiary, modifier = Modifier.size(22.dp))
 }
+
+/** Off on a page where every song is liked anyway (Liked songs), so its rows aren't all hearts. */
+val LocalShowLikedMark = androidx.compose.runtime.compositionLocalOf { true }
 
 /** Standard row for a [Song] with ⋯ that opens the song menu. */
 @Composable

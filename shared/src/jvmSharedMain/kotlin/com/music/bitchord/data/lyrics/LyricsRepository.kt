@@ -225,8 +225,11 @@ object LyricsRepository {
      * [TtmlLyrics] knows it structurally — [withBackgroundVocals] leaves that
      * one's own split alone.
      */
+    // As Metrolist: a line's bracketed tail stays part of the line. Background vocals are
+    // only those a provider marks itself (TTML), not guessed from punctuation, which split
+    // "(oh yeah)" off with timing it never had.
     private fun result(source: LyricsSource, lines: List<LyricLine>) =
-        Result(source, lines.withBackgroundVocals())
+        Result(source, lines)
 
     /**
      * Longest the lookup will wait to find out which recording this is.

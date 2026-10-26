@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.CircularProgressIndicator
@@ -88,6 +89,7 @@ fun LyricsMenuSheet(onDismiss: () -> Unit) {
             color = c.textSecondary,
         )
         Spacer(Modifier.height(10.dp))
+        MenuRow(Icons.Rounded.Search, "Search lyrics") { close { g.lyricsSearchOpen = true } }
         MenuRow(Icons.Rounded.Refresh, "Refetch lyrics") { close { vm.refetchLyrics() } }
         MenuRow(Icons.Rounded.Edit, if (lyrics.isNullOrEmpty()) "Write lyrics" else "Edit lyrics") { close { g.lyricsEditorOpen = true } }
         if (edited) MenuRow(Icons.Rounded.Restore, "Undo my edit") { close { vm.resetEditedLyrics() } }
@@ -150,6 +152,104 @@ fun LyricsMenuSheet(onDismiss: () -> Unit) {
         if (song != null) {
             Spacer(Modifier.height(6.dp))
             MenuRow(Icons.Rounded.MoreHoriz, "Song options") { close { g.openSongMenu(song, fromPlayer = true) } }
+        }
+    }
+}
+
+/**
+ * Metrolist's lyrics search: the title and artist as the automatic search used them, ready to
+ * correct (a music video's "artist" is its uploader), then every provider asked at once. Each
+ * result shows its source, whether it is word-by-word, line-synced or plain, and its opening
+ * lines; tapping one uses it for this song from now on.
+ */
+@Composable
+fun LyricsSearch(onDismiss: () -> Unit) {
+    val g = LocalGlow.current
+    val vm = g.vm
+    val c = Glow.colors
+    val start = remember { vm.lyricsQuery() }
+    var title by remember { mutableStateOf(start?.title ?: g.player.song?.title.orEmpty()) }
+    var artist by remember { mutableStateOf(start?.artist ?: g.player.song?.artist.orEmpty()) }
+    val results = remember { androidx.compose.runtime.mutableStateListOf<com.music.bitchord.data.lyrics.LyricsRepository.Result>() }
+    var searching by remember { mutableStateOf(false) }
+    var searched by remember { mutableStateOf(false) }
+    var job by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun search() {
+        job?.cancel()
+        results.clear()
+        searching = true
+        searched = true
+        job = vm.searchLyrics(
+            title,
+            artist,
+            onResult = { found -> if (results.none { it.source == found.source }) results += found },
+            onDone = { searching = false },
+        )
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { job?.cancel() } }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.fillMaxSize().background(c.base).statusBarsPadding().navigationBarsPadding().imePadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconTap(Icons.Rounded.Close, "Close", onClick = onDismiss)
+                Text("Search lyrics", style = GlowType.titleSmall, color = c.text, modifier = Modifier.weight(1f))
+            }
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                GlowTextField(title, { title = it }, label = "Song title")
+                Spacer(Modifier.height(10.dp))
+                GlowTextField(artist, { artist = it }, label = "Artist")
+                Spacer(Modifier.height(14.dp))
+                PillButton(if (searching) "Searching…" else "Search", Modifier.fillMaxWidth(), height = 46.dp, enabled = title.isNotBlank()) { search() }
+            }
+            Spacer(Modifier.height(10.dp))
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
+                if (searched && !searching && results.isEmpty()) {
+                    item {
+                        Text(
+                            "Nothing found. Try the artist's name as it's credited, or a shorter title.",
+                            style = GlowType.secondary,
+                            color = c.textSecondary,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }
+                }
+                items(results.toList(), key = { it.source.name }) { result ->
+                    val kind = when {
+                        result.lines.any { it.isWordSynced } -> "Word by word"
+                        result.lines.any { it.timeMs > 0 } -> "Synced"
+                        else -> "Plain text"
+                    }
+                    val preview = result.lines.map { it.text.trim() }.filter { it.isNotEmpty() }.take(3).joinToString("\n")
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(c.glass)
+                            .clickableNoRipple {
+                                vm.useLyrics(result)
+                                g.notify("Using lyrics from ${result.source.label}")
+                                onDismiss()
+                            }
+                            .padding(14.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(result.source.label, style = GlowType.body, color = c.text, modifier = Modifier.weight(1f))
+                            Text(kind, style = GlowType.secondary, color = c.textSecondary)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(preview, style = GlowType.secondary, color = c.textSecondary, maxLines = 3)
+                    }
+                }
+                if (searching) {
+                    item {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(16.dp), color = c.textSecondary, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Asking every source…", style = GlowType.secondary, color = c.textSecondary)
+                        }
+                    }
+                }
+            }
         }
     }
 }

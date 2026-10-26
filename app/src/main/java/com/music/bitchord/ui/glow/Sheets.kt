@@ -500,7 +500,8 @@ fun SongDetailsSheet(song: Song, onDismiss: () -> Unit) {
     val isCurrent = g.player.song?.videoId == song.videoId
     val url = "https://music.youtube.com/watch?v=${song.videoId}"
 
-    GlowSheet(onDismiss) {
+    // In the colour of the song's own cover, like the menus raised from the player.
+    GlowSheet(onDismiss, color = playerSheetColor(song.thumbnailUrl)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Cover(song.thumbnailUrl, size = 64.dp, shape = RoundedCornerShape(10.dp))
             Spacer(Modifier.width(14.dp))

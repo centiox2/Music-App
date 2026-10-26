@@ -169,16 +169,34 @@ private fun fromOklab(lab: DoubleArray): Color {
 }
 
 /**
- * A surface colour for the mini player from the cover: its most populous
- * colour, pushed dark enough that white text stays readable on it.
+ * The colour a person would call "the cover's colour": the most common one, unless that is a
+ * near-black, near-white or grey backdrop, in which case the most vivid colour that covers a
+ * real share of the cover (a red sleeve on black reads as red, not black).
+ */
+fun coverAccent(palette: CoverPalette): Color {
+    val hsl = FloatArray(3)
+    fun hslOf(c: Color) = FloatArray(3).also { androidx.core.graphics.ColorUtils.colorToHSL(c.toArgb(), it) }
+    val dominant = palette.dominant
+    androidx.core.graphics.ColorUtils.colorToHSL(dominant.toArgb(), hsl)
+    val backdrop = hsl[1] < 0.18f || hsl[2] < 0.1f || hsl[2] > 0.92f
+    if (!backdrop) return dominant
+    return palette.colors.zip(palette.weights)
+        .filter { (c, w) -> w >= 0.08f && hslOf(c).let { it[1] >= 0.25f && it[2] in 0.12f..0.9f } }
+        .maxByOrNull { (c, w) -> hslOf(c)[1] * kotlin.math.sqrt(w) }
+        ?.first ?: dominant
+}
+
+/**
+ * A surface colour for the mini player and the menus raised from the player: the cover's
+ * colour ([coverAccent]) with its hue and saturation kept, only its lightness moved into the
+ * range where the text on it stays readable.
  */
 fun miniPlayerTint(palette: CoverPalette?, base: Color, isDark: Boolean): Color {
-    val seed = palette?.dominant ?: return base
-    // Lightness is set, not derived: darkening a near-black cover gave a black bar
-    // that vanished into the page, and a pale one gave white text nothing to sit on.
+    val seed = palette?.let(::coverAccent) ?: return base
     val hsl = FloatArray(3)
     androidx.core.graphics.ColorUtils.colorToHSL(seed.toArgb(), hsl)
-    hsl[1] = (hsl[1] * 0.75f).coerceAtMost(0.5f)
-    hsl[2] = if (isDark) 0.2f else 0.86f
+    hsl[2] = if (isDark) hsl[2].coerceIn(0.16f, 0.32f) else hsl[2].coerceIn(0.8f, 0.9f)
+    // A grey cover stays grey; a vivid one is kept vivid, just not neon.
+    hsl[1] = hsl[1].coerceAtMost(0.85f)
     return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
 }

@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -181,7 +182,7 @@ fun DevicesScreen() {
             }
             Spacer(Modifier.height(8.dp))
             GroupLabel("Listen together")
-            ListenTogetherCard()
+            ListenTogetherLink()
             Spacer(Modifier.height(30.dp))
         }
     }
@@ -210,6 +211,52 @@ private fun DeviceRow(
             GlowText(detail, GlowType.secondary, color = c.textSecondary)
         }
         if (active) Icon(Icons.Rounded.Check, "Playing here", tint = c.text, modifier = Modifier.size(22.dp))
+    }
+}
+
+/** In the devices sheet: where a session stands, and a way to its page. */
+@Composable
+private fun ListenTogetherLink() {
+    val g = LocalGlow.current
+    val party by ListenTogether.state.collectAsStateWithLifecycle()
+    val live = party.code != null
+    GlassCard(Modifier.padding(horizontal = 20.dp)) {
+        SettingRow(
+            if (live) "Session is live" else "Listen together",
+            icon = Icons.Rounded.Groups,
+            subtitle = if (live) "${party.members.size} listening" else "Hear the same song as friends, in sync",
+            chevron = true,
+        ) {
+            g.devicesOpen = false
+            g.playerOpen = false
+            g.push(Route.ListenTogether)
+        }
+    }
+}
+
+/** Listen together, a page of its own: start or join a session, and run it. */
+@Composable
+fun ListenTogetherScreen() {
+    val g = LocalGlow.current
+    val c = Glow.colors
+    Box(Modifier.fillMaxSize().background(c.base)) {
+        CoverGlow(g.player.song?.thumbnailUrl, height = 620.dp, intensity = 0.5f)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
+        ) {
+            TopBar(onBack = { g.pop() }, title = "Listen together", centered = true)
+            Text(
+                "Play music with friends, wherever they are. Everyone hears the same song at the same moment, and the host picks what plays.",
+                style = GlowType.bodyRegular.copy(fontSize = 16.sp),
+                color = c.textSecondary,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
+            )
+            ListenTogetherCard()
+            Spacer(Modifier.height(140.dp))
+        }
     }
 }
 
@@ -267,7 +314,7 @@ private fun ListenTogetherCard() {
             }
             Spacer(Modifier.height(14.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.25f)).padding(12.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (c.isDark) Color.Black.copy(alpha = 0.25f) else c.glassStrong).padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {

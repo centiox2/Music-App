@@ -23,14 +23,14 @@ object AndroidStreamHooks {
     /** Before anything logs or resolves. */
     fun installEarly() {
         MonotonicClock.nowMs = SystemClock::elapsedRealtime
+        // On every build: these lines (which stream, which client, why a track failed) are
+        // what the in-app log (Settings → Logs) exists to show.
         TrackLog.echo = { level, tag, message, error ->
-            if (BuildConfig.DEBUG) {
-                when (level) {
-                    'D' -> Log.d(tag, message, error)
-                    'I' -> Log.i(tag, message, error)
-                    'W' -> Log.w(tag, message, error)
-                    else -> Log.e(tag, message, error)
-                }
+            when (level) {
+                'D' -> Log.d(tag, message, error)
+                'I' -> Log.i(tag, message, error)
+                'W' -> Log.w(tag, message, error)
+                else -> Log.e(tag, message, error)
             }
         }
         TrackLog.sourcesLine = {

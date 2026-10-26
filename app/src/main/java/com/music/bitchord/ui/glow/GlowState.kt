@@ -47,6 +47,7 @@ sealed interface Route {
     data object SettingsPlayback : Route
     data object Equalizer : Route
     data object JoinSession : Route
+    data object ListenTogether : Route
 }
 
 enum class PlayerPane { NOW_PLAYING, QUEUE, LYRICS }
@@ -85,6 +86,7 @@ class GlowState(
     val stack = mutableStateListOf<Route>()
 
     var playerOpen by mutableStateOf(false)
+    var lyricsSearchOpen by mutableStateOf(false)
     var lyricsMenuOpen by mutableStateOf(false)
     var lyricsEditorOpen by mutableStateOf(false)
 

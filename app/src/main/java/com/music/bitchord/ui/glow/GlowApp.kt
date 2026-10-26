@@ -51,6 +51,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SkipNext
@@ -187,6 +189,7 @@ private fun GlowRoot(state: GlowState) {
                 player.durationMs.takeIf { ms -> ms > 0L } ?: it.durationMillis(),
                 it.albumName,
                 it.localUri,
+                isVideo = it.isVideoOrigin,
             )
         }
     }
@@ -333,6 +336,7 @@ private fun GlowRoot(state: GlowState) {
                     Route.SettingsPlayback -> StreamingQualityScreen()
                     Route.Equalizer -> EqualizerScreen()
                     Route.JoinSession -> JoinSessionScreen()
+                    Route.ListenTogether -> ListenTogetherScreen()
                 }
             }
         }
@@ -462,6 +466,7 @@ private fun GlowRoot(state: GlowState) {
     }
     if (state.sleepTimerOpen) SleepTimerSheet(onDismiss = { state.sleepTimerOpen = false })
     if (state.lyricsMenuOpen) LyricsMenuSheet(onDismiss = { state.lyricsMenuOpen = false })
+    if (state.lyricsSearchOpen) LyricsSearch(onDismiss = { state.lyricsSearchOpen = false })
     if (state.lyricsEditorOpen) LyricsEditor(onDismiss = { state.lyricsEditorOpen = false })
     state.songDetails?.let { song -> SongDetailsSheet(song, onDismiss = { state.songDetails = null }) }
 }
@@ -537,11 +542,15 @@ private fun MiniPlayer(state: GlowState) {
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     // Wears the cover's colour, darkened for legibility, and fades with each song.
     val coverColors = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
-    val miniColor by androidx.compose.animation.animateColorAsState(
-        miniPlayerTint(coverColors ?: ArtworkPalettes.last.takeIf { fromArtwork }, c.miniPlayer, c.isDark),
-        tween(700),
-        label = "miniColor",
-    )
+    // Until a new cover's colours are ready, the bar keeps the colour it has. It used to fall
+    // back to whichever cover was decoded last anywhere in the app (a playlist scrolled past),
+    // which is how it came to wear a colour from a different picture.
+    var shownTint by remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.graphics.Color?>(null) }
+    val tint = if (!fromArtwork) c.miniPlayer else coverColors?.let { miniPlayerTint(it, c.miniPlayer, c.isDark) } ?: shownTint ?: c.miniPlayer
+    LaunchedEffect(tint) { if (fromArtwork) shownTint = tint }
+    val miniColor by androidx.compose.animation.animateColorAsState(tint, tween(700), label = "miniColor")
+    val likes by state.vm.likeStatuses.collectAsStateWithLifecycle()
+    val signedIn by state.vm.signedIn.collectAsStateWithLifecycle()
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
     val dragX = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -645,16 +654,27 @@ private fun MiniPlayer(state: GlowState) {
                     }
                 }
             }
-            PrimaryCircle(
+            // Just the icon, no white disc, and a heart where "next" was (swipe sideways skips).
+            IconTap(
                 if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 if (player.isPlaying) "Pause" else "Play",
                 size = 44.dp,
-                iconSize = 22.dp,
+                iconSize = 30.dp,
             ) { haptic(); state.actions.togglePlayPause() }
-            Spacer(Modifier.width(6.dp))
-            IconTap(Icons.Rounded.SkipNext, "Next", size = 44.dp, iconSize = 28.dp, enabled = player.hasNext) {
-                haptic()
-                state.controller?.seekToNext()
+            if (signedIn) {
+                val liked = likes[song.videoId] == com.music.bitchord.data.model.LikeStatus.LIKE
+                IconTap(
+                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    if (liked) "Unlike" else "Like",
+                    size = 44.dp,
+                    iconSize = 24.dp,
+                    modifier = Modifier.popOnChange(liked, enabled = liked),
+                ) { haptic(); state.toggleLike(song) }
+            } else {
+                IconTap(Icons.Rounded.SkipNext, "Next", size = 44.dp, iconSize = 28.dp, enabled = player.hasNext) {
+                    haptic()
+                    state.controller?.seekToNext()
+                }
             }
         }
         Box(

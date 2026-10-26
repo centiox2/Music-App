@@ -3169,6 +3169,7 @@ class PlaybackService : MediaLibraryService() {
     ): ExoPlayer = ExoPlayer.Builder(this)
         .setRenderersFactory(silenceSkippingRenderers(spatial, equalizer, filter, loudness))
         .setMediaSourceFactory(requireNotNull(mediaSourceFactory))
+        .setTrackSelector(highestQualityTrackSelector())
         .setLoadControl(farBufferingLoadControl())
         .setAudioAttributes(AUDIO_ATTRIBUTES, /* handleAudioFocus = */ ownsSession)
         .setHandleAudioBecomingNoisy(ownsSession)
@@ -3176,6 +3177,17 @@ class PlaybackService : MediaLibraryService() {
         // press before that steps to the previous one.
         .setMaxSeekToPreviousPositionMs(BACK_RESTARTS_AFTER_MS)
         .build()
+
+    /**
+     * Always the best rendition a stream offers. On a DASH or HLS stream (quality upgrades,
+     * add-on sources) Media3's default starts at the lowest rendition and climbs only as its
+     * bandwidth estimate allows, which on audio can mean minutes, or a whole song, of the
+     * lowest bitrate on offer. A progressive stream has one rendition and is unaffected.
+     */
+    private fun highestQualityTrackSelector() =
+        androidx.media3.exoplayer.trackselection.DefaultTrackSelector(this).apply {
+            setParameters(buildUponParameters().setForceHighestSupportedBitrate(true))
+        }
 
     /**
      * Moves the session onto the player the crossfade has just started the
@@ -3332,6 +3344,9 @@ class PlaybackService : MediaLibraryService() {
      * @param alreadyAudible whether the track was already sounding when it
      *   became current, which is only true of a crossfade handoff.
      */
+    /** The songs heard most recently this session, oldest first; offline skipping avoids them. */
+    private val recentlyHeard = ArrayDeque<String>()
+
     private fun onTrackBecameCurrent(
         mediaItem: MediaItem?,
         previousEnded: Boolean,
@@ -3339,6 +3354,11 @@ class PlaybackService : MediaLibraryService() {
         alreadyAudible: Boolean = false,
     ) {
         val exoPlayer = player ?: return
+        mediaItem?.mediaId?.let { id ->
+            recentlyHeard.remove(id)
+            recentlyHeard.addLast(id)
+            while (recentlyHeard.size > RECENTLY_HEARD) recentlyHeard.removeFirst()
+        }
         syncBoundedContextCursor(exoPlayer, mediaItem)
         if (boundedContextWindow != null && !ListenTogether.state.value.inParty) {
             saveBoundedContextSnapshot(exoPlayer)
@@ -3681,6 +3701,11 @@ class PlaybackService : MediaLibraryService() {
             error,
             about = mediaId,
         )
+        // Offline, a song that is neither downloaded nor cached cannot play however often it is
+        // retried. Spending retries on each one and then skipping walked the queue round to the
+        // same few playable songs again and again. Go straight to the next song that can play.
+        if (offline() && moveOnWhileOffline(mediaId)) return
+
         // A local file that is not there is the one failure retrying cannot
         // touch, and the only one where the fix is to stop asking for the file.
         //
@@ -4121,6 +4146,66 @@ class PlaybackService : MediaLibraryService() {
      * `rememberPlayerState` in
      * [PlayerConnection][com.music.bitchord.playback.PlayerConnection].
      */
+    /** True when the phone has no working internet: no network, or one that isn't validated. */
+    private fun offline(): Boolean {
+        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return true
+        return !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /**
+     * Offline, after [failedId] failed: play the next song further down the queue that is
+     * downloaded or cached. With none left ahead, add downloaded and cached songs that are not
+     * already in the queue, shuffled, so the music carries on with something new instead of
+     * coming back round to the same few tracks. False when there is nothing to move to, which
+     * leaves the ordinary recovery (and its message) in charge.
+     */
+    private fun moveOnWhileOffline(failedId: String): Boolean {
+        val exoPlayer = player ?: return false
+        if (exoPlayer.currentMediaItem?.mediaId != failedId) return false
+        scope.launch {
+            val playable = offlinePlayableSongs()
+            val ids = playable.mapTo(HashSet()) { it.videoId }
+            withContext(Dispatchers.Main) {
+                val p = player ?: return@withContext
+                if (p.currentMediaItem?.mediaId != failedId) return@withContext
+                val from = p.currentMediaItemIndex
+                // Not one just heard, unless the listener asked for the queue to loop.
+                val loop = p.repeatMode == Player.REPEAT_MODE_ALL
+                val ahead = (from + 1 until p.mediaItemCount).firstOrNull {
+                    val id = p.getMediaItemAt(it).mediaId
+                    id in ids && (loop || id !in recentlyHeard)
+                }
+                if (ahead != null) {
+                    TrackLog.i("BitChord", "offline: $failedId isn't saved; playing the next saved song", about = failedId)
+                    p.seekTo(ahead, 0L)
+                    p.prepare()
+                    return@withContext
+                }
+                val inQueue = (0 until p.mediaItemCount).mapTo(HashSet()) { p.getMediaItemAt(it).mediaId }
+                val fresh = playable.filter { it.videoId !in inQueue && it.videoId !in recentlyHeard }
+                    .shuffled().take(OFFLINE_MIX_SIZE)
+                if (fresh.isEmpty()) {
+                    TrackLog.w("BitChord", "offline: nothing saved left to play after $failedId", about = failedId)
+                    return@withContext
+                }
+                TrackLog.i("BitChord", "offline: queue has no saved songs left; adding ${fresh.size} saved songs", about = failedId)
+                val at = p.mediaItemCount
+                p.addMediaItems(fresh.map { it.toMediaItem() })
+                p.seekTo(at, 0L)
+                p.prepare()
+            }
+        }
+        return true
+    }
+
+    /** Songs that play without internet: downloads, then songs whose audio is in the cache. */
+    private suspend fun offlinePlayableSongs(): List<Song> = withContext(Dispatchers.IO) {
+        val downloaded = runCatching { Downloads.getDownloadedSongs(this@PlaybackService) }.getOrDefault(emptyList())
+        val cached = runCatching { AudioCache.cachedSongs().map { it.song } }.getOrDefault(emptyList())
+        (downloaded + cached).distinctBy { it.videoId }
+    }
+
     private fun skipPastUnplayable(mediaId: String, reason: String) {
         val exoPlayer = player ?: return
         if (exoPlayer.currentMediaItem?.mediaId != mediaId) return
@@ -4985,6 +5070,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun buildAuditionPlayer(meter: BandwidthMeter): ExoPlayer = ExoPlayer.Builder(this)
         .setMediaSourceFactory(requireNotNull(mediaSourceFactory))
+        .setTrackSelector(highestQualityTrackSelector())
         .setBandwidthMeter(meter)
         .setLoadControl(
             DefaultLoadControl.Builder()
@@ -8914,6 +9000,12 @@ class PlaybackService : MediaLibraryService() {
          * only failing because there is no connection behind it.
          */
         const val MAX_CONSECUTIVE_SKIPS = 4
+
+        /** How many saved songs are added at a time when the queue runs dry offline. */
+        const val OFFLINE_MIX_SIZE = 20
+
+        /** How many recent songs offline skipping treats as "just heard". */
+        const val RECENTLY_HEARD = 30
 
         /**
          * How far into an exception's causes a resolver verdict is looked for.

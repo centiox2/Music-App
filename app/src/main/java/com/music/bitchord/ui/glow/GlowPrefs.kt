@@ -78,6 +78,17 @@ object GlowPrefs {
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
+    private val _pinnedPlaylists = MutableStateFlow<List<String>>(emptyList())
+    /** Playlists pinned to the top of the library, most recently pinned first. */
+    val pinnedPlaylists: StateFlow<List<String>> = _pinnedPlaylists.asStateFlow()
+
+    private val _playlistSort = MutableStateFlow(0)
+    /** The library's playlist order, an index into its options. */
+    val playlistSort: StateFlow<Int> = _playlistSort.asStateFlow()
+
+    private val _playlistGrid = MutableStateFlow(false)
+    val playlistGrid: StateFlow<Boolean> = _playlistGrid.asStateFlow()
+
     fun init(context: Context) {
         com.music.bitchord.ui.glow.lyrics.TranslationPrefs.init(context)
         if (prefs != null) return
@@ -102,6 +113,9 @@ object GlowPrefs {
         _lastSync.value = p.getLong("last_sync", 0L)
         _liquidBackground.value = p.getBoolean("liquid_background", true)
         _coverShadow.value = p.getFloat("cover_shadow", 0.7f)
+        _pinnedPlaylists.value = p.getString("pinned_playlists", "").orEmpty().split('\n').filter { it.isNotBlank() }
+        _playlistSort.value = p.getInt("playlist_sort", 0)
+        _playlistGrid.value = p.getBoolean("playlist_grid", false)
     }
 
     /** Every Cover Glow preference, for a settings backup. */
@@ -148,4 +162,16 @@ object GlowPrefs {
     fun setCoverShadow(value: Float) { _coverShadow.value = value; prefs?.edit()?.putFloat("cover_shadow", value)?.apply() }
     fun setAutoSync(value: Boolean) { _autoSync.value = value; prefs?.edit()?.putBoolean("auto_sync", value)?.apply() }
     fun setLastSync(value: Long) { _lastSync.value = value; prefs?.edit()?.putLong("last_sync", value)?.apply() }
+
+    fun setPlaylistSort(value: Int) { _playlistSort.value = value; prefs?.edit()?.putInt("playlist_sort", value)?.apply() }
+    fun setPlaylistGrid(value: Boolean) { _playlistGrid.value = value; prefs?.edit()?.putBoolean("playlist_grid", value)?.apply() }
+
+    fun isPinned(browseId: String?) = browseId != null && browseId in _pinnedPlaylists.value
+
+    /** Pins [browseId] to the top of the library, or unpins it. */
+    fun togglePinned(browseId: String) {
+        val now = _pinnedPlaylists.value.let { if (browseId in it) it - browseId else listOf(browseId) + it }
+        _pinnedPlaylists.value = now
+        prefs?.edit()?.putString("pinned_playlists", now.joinToString("\n"))?.apply()
+    }
 }

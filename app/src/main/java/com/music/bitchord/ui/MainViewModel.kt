@@ -334,6 +334,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val artist: String,
         val durationMs: Long,
         val album: String?,
+        val isVideo: Boolean = false,
     )
 
     private var currentLyricsRequest: LyricsRequest? = null
@@ -367,6 +368,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         localUri: String? = null,
         /** Skips the saved copy and asks the sources again (the lyrics menu's refetch). */
         fresh: Boolean = false,
+        /** A music video: its "artist" is the uploading channel, so the query is worked out from its title. */
+        isVideo: Boolean = false,
     ) {
         val sources = if (AppSettings.syncedLyrics.value) {
             AppSettings.lyricsSources.value
@@ -386,7 +389,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         lyricsFor = key
         lyricsGeneration += 1
         val generation = lyricsGeneration
-        currentLyricsRequest = LyricsRequest(videoId, title, artist, durationMs, album)
+        currentLyricsRequest = LyricsRequest(videoId, title, artist, durationMs, album, isVideo)
         selectedLyricsSource = null
         manualLyricsJobs.values.forEach(Job::cancel)
         manualLyricsJobs.clear()
@@ -445,15 +448,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 lyricsFor = null
                 return@launch
             }
-            val found = LyricsRepository.lyrics(
-                videoId, title, artist, durationMs, album, sources,
-                AppSettings.lyricsSourceOrder.value, AppSettings.prioritizeSyllableSync.value,
-                onSourceStarted = { source -> providerStarted(generation, source) },
-                onSourceResult = { source, result ->
-                    providerFinished(generation, source, result)
-                },
-                onSourceCancelled = { source -> providerCancelled(generation, source) },
-            )
+            val query = com.music.bitchord.data.LyricsQuery.of(title, artist, isVideo)
+            val found = fetchInOrder(videoId, query, durationMs, album, sources, generation)
             val selected = selectedLyricsSource?.let(lyricsProviderResults::get) ?: found
             _lyrics.value = selected?.lines
             _lyricsSource.value = selected?.source
@@ -465,6 +461,99 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun saveLyrics(videoId: String, result: LyricsRepository.Result) {
         viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.put(getApplication(), videoId, result) }
     }
+
+    /**
+     * Metrolist's way of finding lyrics: the enabled providers one at a time, in the listener's
+     * order, each given [LYRICS_PER_PROVIDER_MS] and the whole search [LYRICS_TOTAL_MS]. The
+     * first one that answers wins, unless "prefer word-synced" is on, in which case a
+     * line-synced answer is held as a fallback while the rest are asked for word timing.
+     * (BitChord raced every provider at once and judged the winners afterwards.)
+     */
+    private suspend fun fetchInOrder(
+        videoId: String,
+        query: com.music.bitchord.data.LyricsQuery,
+        durationMs: Long,
+        album: String?,
+        sources: Set<LyricsSource>,
+        generation: Long,
+    ): LyricsRepository.Result? {
+        val order = (AppSettings.lyricsSourceOrder.value + LyricsSource.offered).distinct()
+            .filter { it in sources && !it.hidden }
+        val wantWords = AppSettings.prioritizeSyllableSync.value
+        var fallback: LyricsRepository.Result? = null
+        kotlinx.coroutines.withTimeoutOrNull(LYRICS_TOTAL_MS) {
+            for (source in order) {
+                if (generation != lyricsGeneration) return@withTimeoutOrNull
+                val result = kotlinx.coroutines.withTimeoutOrNull(LYRICS_PER_PROVIDER_MS) {
+                    LyricsRepository.lyrics(
+                        videoId, query.title, query.artist, durationMs, album,
+                        sources = setOf(source),
+                        order = listOf(source),
+                        prioritizeSyllableSync = false,
+                        onSourceStarted = { providerStarted(generation, it) },
+                        onSourceResult = { s, r -> providerFinished(generation, s, r) },
+                        onSourceCancelled = { providerCancelled(generation, it) },
+                    )
+                }
+                if (result == null) {
+                    _lyricsProviderStates.update { states ->
+                        if (states[source] == LyricsProviderState.FETCHING) states + (source to LyricsProviderState.NOT_FOUND) else states
+                    }
+                    continue
+                }
+                if (result.lines.isEmpty()) continue
+                if (!wantWords || result.lines.any { it.isWordSynced }) {
+                    fallback = result
+                    return@withTimeoutOrNull
+                }
+                if (fallback == null) fallback = result
+            }
+        }
+        return fallback
+    }
+
+    /**
+     * The lyrics menu's search: every enabled provider asked with the title and artist typed in,
+     * all at once, each result reported as it lands. For the songs whose lyrics the automatic
+     * search got wrong or missed, a music video under its uploader's name above all.
+     */
+    fun searchLyrics(title: String, artist: String, onResult: (LyricsRepository.Result) -> Unit, onDone: () -> Unit): Job? {
+        val request = currentLyricsRequest ?: return null
+        val sources = AppSettings.lyricsSources.value.filter { !it.hidden }
+        return viewModelScope.launch {
+            kotlinx.coroutines.supervisorScope {
+                sources.map { source ->
+                    launch {
+                        val found = kotlinx.coroutines.withTimeoutOrNull(LYRICS_SEARCH_PER_PROVIDER_MS) {
+                            runCatching {
+                                LyricsRepository.lyrics(
+                                    request.videoId, title.trim(), artist.trim(), request.durationMs, request.album,
+                                    sources = setOf(source), order = listOf(source),
+                                )
+                            }.getOrNull()
+                        }
+                        if (found != null && found.lines.isNotEmpty()) onResult(found)
+                    }
+                }.forEach { it.join() }
+            }
+            onDone()
+        }
+    }
+
+    /** Shows [result] for the playing track and keeps it, so it comes back next time. */
+    fun useLyrics(result: LyricsRepository.Result) {
+        val request = currentLyricsRequest ?: return
+        lyricsJob?.cancel()
+        lyricsProviderResults[result.source] = result
+        _lyricsProviderStates.update { it + (result.source to LyricsProviderState.FOUND) }
+        selectedLyricsSource = result.source
+        showLyricsResult(result)
+        saveLyrics(request.videoId, result)
+    }
+
+    /** What the automatic search used for the playing track, to start a manual search from. */
+    fun lyricsQuery(): com.music.bitchord.data.LyricsQuery? =
+        currentLyricsRequest?.let { com.music.bitchord.data.LyricsQuery.of(it.title, it.artist, it.isVideo) }
 
     /**
      * Selects a provider from the player drawer. Completed hits are applied
@@ -559,7 +648,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun refetchLyrics() {
         val r = currentLyricsRequest ?: return
         lyricsFor = null
-        loadLyrics(r.videoId, r.title, r.artist, r.durationMs, r.album, fresh = true)
+        loadLyrics(r.videoId, r.title, r.artist, r.durationMs, r.album, fresh = true, isVideo = r.isVideo)
     }
 
     /** Saves the user's edit of the playing track's lyrics and shows it straight away. */
@@ -706,10 +795,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     /** Every rating known for this account: the library's, then this session's. */
     val likeStatuses: StateFlow<Map<String, LikeStatus>> =
-        combine(_library, LikeState.overrides) { library, overrides ->
-            val liked = (library as? UiState.Success)?.data?.likedSongs
-                ?.associate { it.videoId to LikeStatus.LIKE }
-                .orEmpty()
+        combine(_library, com.music.bitchord.ui.glow.LikedSongsCache.songs, LikeState.overrides) { library, all, overrides ->
+            // The library holds the first page of Liked Music; the full list, once read, has the rest.
+            val liked = ((library as? UiState.Success)?.data?.likedSongs.orEmpty() + all.orEmpty())
+                .associate { it.videoId to LikeStatus.LIKE }
             liked + overrides
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
@@ -3475,3 +3564,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 }
+
+private const val LYRICS_PER_PROVIDER_MS = 8_000L
+private const val LYRICS_TOTAL_MS = 25_000L
+private const val LYRICS_SEARCH_PER_PROVIDER_MS = 15_000L

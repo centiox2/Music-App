@@ -662,6 +662,27 @@ object StreamResolver {
 
             // A rung above the ceiling beats no download at all; extraction does the same.
             found?.let { return@withContext it }
+
+            // No Opus anywhere (some tracks are only offered as AAC): app storage keeps an
+            // MP4 just as well. These tracks used to fail with "No downloadable audio" while
+            // playing perfectly, from the very AAC stream the download refused.
+            if (!requireM4a) {
+                innerTubeXStream(videoId, maxKbps, requireM4a = true)
+                    ?.takeIf { it.downloadExtension == "m4a" }
+                    ?.let {
+                        TrackLog.i(TAG, "no Opus for $videoId; downloading its ${it.kbps}kbps AAC instead")
+                        return@withContext it
+                    }
+            }
+            // Last, whatever playback itself resolves, if the destination can hold it.
+            runCatching { coalescedResolve(videoId) }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull()
+                ?.takeIf { it.downloadExtension == "m4a" || (!requireM4a && it.downloadExtension == "webm") }
+                ?.let {
+                    TrackLog.i(TAG, "downloading $videoId from the playback stream (${it.kbps}kbps ${it.mimeType})")
+                    return@withContext it
+                }
             if (offered) error("Couldn't reach a downloadable copy just now — try again")
             error("No downloadable audio for this track")
         }

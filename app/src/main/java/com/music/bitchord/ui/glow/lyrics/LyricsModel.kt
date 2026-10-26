@@ -40,7 +40,10 @@ data class LyricsEntry(
     val endMs: Long? = null,
     /** The line translated, romanized or transcribed, shown beneath it. */
     val translation: String? = null,
-)
+) : Comparable<LyricsEntry> {
+    // As Metrolist's: entries order by start time, which its parser sorts with.
+    override fun compareTo(other: LyricsEntry): Int = time.compareTo(other.time)
+}
 
 sealed class LyricsListItem {
     data class Line(val index: Int, val entry: LyricsEntry) : LyricsListItem()
@@ -57,8 +60,11 @@ sealed class LyricsListItem {
 private const val UNSYNCED_BASE_TIME = 1_000_000_000L
 
 /**
- * BitChord's lines → Metrolist entries. Synced lyrics get Metrolist's blank
- * head entry so a quiet intro shows the interval indicator.
+ * Lyrics as Metrolist shows them. The lines are written out in Metrolist's own text format
+ * (rich-sync LRC: whole words with their start times, `{bg}` for background vocals,
+ * `{agent:v2}` for a duet's second voice) and read back with Metrolist's parser, so the
+ * timing the animation runs on is exactly Metrolist's. Syllable splits and other
+ * BitChord-specific timing never reach the renderer.
  */
 fun List<LyricLine>.toLyricsEntries(translated: List<LyricLine>? = null): Pair<List<LyricsEntry>, Boolean> {
     val synced = any { it.timeMs > 0 } || any { it.isWordSynced }
@@ -70,52 +76,59 @@ fun List<LyricLine>.toLyricsEntries(translated: List<LyricLine>? = null): Pair<L
             LyricsEntry(UNSYNCED_BASE_TIME + i, this[li].text, translation = tr?.get(li)?.text.orNullIfSame(this[li].text))
         } to false
     }
-    val out = mutableListOf(LyricsEntry(0L, ""))
-    for ((li, line) in withIndex()) {
-        out += line.toEntry(isBackground = false).copy(translation = tr?.get(li)?.text.orNullIfSame(line.text))
+    val parsed = MetrolistLyrics.parseLyrics(toMetrolistText())
+    // Translations are matched back to the line they belong to by time and text.
+    val translations = HashMap<Triple<Long, String, Boolean>, String>()
+    forEachIndexed { li, line ->
+        tr?.get(li)?.text.orNullIfSame(line.text)?.let { translations[Triple(line.timeMs, line.text.trim(), false)] = it }
         line.background?.let { bg ->
-            out += bg.toEntry(isBackground = true).copy(translation = tr?.get(li)?.background?.text.orNullIfSame(bg.text))
+            tr?.get(li)?.background?.text.orNullIfSame(bg.text)?.let { translations[Triple(bg.timeMs, bg.text.trim(), true)] = it }
         }
     }
-    return out.sortedWith(compareBy<LyricsEntry> { it.time }.thenBy { it.isBackground }) to true
+    val entries = parsed.map { e ->
+        translations[Triple(e.time, e.text.trim(), e.isBackground)]?.let { e.copy(translation = it) } ?: e
+    }
+    // Metrolist's blank head entry, so a quiet intro shows the interval indicator.
+    val withHead = if (entries.firstOrNull()?.time?.let { it > 0 } != false) listOf(LyricsEntry(0L, "")) + entries else entries
+    return withHead to true
 }
 
-private fun LyricLine.toEntry(isBackground: Boolean): LyricsEntry {
-    val words = if (isWordSynced) {
-        words.flatMapIndexed { i, w ->
-            val span = wordSpans.getOrNull(i)
-            val trailing = span != null && span.last + 1 < text.length && text[span.last + 1].isWhitespace() ||
-                i < words.lastIndex && span == null
-            val start = w.startMs
-            // Some providers send a zero or negative length; the fill then jumped straight to done.
-            val end = w.endMs.coerceAtLeast(start + 1)
-            val clean = w.text.trim()
-            val syllables = w.syllables.filter { it.endChar > it.startChar && it.endChar <= w.text.length }
-            if (syllables.size > 1) {
-                // Syllable timing, where the source has it, lights each part of a long word as it is sung.
-                syllables.mapIndexed { k, syl ->
-                    WordTimestamp(
-                        text = w.text.substring(syl.startChar, syl.endChar).trim(),
-                        startTime = syl.startMs / 1000.0,
-                        endTime = syl.endMs.coerceAtLeast(syl.startMs + 1) / 1000.0,
-                        hasTrailingSpace = k == syllables.lastIndex && trailing,
-                    )
-                }.filter { it.text.isNotEmpty() }
-            } else {
-                listOf(WordTimestamp(clean, start / 1000.0, end / 1000.0, trailing))
-            }
-        }.filter { it.text.isNotEmpty() }
-    } else {
-        null
+/** The lines in Metrolist's rich-sync text format; see [toLyricsEntries]. */
+fun List<LyricLine>.toMetrolistText(): String = buildString {
+    for (line in this@toMetrolistText) {
+        if (line.isGap) {
+            appendLine("[${stamp(line.timeMs)}]")
+            continue
+        }
+        appendLine(line.metrolistLine(background = false))
+        line.background?.let { appendLine(it.metrolistLine(background = true)) }
     }
-    return LyricsEntry(
-        time = timeMs,
-        text = text,
-        words = words,
-        agent = if (alignment == LyricAlignment.End) "v2" else null,
-        isBackground = isBackground,
-        endMs = sungUntilMs,
-    )
+}
+
+private fun LyricLine.metrolistLine(background: Boolean): String = buildString {
+    append('[').append(stamp(timeMs)).append(']')
+    if (background) append("{bg}") else if (alignment == LyricAlignment.End) append("{agent:v2}")
+    if (!isWordSynced) {
+        append(text.trim())
+        return@buildString
+    }
+    var lastEnd = timeMs
+    words.forEachIndexed { i, w ->
+        val clean = w.text.trim()
+        if (clean.isEmpty()) return@forEachIndexed
+        val span = wordSpans.getOrNull(i)
+        val spaced = span != null && span.last + 1 < text.length && text[span.last + 1].isWhitespace()
+        append('<').append(stamp(w.startMs)).append('>').append(clean)
+        if (spaced && i < words.lastIndex) append(' ')
+        lastEnd = maxOf(lastEnd, w.endMs, w.startMs + 1)
+    }
+    // Metrolist's closing stamp: when the last word ends.
+    append('<').append(stamp(lastEnd)).append('>')
+}
+
+private fun stamp(ms: Long): String {
+    val t = ms.coerceAtLeast(0L)
+    return "%02d:%02d.%03d".format(java.util.Locale.ROOT, t / 60_000, (t / 1000) % 60, t % 1000)
 }
 
 /** Interleaves lines with an indicator for every instrumental gap over 4 s. */

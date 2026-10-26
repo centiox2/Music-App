@@ -1,5 +1,6 @@
 package com.music.bitchord.ui.glow
 
+import androidx.compose.material.icons.rounded.Groups
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -117,6 +118,7 @@ fun HomeScreen() {
             LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = pageContentPadding()) {
                 item {
                     PageHeader("Home") {
+                        ListenTogetherButton()
                         GlassCircle(onClick = { g.selectTab(1) }) {
                             Icon(Icons.Rounded.Search, "Search", tint = c.text, modifier = Modifier.size(20.dp))
                         }
@@ -443,4 +445,23 @@ private fun isOnline(context: Context): Boolean {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
     return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
+
+/** Opens Listen together; a green dot shows while a session is live. */
+@Composable
+private fun ListenTogetherButton() {
+    val g = LocalGlow.current
+    val c = Glow.colors
+    val party by com.music.bitchord.data.listentogether.ListenTogether.state.collectAsStateWithLifecycle()
+    Box {
+        GlassCircle(onClick = { g.push(Route.ListenTogether) }) {
+            Icon(Icons.Rounded.Groups, "Listen together", tint = c.text, modifier = Modifier.size(21.dp))
+        }
+        if (party.code != null) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(2.dp).size(10.dp).clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(0xFF5FD9A6)),
+            )
+        }
+    }
 }

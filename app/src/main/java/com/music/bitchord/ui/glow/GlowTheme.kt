@@ -72,25 +72,31 @@ val DarkGlowColors = GlowColors(
     skeleton = Color.White.copy(alpha = 0.07f),
 )
 
+/**
+ * Light is drawn for light, not as dark turned over: a bright, faintly cool page, solid grey
+ * text instead of washes of black, white sheets and bars, and one colour (Sonder's teal) for
+ * the controls that act, where dark uses white. Glass stays a translucent wash so the cover
+ * glow still tints the cards.
+ */
 val LightGlowColors = GlowColors(
     isDark = false,
-    base = Color(0xFFF3F5F4),
-    text = Color(0xFF0E1A1B),
-    textSecondary = Color(0xFF0E1A1B).copy(alpha = 0.65f),
-    textTertiary = Color(0xFF0E1A1B).copy(alpha = 0.45f),
-    glass = Color(0xFF0E1A1B).copy(alpha = 0.07f),
-    glassStrong = Color(0xFF0E1A1B).copy(alpha = 0.12f),
-    divider = Color(0xFF0E1A1B).copy(alpha = 0.08f),
-    miniPlayer = Color(0xFFDCE8E5),
+    base = Color(0xFFF8F9FB),
+    text = Color(0xFF111418),
+    textSecondary = Color(0xFF5D636B),
+    textTertiary = Color(0xFF9AA0A8),
+    glass = Color(0xFF14243A).copy(alpha = 0.055f),
+    glassStrong = Color(0xFF14243A).copy(alpha = 0.095f),
+    divider = Color(0xFF14243A).copy(alpha = 0.08f),
+    miniPlayer = Color(0xFFFFFFFF),
     sheet = Color(0xFFFFFFFF),
-    navBar = Color(0xFFE5E9E8),
-    danger = Color(0xFFC6402F),
-    primary = Color(0xFF0E1A1B),
+    navBar = Color(0xFFFFFFFF),
+    danger = Color(0xFFD13A2A),
+    primary = Color(0xFF14806D),
     onPrimary = Color.White,
-    accent = Color(0xFF2F6A5E),
+    accent = Color(0xFF14806D),
     warning = Color(0xFF7A5A10),
-    warningSurface = Color(0xFFF6EBCB),
-    skeleton = Color(0xFF0E1A1B).copy(alpha = 0.07f),
+    warningSurface = Color(0xFFF8EDCF),
+    skeleton = Color(0xFF14243A).copy(alpha = 0.06f),
 )
 
 val Inter = FontFamily(
@@ -154,7 +160,25 @@ fun GlowTheme(content: @Composable () -> Unit) {
             onSurfaceVariant = colors.textSecondary, error = colors.danger,
         )
     }
+    // The bars' icons follow the app's theme, not the phone's: light chosen here on a phone set
+    // to dark used to leave white clock and battery icons on a white page.
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.SideEffect {
+            val window = view.context.findActivity()?.window ?: return@SideEffect
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
+    }
     CompositionLocalProvider(LocalGlowColors provides colors) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
+}
+
+private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

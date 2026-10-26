@@ -4,6 +4,7 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
@@ -229,35 +231,64 @@ private fun CollectionCard(
     }
 }
 
-private enum class PlaylistSort(val label: String) { RECENT("Recently added"), AZ("A–Z") }
+private enum class PlaylistSort(val label: String) {
+    RECENT("Recently added"),
+    AZ("Name A–Z"),
+    ZA("Name Z–A"),
+    DOWNLOADED("Downloaded first"),
+}
 
+private val PLAYLIST_FILTERS = listOf("All", "Pinned", "Downloaded")
+
+/**
+ * The Playlists tab. Its sort and layout are kept in [GlowPrefs], not in state inside a list
+ * item, so a tap on either always lands and the choice lasts. Pinned playlists come first,
+ * whatever the order; a long-press pins or unpins one.
+ */
 private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, likedCount: Int, likedExact: Boolean = false) {
-    item {
+    item(key = "playlists") {
         val saved by Downloads.saved.collectAsStateWithLifecycle()
         val collections by Downloads.collections.collectAsStateWithLifecycle()
-        var sort by rememberSaveable { mutableStateOf(PlaylistSort.RECENT) }
-        var grid by rememberSaveable { mutableStateOf(false) }
+        val sortIndex by GlowPrefs.playlistSort.collectAsStateWithLifecycle()
+        val grid by GlowPrefs.playlistGrid.collectAsStateWithLifecycle()
+        val pinned by GlowPrefs.pinnedPlaylists.collectAsStateWithLifecycle()
+        var filter by rememberSaveable { mutableStateOf(0) }
+        val sort = PlaylistSort.entries.getOrElse(sortIndex) { PlaylistSort.RECENT }
         val c = Glow.colors
         val playlists = shelves.firstOrNull { it.title == YtMusicRepository.PLAYLISTS_SHELF }?.items.orEmpty()
             .filterNot { it.browseId == YtMusicRepository.LIKED_MUSIC }
-        val sorted = if (sort == PlaylistSort.AZ) playlists.sortedBy { it.title.lowercase() } else playlists
+            .distinctBy { it.browseId ?: it.title }
+        val isDownloaded = { item: ShelfItem -> isFullyDownloaded(item.browseId, collections, saved) }
+        val ordered = when (sort) {
+            PlaylistSort.RECENT -> playlists
+            PlaylistSort.AZ -> playlists.sortedBy { it.title.lowercase() }
+            PlaylistSort.ZA -> playlists.sortedByDescending { it.title.lowercase() }
+            PlaylistSort.DOWNLOADED -> playlists.sortedByDescending(isDownloaded)
+        }.sortedBy { item -> pinned.indexOf(item.browseId).let { if (it < 0) Int.MAX_VALUE else it } }
+        val shown = when (filter) {
+            1 -> ordered.filter { it.browseId in pinned }
+            2 -> ordered.filter(isDownloaded)
+            else -> ordered
+        }
+        val togglePin = { item: ShelfItem ->
+            item.browseId?.let { id ->
+                val was = id in pinned
+                GlowPrefs.togglePinned(id)
+                g.notify(if (was) "Unpinned ${item.title}" else "Pinned ${item.title}")
+            }
+            Unit
+        }
         Column {
-            Row(Modifier.padding(start = 12.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(8.dp)).clickable {
-                        sort = if (sort == PlaylistSort.RECENT) PlaylistSort.AZ else PlaylistSort.RECENT
-                    }.padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.Sort, null, tint = c.textSecondary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(sort.label, style = GlowType.bodyRegular, color = c.textSecondary)
-                }
+            Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                SortMenu(PlaylistSort.entries, sort, label = { it.label }) { GlowPrefs.setPlaylistSort(it.ordinal) }
                 Spacer(Modifier.weight(1f))
                 IconTap(Icons.Rounded.Add, "New playlist") { g.newPlaylistOpen = true }
-                IconTap(if (grid) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView, "Change layout") { grid = !grid }
+                IconTap(
+                    if (grid) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView,
+                    if (grid) "Show as a list" else "Show as a grid",
+                ) { GlowPrefs.setPlaylistGrid(!grid) }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CollectionCard("Liked songs", if (likedCount > 0) (if (likedExact) "$likedCount songs" else "$likedCount+ songs") else "Songs you like", Icons.Rounded.Favorite, Modifier.weight(1f)) {
                     g.push(Route.Liked)
@@ -267,22 +298,38 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
                 }
             }
             Spacer(Modifier.height(12.dp))
-            if (sorted.isEmpty()) {
+            if (playlists.isNotEmpty()) {
+                ChipRow(PLAYLIST_FILTERS, filter) { filter = it }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (shown.isEmpty()) {
                 Text(
-                    "Playlists you make or save show up here.",
+                    when (filter) {
+                        1 -> "Pin a playlist with a long-press, or from its ⋯ menu, to keep it at the top."
+                        2 -> "Playlists downloaded in full show up here."
+                        else -> "Playlists you make or save show up here."
+                    },
                     style = GlowType.secondary,
                     color = c.textSecondary,
                     modifier = Modifier.padding(20.dp),
                 )
             }
             if (grid) {
-                sorted.chunked(2).forEach { pair ->
+                shown.chunked(2).forEach { pair ->
                     Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         pair.forEach { item ->
-                            Column(Modifier.weight(1f).clickable { g.openShelfItem(item, "Library") }) {
-                                SquareCover(item.thumbnailUrl, downloaded = isFullyDownloaded(item.browseId, collections, saved))
+                            Column(
+                                Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).combinedClickable(
+                                    onClick = { g.openShelfItem(item, "Library") },
+                                    onLongClick = { togglePin(item) },
+                                ),
+                            ) {
+                                SquareCover(item.thumbnailUrl, downloaded = isDownloaded(item))
                                 Spacer(Modifier.height(8.dp))
-                                GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (item.browseId in pinned) PinMark()
+                                    GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                                }
                                 GlowText(item.subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
                             }
                         }
@@ -290,19 +337,31 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
                     }
                 }
             } else {
-                sorted.forEach { item ->
+                shown.forEach { item ->
                     SongRow(
                         item.title,
                         listOf("Playlist", item.subtitle).filter { it.isNotBlank() }.joinToString(" · "),
                         item.thumbnailUrl,
                         coverSize = 52.dp,
                         onClick = { g.openShelfItem(item, "Library") },
-                        downloaded = isFullyDownloaded(item.browseId, collections, saved),
+                        onLongClick = { togglePin(item) },
+                        downloaded = isDownloaded(item),
+                        trailing = if (item.browseId in pinned) ({ PinMark(); Spacer(Modifier.width(10.dp)) }) else null,
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PinMark() {
+    Icon(
+        Icons.Rounded.PushPin,
+        "Pinned",
+        tint = Glow.colors.textSecondary,
+        modifier = Modifier.padding(end = 4.dp).size(15.dp),
+    )
 }
 
 private enum class SongSort(val label: String) { RECENT("Recently added"), TITLE("Title A–Z"), ARTIST("Artist A–Z") }
@@ -318,16 +377,7 @@ private fun LazyListScope.songsTab(g: GlowState, sorted: List<Song>, sort: SongS
         Column {
             Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("${sorted.size} songs", style = GlowType.bodyRegular, color = c.textSecondary, modifier = Modifier.weight(1f))
-                Row(
-                    Modifier.clip(RoundedCornerShape(8.dp)).clickable {
-                        onSort(SongSort.entries[(sort.ordinal + 1) % SongSort.entries.size])
-                    }.padding(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.Sort, null, tint = c.textSecondary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(sort.label, style = GlowType.bodyRegular, color = c.textSecondary)
-                }
+                SortMenu(SongSort.entries, sort, label = { it.label }, onSelect = onSort)
             }
             if (sorted.isEmpty()) {
                 Text("Songs you add to your library show up here.", style = GlowType.secondary, color = c.textSecondary, modifier = Modifier.padding(20.dp))
@@ -438,57 +488,51 @@ fun LikedSongsScreen() {
     }
     val all = cached ?: firstPage
     val songs = all.filter { likes[it.videoId] != LikeStatus.INDIFFERENT && likes[it.videoId] != LikeStatus.DISLIKE }
-    var sortRecent by rememberSaveable { mutableStateOf(true) }
-    val sorted = if (sortRecent) songs else songs.sortedBy { it.title.lowercase() }
+    var order by rememberSaveable { mutableStateOf(SongOrder.DEFAULT) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var filter by rememberSaveable { mutableStateOf("") }
+    val sorted = remember(songs, order, filter) { order.apply(songs).matching(filter) }
     val totalMs = songs.sumOf { it.durationMillis() }
     val allDownloaded = songs.isNotEmpty() && songs.all { it.videoId in saved }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted) {
-    GlowScreen(glowUrl = songs.firstOrNull()?.thumbnailUrl) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalSelectionPool provides sorted, LocalShowLikedMark provides false) {
+    // The page's cover is the white heart tile, so it glows with that, not the first song's art.
+    GlowScreen(glowColor = c.primary) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
-                TopBar(onBack = { g.pop() })
-                Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box {
+                if (searching) {
+                    Row(
+                        Modifier.statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconTap(Icons.AutoMirrored.Rounded.ArrowBack, "Close search") { searching = false; filter = "" }
+                        SearchField(filter, { filter = it }, "Find in Liked songs", Modifier.weight(1f))
+                    }
+                } else {
+                    TopBar(onBack = { g.pop() }) {
+                        IconTap(Icons.Rounded.Search, "Find in Liked songs") { searching = true }
+                    }
+                }
+                CollectionHeader(
+                    cover = {
                         Box(
                             Modifier.size(120.dp).clip(RoundedCornerShape(14.dp)).background(c.primary),
                             contentAlignment = Alignment.Center,
                         ) { Icon(Icons.Rounded.Favorite, null, tint = c.onPrimary, modifier = Modifier.size(48.dp)) }
-                        if (allDownloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(8.dp), size = 24.dp)
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text("Liked songs", style = GlowType.display, color = c.text)
-                        Text(
-                            // Until every page is read, the count is a floor, and says so.
-                            (if (complete || cached != null) "${songs.size} songs" else "${songs.size}+ songs") +
-                                if (totalMs > 0 && (complete || cached != null)) " · ${formatLongDuration(totalMs)}" else "",
-                            style = GlowType.bodyRegular,
-                            color = c.textSecondary,
-                        )
-                        if (allDownloaded) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                DownloadedMark(c.textSecondary)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Downloaded", style = GlowType.secondary, color = c.textSecondary)
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(18.dp))
-                Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(10.dp)).background(c.glass).clickable { sortRecent = !sortRecent }
-                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.Sort, null, tint = c.text, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (sortRecent) "Recently liked" else "Title A–Z", style = GlowType.body, color = c.text)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    IconTap(Icons.Rounded.Download, "Download all") {
-                        g.actions.download(songs)
+                    },
+                    title = "Liked songs",
+                    lines = listOf(
+                        // Until every page is read, the count is a floor, and says so.
+                        (if (complete || cached != null) "${songs.size} songs" else "${songs.size}+ songs") +
+                            if (totalMs > 0 && (complete || cached != null)) " · ${formatLongDuration(totalMs)}" else "",
+                    ),
+                    downloaded = allDownloaded,
+                    sort = {
+                        SortMenu(SongOrder.entries, order, label = { if (it == SongOrder.DEFAULT) "Recently liked" else it.label }) { order = it }
+                    },
+                ) {
+                    if (!allDownloaded) {
+                        IconTap(Icons.Rounded.Download, "Download all") { g.actions.download(songs) }
                     }
                     IconTap(Icons.Rounded.Shuffle, "Shuffle") {
                         g.actions.shuffle(sorted, g.source("Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC))
@@ -498,7 +542,9 @@ fun LikedSongsScreen() {
                         g.playList(sorted, 0, "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+            }
+            if (filter.isNotBlank() && sorted.isEmpty() && songs.isNotEmpty()) item {
+                Text("No liked songs match \"$filter\"", style = GlowType.secondary, color = c.textSecondary, modifier = Modifier.padding(20.dp))
             }
             if (songs.isEmpty() && library is UiState.Loading) item { SkeletonRows(6) }
             // The position is part of the key: a song liked twice (it happens) must not crash the list.
