@@ -24,7 +24,7 @@ test and ship it, what the owner cares about, and what is still open.
 | UI code | `app/src/main/java/com/music/bitchord/ui/glow/` (~13k lines, all written for Sonder) |
 | Entry point | `MainActivity` → `setContent { GlowApp() }` |
 | Owner's phone | OPPO CPH2727, Android 16 (API 36), ColorOS. Logs from it are full of harmless OEM noise (`UAH_JNI`, `IJankManager`, `SchedAssist`) |
-| Tests | 1,085 app unit tests + 81 shared-module tests, all passing at hand-off |
+| Tests | 1,107 app unit tests + 81 shared-module tests, all passing at hand-off |
 
 ### Git rules the owner set
 - Commit and push only to `claude/elegant-clarke-w6bo53`: `git push -u origin claude/elegant-clarke-w6bo53`.
@@ -217,6 +217,42 @@ the reconstructed implementation:
 - Performance: inactive lines read the position through a lambda and only update inside their own
   time window (`snapshotFlow`, clamped). Don't pass the per-frame position as a parameter again; it
   rebuilt every visible line on every frame.
+- Source order screen: the ↑/↓ arrows move within the *shown* list (`moveSource` in
+  `SettingsScreens.kt`). The stored order also holds sources the screen hides; moving within that
+  list swapped with hidden ones, so taps seemed to do nothing.
+
+#### Word-by-word animation: what was wrong and what fixed it (latest rounds)
+The owner reported, in turn: inaccurate and skipping → stall then catch-up → lines centred late →
+stall again. Each cause, in order:
+1. **Word ends lost.** Metrolist's rich-sync format gives a word no end; it lasts until the next
+   stamp, so a word before a pause stayed lit through the silence (up to ~1s late). Fix:
+   `metrolistLine` writes a bare stamp `<end> ` after any word followed by a gap of 60ms or more.
+   Metrolist's parser reads it as that word's end and adds no word. Word ends now match the sources
+   exactly.
+2. **Position from the MediaController.** It only estimates between session updates; corrections
+   jumped. `playback/LivePosition.kt` reads the service's own ExoPlayer (same process, main
+   thread), only when it's on the same media item and not casting. `PlayerScreen` passes it as the
+   lyrics' `positionProvider`, falling back to the controller.
+3. **Stepped position.** Even the player's position moves in steps (more so on Bluetooth).
+   `LyricsClock` (bottom of `GlowLyrics.kt`) is the one clock every line reads: normal speed
+   between readings, eases into differences (`EASE` 0.08 a frame), never backwards or stopped (a
+   lead is closed at no less than half speed), jumps only on a seek (over 1.5s). Each active
+   line's own interpolation loop was removed; lines read `currentPosition()`.
+4. **Centred late.** The follow logic waited for the centred line to stop being active, and a
+   held last word often runs into the next line. It now follows any newer line that has begun,
+   and looks `SCROLL_LEAD_MS` (400ms) ahead, since the scroll takes ~0.75s.
+5. **Dropped frames as a line starts** (latest; *not yet confirmed on the phone*). Each line near
+   the current one measured every letter (~40 `TextMeasurer.measure` calls) in one frame when it
+   came within three lines, which is exactly when the next line starts. Letters are now measured
+   six per frame in a `LaunchedEffect` (`LETTERS_PER_FRAME`); until ready, the line uses the
+   whole-line word highlight. The line fade's alpha is read only at draw time (`lineColor` is a
+   lambda), so the 250ms fade no longer rebuilds nearby lines every frame.
+
+**Tools for this:** `LiveWordSyncProbe` (app tests, opt-in: `LYRICS_PROBE=<file>`) fetches real
+lyrics for three songs from every word-synced source, runs them through `toLyricsEntries`, and
+reports word timing mismatches, line overlaps, a 60fps replay of the follow logic (skipped lines,
+how early each scroll starts). `LyricsClockTest` covers the clock; `MetrolistLyricsTest` covers the
+gap markers.
 
 ### 5.7 Library, playlists, downloads
 - Library loads from a disk snapshot first, then refreshes; pull to refresh syncs. Auto-sync runs
@@ -264,7 +300,18 @@ the reconstructed implementation:
   greyish, near black or near white; then the most vivid colour with a real share). The old tint is
   kept until the new cover's palette is ready. Play/pause is a bare icon; a heart replaced "next".
 
-### 5.9a Other screens (this round)
+### 5.8a Download and streaming quality
+- Settings → **Audio quality** (`StreamingQualityScreen`, route `SettingsPlayback`) has Wi-Fi,
+  mobile data and **Downloads** sections. Download quality used to be a row on Storage that
+  stepped to the next option on each tap; one tap from the default (Lossless) left downloads on
+  Standard. The Storage row now opens this page.
+- Standard's ceiling is 128kbps, but YouTube's Opus comes at about 50/70/160kbps, so Standard means
+  ~70kbps (the label says so). High and Lossless take the best rung (~130–160kbps Opus on YouTube).
+  Streaming Medium/High/Lossless also reach YouTube's best; High and Lossless try JioSaavn and
+  add-ons first when those sources are enabled.
+- The log line `downloading <id> as .webm (<kbps> …, <Quality>)` shows what a download used.
+
+### 5.9a Other screens
 - **Listen together** has its own page (`Route.ListenTogether`, `ListenTogetherScreen` in
   `DevicesScreen.kt`), opened from a button in Home's top bar (green dot while a session is live)
   and from a row in the devices sheet.
@@ -370,6 +417,10 @@ GLOW_SHOTS=/some/dir ./gradlew :app:testDevDebugUnitTest --tests '*GlowScreensho
 ### Regression tests worth knowing
 | Test | Guards |
 |---|---|
+| `ui/glow/PinnedPlaylistsPrefTest` | pins stored as a string set (Codebuff's build) don't crash launch |
+| `ui/glow/LyricsOrderTest` | source reordering; cache records the order |
+| `ui/glow/lyrics/LyricsClockTest`, `MetrolistLyricsTest` | lyrics clock; word ends and gap markers |
+| `ui/glow/CollectionHelpersTest` | latest release (album vs single by year); subtitle counts dropped |
 | `paneSwitchFrames`, `paneSwitchSettles` | side shadows during pane switches; old pane removed afterwards |
 | `queueEmptiedWithThePlayerOpen`, `miniPlayerSwipeAwayEmptiesQueue` | the NaN-corner crash; the UI surviving an emptied queue |
 | `playback/StopAndClearTest` | the real `PlaybackService` survives stop + clear |
@@ -396,12 +447,19 @@ GLOW_SHOTS=/some/dir ./gradlew :app:testDevDebugUnitTest --tests '*GlowScreensho
 ## 9. Open items and known limitations
 
 **Unverified on a real device (no emulator was available):**
+- The last lyrics fix (letters measured over several frames, fade read at draw time). The owner
+  still saw a stall-then-catch-up as a line starts before it. If it persists, ask whether it
+  happens on every line and whether automix was mixing, and profile on the phone (Developer
+  options → Profile HWUI rendering).
 - Liquid background look and performance (AGSL twist, blur), light-mode tone.
 - Pane-switch shadows with the liquid background on.
 - Effect of the network fixes (pings, eviction, 1.5s session wait) on the owner's phone. The next
   log will show `session scope: read in Nms` or why it failed.
 
 **Known issues and ideas not done:**
+0. **Automix analysis threads.** The owner asked about 8 threads. ONNX Runtime splits work evenly
+   across intra-op threads, so on big.LITTLE phones more than the big-core count is usually no
+   faster. Offered: an 8-thread test option plus a per-track analysis-time log; not done yet.
 1. **Slow first frame at launch.** The owner's log shows `Skipped 55 frames` / `Davey! 1405ms`:
    about 1.4s of main-thread work before the first frame. Not investigated. Start with
    `BitChordApplication.onCreate()` (many `init` calls) and the first composition of
@@ -441,6 +499,12 @@ offered this list and hasn't chosen yet:
 - Automix was reviewed against the log: transitions ran without errors (DJ cues enter the next
   song around 16s in, tempo matched about 2–3.5% with pitch kept). Nothing changed.
 
+**Codebuff commits.** Another tool pushed `b5aa563` and `ccef359` to this branch while this work
+was in progress; they rebuilt many of the same screens. The owner chose this version:
+`bf6007b` is a merge with strategy `ours`, so those commits are in the history but none of their
+changes are. Their build stored `pinned_playlists` as a string set; `GlowPrefs.readPinned` reads
+either form (that mismatch crashed the app at launch until `6dc1972`).
+
 ## 10. Project history (one commit per round, newest last)
 
 | Commit | Round |
@@ -459,6 +523,13 @@ offered this list and hasn't chosen yet:
 | `251da24` | network: pings, eviction, session-scope backoff |
 | `9d91106` | in-app logs and crash reports |
 | `1ff5dbe` | mini-player swipe crash (NaN corners); launch: session wait, mood artwork requests |
+| `f917729` | first version of this handoff |
+| `d576392` | Metrolist lyrics parsing and fetching, lyrics search; playlist header, sorting, pins, liked hearts; Listen together page; dark-cover glow; light mode; download/offline/quality fixes |
+| `bf6007b` | kept this version over Codebuff's `b5aa563`/`ccef359` (merge, strategy `ours`) |
+| `6dc1972` | launch crash from Codebuff's string-set pins |
+| `cec3d87` | download quality on the Audio quality page |
+| `3c8a475` | lyrics follow the source order; parallel lookup; order-aware cache |
+| `c57ec13` … `e1c7819` | word-by-word lyrics: word ends, live position, `LyricsClock`, scroll lead, no frame drops |
 
 `git log` has the full detail; the commit messages explain causes as well as changes.
 
@@ -478,3 +549,9 @@ offered this list and hasn't chosen yet:
   non-blocking.
 - New full-screen routes go in `chromeHidden`.
 - The signing key must stay the same between builds the owner installs.
+- Lyrics must reach the renderer through `toMetrolistText()` → `MetrolistLyrics.parseLyrics`; keep
+  the gap markers, or word ends are lost again.
+- Settings stored by an older or other build can have another type under the same key. Read new
+  keys defensively (`runCatching`, or `prefs.all[key]`); a `ClassCastException` in `GlowPrefs.init`
+  runs on every launch.
+- Don't do many `TextMeasurer.measure` calls in one frame; spread them out.
