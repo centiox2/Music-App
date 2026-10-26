@@ -293,21 +293,11 @@ private fun WordLevelLyrics(
 
     // The active line runs its own frame clock between player readings.
     var smoothPosition by remember { mutableLongStateOf(currentPosition() + lyricsOffset) }
-    LaunchedEffect(isActiveLine) {
+    // Every frame it reads the lyrics' shared smoothed clock, so all lines keep one time.
+    LaunchedEffect(isActiveLine, lyricsOffset) {
         if (isActiveLine) {
-            var lastPlayerPos = positionProvider()
-            var lastUpdateTime = System.currentTimeMillis()
             while (isActive) {
-                withFrameMillis {
-                    val now = System.currentTimeMillis()
-                    val playerPos = positionProvider()
-                    if (playerPos != lastPlayerPos) {
-                        lastPlayerPos = playerPos
-                        lastUpdateTime = now
-                    }
-                    val elapsed = now - lastUpdateTime
-                    smoothPosition = lastPlayerPos + lyricsOffset + (if (isPlayingProvider()) elapsed else 0)
-                }
+                withFrameMillis { smoothPosition = currentPosition() + lyricsOffset }
             }
         }
     }

@@ -157,20 +157,14 @@ fun GlowLyrics(
             activeLineIndices = emptySet()
             return@LaunchedEffect
         }
-        var lastPlayerPos = positionProvider()
-        var lastUpdateTime = System.currentTimeMillis()
+        val clock = LyricsClock()
         while (isActive) {
             // Paused, nothing moves: check a few times a second instead of every frame.
-            if (isPlayingProvider()) withFrameNanos { } else delay(100)
-            val now = System.currentTimeMillis()
-            val playerPos = positionProvider()
-            if (playerPos != lastPlayerPos) {
-                // A jump of more than a second is a seek: follow it at once.
-                if (abs(playerPos - (lastPlayerPos + (now - lastUpdateTime))) > 1500) scrollTargetIndex = -1
-                lastPlayerPos = playerPos
-                lastUpdateTime = now
-            }
-            val position = lastPlayerPos + if (isPlayingProvider()) now - lastUpdateTime else 0
+            val playing = isPlayingProvider()
+            if (playing) withFrameNanos { } else delay(100)
+            // One smoothed clock for every line: see [LyricsClock].
+            val position = clock.next(positionProvider(), playing, System.nanoTime())
+            if (clock.sought) scrollTargetIndex = -1
             currentPositionState = position
             val effectivePosition = position + lyricsOffsetMs
 
@@ -646,5 +640,51 @@ private fun LyricsPlaceholder() {
         listOf(0.9f, 0.7f, 0.82f, 0.6f, 0.75f).forEach { w ->
             com.music.bitchord.ui.glow.SkeletonBox(Modifier.fillMaxWidth(w).height(26.dp), radius = 8.dp)
         }
+    }
+}
+
+/**
+ * The position the lyrics run on. The player's reported position moves in steps: it is an
+ * estimate that the player corrects every so often, and on Bluetooth the corrections are
+ * larger. Followed directly, the highlight stalled while the estimate ran ahead, then leapt to
+ * catch up. This clock runs at normal speed between readings and eases into any difference
+ * (about a fifth of a second to close it) instead of jumping, never runs backwards, and jumps
+ * at once only for a real seek.
+ */
+internal class LyricsClock {
+    private var shown = Long.MIN_VALUE
+    private var exact = 0.0
+    private var lastNanos = 0L
+    /** True for the one reading where the position jumped: a seek, or a new song. */
+    var sought = false
+        private set
+
+    fun next(reported: Long, playing: Boolean, nowNanos: Long): Long {
+        sought = false
+        if (shown == Long.MIN_VALUE || !playing) {
+            sought = shown != Long.MIN_VALUE && abs(reported - shown) > SEEK_MS
+            exact = reported.toDouble()
+        } else {
+            val predicted = exact + (nowNanos - lastNanos) / 1_000_000.0
+            val error = reported - predicted
+            if (abs(error) > SEEK_MS) {
+                exact = reported.toDouble()
+                sought = true
+            } else {
+                // Eased in, and never backwards or stopped: a lead is closed by running at no
+                // less than half speed, so the highlight slows a little rather than freezing.
+                val elapsed = (nowNanos - lastNanos) / 1_000_000.0
+                exact = maxOf(predicted + error * EASE, exact + elapsed * MIN_RATE)
+            }
+        }
+        lastNanos = nowNanos
+        shown = exact.toLong()
+        return shown
+    }
+
+    private companion object {
+        const val SEEK_MS = 1500L
+        const val EASE = 0.08
+        const val MIN_RATE = 0.5
     }
 }
