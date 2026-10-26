@@ -113,9 +113,25 @@ object GlowPrefs {
         _lastSync.value = p.getLong("last_sync", 0L)
         _liquidBackground.value = p.getBoolean("liquid_background", true)
         _coverShadow.value = p.getFloat("cover_shadow", 0.7f)
-        _pinnedPlaylists.value = p.getString("pinned_playlists", "").orEmpty().split('\n').filter { it.isNotBlank() }
-        _playlistSort.value = p.getInt("playlist_sort", 0)
-        _playlistGrid.value = p.getBoolean("playlist_grid", false)
+        _pinnedPlaylists.value = readPinned(p)
+        _playlistSort.value = runCatching { p.getInt("playlist_sort", 0) }.getOrDefault(0)
+        _playlistGrid.value = runCatching { p.getBoolean("playlist_grid", false) }.getOrDefault(false)
+    }
+
+    /**
+     * The pinned playlists, one id per line. An earlier build kept them under the same key as a
+     * string set; reading that with getString throws, which crashed the app at every launch. A
+     * set is read and rewritten in today's form.
+     */
+    internal fun readPinned(p: SharedPreferences): List<String> {
+        val stored = p.all["pinned_playlists"]
+        return when (stored) {
+            is String -> stored.split('\n').filter { it.isNotBlank() }
+            is Set<*> -> stored.filterIsInstance<String>().filter { it.isNotBlank() }.also { ids ->
+                p.edit().putString("pinned_playlists", ids.joinToString("\n")).apply()
+            }
+            else -> emptyList()
+        }
     }
 
     /** Every Cover Glow preference, for a settings backup. */
