@@ -84,7 +84,8 @@ enum class DownloadQuality(
     /** Whether a source's bit-exact file is worth keeping, or a transcode will do. */
     val keepsLossless: Boolean,
 ) {
-    STANDARD(128, "Standard", "~128 kbps Opus · fits more on the device", "~4 MB", false),
+    // YouTube's Opus comes at roughly 50, 70 and 160 kbps, so this ceiling lands on ~70.
+    STANDARD(128, "Standard", "~70 kbps Opus · smallest files", "~2 MB", false),
     HIGH(Int.MAX_VALUE, "High", "Best audio on offer; source quality first", "~8 MB", false),
     LOSSLESS(
         Int.MAX_VALUE,

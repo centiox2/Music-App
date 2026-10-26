@@ -166,8 +166,8 @@ fun SettingsScreen() {
                 GlowPrefs.setStartTab((startTab + 1) % 3)
             }
         },
-        SettingEntry("Streaming quality", "Player & audio") {
-            SettingRow("Streaming quality", icon = Icons.Rounded.GraphicEq, subtitle = "Wi-Fi and mobile data", value = wifiQuality.label, chevron = true) { g.push(Route.SettingsPlayback) }
+        SettingEntry("Audio quality", "Player & audio") {
+            SettingRow("Audio quality", icon = Icons.Rounded.GraphicEq, subtitle = "Streaming and downloads", value = wifiQuality.label, chevron = true) { g.push(Route.SettingsPlayback) }
         },
         SettingEntry("Equalizer & audio", "Player & audio") {
             SettingRow("Equalizer & audio", icon = Icons.Rounded.Tune, value = if (eqEnabled) eqPreset.label() else "Off", chevron = true) { g.push(Route.Equalizer) }
@@ -546,10 +546,7 @@ fun StorageScreen() {
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SettingRow("Manage downloads", chevron = true) { g.push(Route.Downloads) }
             CardDivider()
-            SettingRow("Download quality", value = quality.label) {
-                val all = DownloadQuality.entries
-                AppSettings.setDownloadQuality(all[(all.indexOf(quality) + 1) % all.size])
-            }
+            SettingRow("Download quality", value = quality.label, chevron = true) { g.push(Route.SettingsPlayback) }
             CardDivider()
             SettingRow("Clear song cache", titleColor = c.danger) { confirm = "song" }
             CardDivider()
@@ -602,7 +599,8 @@ fun StreamingQualityScreen() {
     val c = Glow.colors
     val wifi by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cell by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
-    SettingsPage("Streaming quality") {
+    val download by AppSettings.downloadQuality.collectAsStateWithLifecycle()
+    SettingsPage("Audio quality") {
         GroupLabel("On Wi-Fi")
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             AudioQuality.entries.forEachIndexed { i, q ->
@@ -619,6 +617,21 @@ fun StreamingQualityScreen() {
         }
         Text(
             "Higher quality uses more data on mobile networks.",
+            style = GlowType.secondary,
+            color = c.textSecondary,
+            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 10.dp),
+        )
+        // Downloads have a setting of their own; it used to be a row on Storage that stepped to
+        // the next option on each tap, so one tap from the default left downloads on Standard.
+        GroupLabel("Downloads")
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            DownloadQuality.entries.forEachIndexed { i, q ->
+                SettingRow(q.label, subtitle = "${q.detail} · ${q.perTrack} a song", onClick = { AppSettings.setDownloadQuality(q) }, trailing = { GlowRadio(download == q) })
+                if (i < DownloadQuality.entries.lastIndex) CardDivider()
+            }
+        }
+        Text(
+            "Applies to new downloads. Songs already downloaded keep the quality they were saved at.",
             style = GlowType.secondary,
             color = c.textSecondary,
             modifier = Modifier.padding(22.dp),
