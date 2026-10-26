@@ -1267,6 +1267,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+        LivePosition.player = { player }
 
         if (com.music.bitchord.data.innertube.Innertube.cookie == null) {
             com.music.bitchord.data.innertube.Innertube.cookie = com.music.bitchord.auth.AuthStore(this).cookie
@@ -7199,6 +7200,7 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        LivePosition.player = null
         WearBridge.attachStreams(null)
         WearBridge.releaseSpeaker()
         // Let go of the receiver's player but leave its session alone: a

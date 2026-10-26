@@ -45,6 +45,29 @@ class MetrolistLyricsTest {
     }
 
     @Test
+    fun aWordBeforeAPauseEndsWhenTheSingerStops() {
+        // "love," is sung for 0.5s, then nothing until "maybe": the highlight must stop at 35.38s,
+        // not crawl on to 35.73s, as it did when a word lasted until the next one's start.
+        val line = LyricLine(
+            32_873, "show me love, maybe",
+            words = listOf(
+                LyricWord(32_873, 33_300, "show"),
+                LyricWord(33_346, 33_600, "me"),
+                LyricWord(34_800, 35_382, "love,"),
+                LyricWord(35_729, 37_394, "maybe"),
+            ),
+        )
+        val words = listOf(line).toLyricsEntries().first.first { it.text.isNotBlank() }.words!!
+        assertEquals(listOf("show", "me", "love,", "maybe"), words.map { it.text })
+        assertEquals(35.382, words[2].endTime, 0.001)
+        assertEquals(35.729, words[3].startTime, 0.001)
+        // A gap under 60ms isn't marked: "show" runs on to "me".
+        assertEquals(33.346, words[0].endTime, 0.001)
+        assertTrue(words[2].hasTrailingSpace)
+        assertEquals("show me love, maybe", listOf(line).toLyricsEntries().first.first { it.text.isNotBlank() }.text)
+    }
+
+    @Test
     fun backgroundAndDuetLinesKeepTheirRoles() {
         val (entries, _) = lines.toLyricsEntries()
         val bg = entries.first { it.text.contains("oh") }

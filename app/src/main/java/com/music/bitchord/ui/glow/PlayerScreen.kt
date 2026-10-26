@@ -818,7 +818,11 @@ private fun LyricsPane(modifier: Modifier) {
         GlowLyrics(
             lyrics = lyrics,
             checked = checked,
-            positionProvider = { g.controller?.currentPosition ?: player.position.positionMs },
+            positionProvider = {
+                val controller = g.controller
+                (if (com.music.bitchord.playback.cast.CastController.state.value.casting) null else com.music.bitchord.playback.LivePosition.positionMs(controller?.currentMediaItem?.mediaId))
+                    ?: controller?.currentPosition ?: player.position.positionMs
+            },
             isPlayingProvider = { g.controller?.isPlaying ?: player.isPlaying },
             lyricsOffsetMs = offsetMs.toLong(),
             onSeek = { ms -> if (!g.actions.refusedByHost()) g.controller?.seekTo(ms) },

@@ -113,18 +113,28 @@ private fun LyricLine.metrolistLine(background: Boolean): String = buildString {
         return@buildString
     }
     var lastEnd = timeMs
-    words.forEachIndexed { i, w ->
-        val clean = w.text.trim()
-        if (clean.isEmpty()) return@forEachIndexed
+    val sung = words.withIndex().filter { it.value.text.isNotBlank() }
+    sung.forEachIndexed { k, (i, w) ->
         val span = wordSpans.getOrNull(i)
         val spaced = span != null && span.last + 1 < text.length && text[span.last + 1].isWhitespace()
-        append('<').append(stamp(w.startMs)).append('>').append(clean)
+        append('<').append(stamp(w.startMs)).append('>').append(w.text.trim())
         if (spaced && i < words.lastIndex) append(' ')
         lastEnd = maxOf(lastEnd, w.endMs, w.startMs + 1)
+        // The format gives a word no end of its own: it lasts until the next stamp. Where the
+        // singer stops before the next word, a stamp with no word after it (which Metrolist's
+        // parser reads as the end of the word before, and adds nothing for) ends it on time,
+        // instead of the highlight crawling on through the pause.
+        val next = sung.getOrNull(k + 1)?.value
+        if (next != null && w.endMs > w.startMs && next.startMs - w.endMs >= WORD_GAP_MS) {
+            append('<').append(stamp(w.endMs)).append("> ")
+        }
     }
     // Metrolist's closing stamp: when the last word ends.
     append('<').append(stamp(lastEnd)).append('>')
 }
+
+/** A silence between two words shorter than this isn't worth marking. */
+private const val WORD_GAP_MS = 60L
 
 private fun stamp(ms: Long): String {
     val t = ms.coerceAtLeast(0L)
