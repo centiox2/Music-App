@@ -178,14 +178,18 @@ fun GlowLyrics(
                 return out
             }
             val newActiveIndices = withLeads(findActiveLineIndices(lines, effectivePosition))
-            val scrollActiveIndices = withLeads(findActiveLineIndices(lines, effectivePosition + if (hasWordTimings) 0L else 250L))
+            // Looked ahead, so the scroll (about 0.75s) has the line near the centre as it begins.
+            val scrollActiveIndices = withLeads(findActiveLineIndices(lines, effectivePosition + SCROLL_LEAD_MS))
 
             val scrollMax = scrollActiveIndices.filter { lines.getOrNull(it)?.isBackground == false }.maxOrNull()
                 ?: (scrollActiveIndices.maxOrNull() ?: -1)
             val isCurrentTargetStillActive = scrollTargetIndex in scrollActiveIndices
             val anyStillActive = scrollActiveIndices.isNotEmpty()
             val shouldScroll = when {
-                !isCurrentTargetStillActive && anyStillActive && scrollMax > scrollTargetIndex -> true
+                // A newer line has begun: follow it, even while the last one's final word is
+                // still held. Waiting for that word to end (it often runs past the next line's
+                // start, by over a second in some songs) is what brought lines to the centre late.
+                anyStillActive && scrollMax > scrollTargetIndex -> true
                 !isCurrentTargetStillActive && !anyStillActive && previousScrollActiveIndices.isNotEmpty() -> true
                 scrollTargetIndex == -1 && anyStillActive -> true
                 previousScrollActiveIndices.isEmpty() && anyStillActive && scrollMax > scrollTargetIndex -> true
@@ -651,6 +655,9 @@ private fun LyricsPlaceholder() {
  * (about a fifth of a second to close it) instead of jumping, never runs backwards, and jumps
  * at once only for a real seek.
  */
+/** How far ahead of the singing the view starts moving to a line. */
+private const val SCROLL_LEAD_MS = 400L
+
 internal class LyricsClock {
     private var shown = Long.MIN_VALUE
     private var exact = 0.0

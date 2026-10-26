@@ -61,12 +61,13 @@ class LiveWordSyncProbe {
                 var lastMax = -1
                 val visited = LinkedHashSet<Int>()
                 var pos = 0L
+                val becameTarget = HashMap<Int, Long>()
                 while (pos < dur) {
-                    val act = findActiveLineIndices(entries, pos)
+                    val act = findActiveLineIndices(entries, pos + 400)
                     val sm = act.filter { !entries[it].isBackground }.maxOrNull() ?: (act.maxOrNull() ?: -1)
                     val still = target in act
                     val any = act.isNotEmpty()
-                    val should = (!still && any && sm > target) || (!still && !any && prev.isNotEmpty()) ||
+                    val should = (any && sm > target) || (!still && !any && prev.isNotEmpty()) ||
                         (target == -1 && any) || (prev.isEmpty() && any && sm > target)
                     if (should) {
                         val t = if (!still && !any) (lastMax + 1 until entries.size).firstOrNull { !entries[it].isBackground } ?: target else sm
@@ -74,9 +75,13 @@ class LiveWordSyncProbe {
                     }
                     if (sm > lastMax && sm != -1) lastMax = sm
                     prev = act
-                    if (target >= 0) visited += target
+                    if (target >= 0) { visited += target; becameTarget.putIfAbsent(target, pos) }
                     pos += 16
                 }
+                // When the scroll toward each line starts, against when the line is sung.
+                val leads = becameTarget.entries.filter { !entries[it.key].isBackground && entries[it.key].text.isNotBlank() }
+                    .map { entries[it.key].time - it.value }.sorted()
+                report.appendLine("scroll starts before line: min ${leads.firstOrNull()}ms median ${leads.getOrNull(leads.size / 2)}ms max ${leads.lastOrNull()}ms")
                 val mainIdx = entries.indices.filter { !entries[it].isBackground && entries[it].text.isNotBlank() }
                 val skipped = mainIdx.filter { it !in visited }
                 report.appendLine("follow: skipped ${skipped.size} of ${mainIdx.size}: " + skipped.take(8).joinToString { "[${entries[it].time}] ${entries[it].text.take(30)}" })
