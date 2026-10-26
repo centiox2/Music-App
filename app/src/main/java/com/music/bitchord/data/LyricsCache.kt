@@ -25,15 +25,24 @@ object LyricsCache {
     private fun file(context: Context, videoId: String) =
         File(dir(context), videoId.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".json")
 
-    fun get(context: Context, videoId: String): LyricsRepository.Result? = runCatching {
+    /** Lyrics a person picked by hand: kept whatever the source order says later. */
+    const val PICKED = "picked"
+
+    /** A saved result and the source order it was found under ([PICKED] if chosen by hand). */
+    class Saved(val result: LyricsRepository.Result, val order: String)
+
+    fun get(context: Context, videoId: String): LyricsRepository.Result? = getSaved(context, videoId)?.result
+
+    fun getSaved(context: Context, videoId: String): Saved? = runCatching {
         val f = file(context, videoId).takeIf { it.exists() } ?: return null
-        decode(f.readText())?.also { f.setLastModified(System.currentTimeMillis()) }
+        decodeSaved(f.readText())?.also { f.setLastModified(System.currentTimeMillis()) }
     }.getOrNull()
 
-    fun put(context: Context, videoId: String, result: LyricsRepository.Result) {
+    /** @param order the source order the result was found under, so a later change of order can ask again. */
+    fun put(context: Context, videoId: String, result: LyricsRepository.Result, order: String = "") {
         if (result.lines.isEmpty()) return
         runCatching {
-            file(context, videoId).writeText(encode(result))
+            file(context, videoId).writeText(encode(result, order))
             prune(context)
         }
     }
@@ -55,18 +64,21 @@ object LyricsCache {
         files.sortedBy { it.lastModified() }.take(files.size - LIMIT).forEach { it.delete() }
     }
 
-    fun encode(result: LyricsRepository.Result): String =
-        json.encodeToString(Entry.serializer(), Entry(result.source.name, result.lines.map(::toDto)))
+    fun encode(result: LyricsRepository.Result, order: String = ""): String =
+        json.encodeToString(Entry.serializer(), Entry(result.source.name, result.lines.map(::toDto), order))
 
-    fun decode(text: String): LyricsRepository.Result? {
+    fun decode(text: String): LyricsRepository.Result? = decodeSaved(text)?.result
+
+    private fun decodeSaved(text: String): Saved? {
         val entry = json.decodeFromString(Entry.serializer(), text)
         val source = LyricsSource.entries.firstOrNull { it.name == entry.source } ?: return null
         val lines = entry.lines.map(::fromDto)
-        return if (lines.isEmpty()) null else LyricsRepository.Result(source, lines)
+        return if (lines.isEmpty()) null else Saved(LyricsRepository.Result(source, lines), entry.order)
     }
 
+    // [order] is empty in entries saved before it was recorded; those are asked again once.
     @Serializable
-    private data class Entry(val source: String, val lines: List<Line>)
+    private data class Entry(val source: String, val lines: List<Line>, val order: String = "")
 
     @Serializable
     private data class Line(

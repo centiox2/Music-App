@@ -347,7 +347,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * than leaving the last answer sitting on a player that would now find a
      * different one.
      */
-    private var lyricsFor: Pair<String, Set<LyricsSource>>? = null
+    private var lyricsFor: Pair<String, String>? = null
 
     /**
      * Called as the playing track changes; cheap no-op when already loaded.
@@ -376,7 +376,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             emptySet()
         }
-        val key = videoId to sources
+        // The order is part of what was asked: moving a source up asks again.
+        val orderKey = lyricsOrderKey(sources)
+        val key = videoId to orderKey
         if (lyricsFor == key) return
         // The duration lands a beat after the track, and a database match needs
         // it. Turned away here rather than inside the job below: claiming the
@@ -417,57 +419,87 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _lyricsChecked.value = true
                 return@launch
             }
-            // The file first, and without the duration gate below: a length is
-            // only needed to *match* a track against a stranger's database, and
-            // nothing is being matched here — these lyrics were written into
-            // this exact file, for this exact recording.
-            if (localUri != null) {
-                EmbeddedLyrics.forUri(getApplication(), localUri)?.let { embedded ->
-                    _lyrics.value = embedded
-                    // No source to name: what the file records is the lyrics,
-                    // not which of the eight services they came from months ago.
-                    _lyricsSource.value = null
-                    _lyricsChecked.value = true
-                    return@launch
-                }
+            // Lyrics found on an earlier play, shown straight away and offline, as long as they
+            // were found under today's source order (or picked by hand). Found under another
+            // order, they are kept only as a fallback while the sources are asked again.
+            val saved = if (fresh) null else withContext(Dispatchers.IO) {
+                com.music.bitchord.data.LyricsCache.getSaved(getApplication(), videoId)
+            }?.takeIf { it.result.source in sources }
+            if (saved != null && (saved.order == orderKey || saved.order == com.music.bitchord.data.LyricsCache.PICKED)) {
+                lyricsProviderResults[saved.result.source] = saved.result
+                _lyricsProviderStates.update { it + (saved.result.source to LyricsProviderState.FOUND) }
+                _lyrics.value = saved.result.lines
+                _lyricsSource.value = saved.result.source
+                _lyricsChecked.value = true
+                return@launch
             }
-            // Lyrics found on an earlier play: shown straight away, and offline.
-            if (!fresh) {
-                val cached = withContext(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.get(getApplication(), videoId) }
-                if (cached != null && cached.source in sources) {
-                    lyricsProviderResults[cached.source] = cached
-                    _lyricsProviderStates.update { it + (cached.source to LyricsProviderState.FOUND) }
-                    _lyrics.value = cached.lines
-                    _lyricsSource.value = cached.source
-                    _lyricsChecked.value = true
-                    return@launch
-                }
+            // A downloaded file carries the lyrics found when it was saved. They are what shows
+            // offline; online, the sources are asked in today's order and these are the fallback.
+            // No duration gate for them: nothing is being matched, they belong to this file.
+            val embedded = localUri?.let { EmbeddedLyrics.forUri(getApplication(), it) }
+            if (embedded != null && !isOnline()) {
+                _lyrics.value = embedded
+                // No source to name: the file records the words, not which service they came from.
+                _lyricsSource.value = null
+                _lyricsChecked.value = true
+                return@launch
             }
-            if (durationMs <= 0L) {
+            if (durationMs <= 0L && embedded == null && saved == null) {
                 // Duration arrives a beat after the track does; wait for it.
                 lyricsFor = null
                 return@launch
             }
             val query = com.music.bitchord.data.LyricsQuery.of(title, artist, isVideo)
-            val found = fetchInOrder(videoId, query, durationMs, album, sources, generation)
+            val found = if (durationMs > 0L) fetchInOrder(videoId, query, durationMs, album, sources, generation) else null
+            if (generation != lyricsGeneration) return@launch
             val selected = selectedLyricsSource?.let(lyricsProviderResults::get) ?: found
-            _lyrics.value = selected?.lines
-            _lyricsSource.value = selected?.source
+            when {
+                selected != null -> {
+                    _lyrics.value = selected.lines
+                    _lyricsSource.value = selected.source
+                    saveLyrics(videoId, selected, orderKey)
+                }
+                embedded != null -> {
+                    _lyrics.value = embedded
+                    _lyricsSource.value = null
+                }
+                saved != null -> {
+                    _lyrics.value = saved.result.lines
+                    _lyricsSource.value = saved.result.source
+                }
+                else -> {
+                    _lyrics.value = null
+                    _lyricsSource.value = null
+                }
+            }
             _lyricsChecked.value = true
-            selected?.let { saveLyrics(videoId, it) }
         }
     }
 
-    private fun saveLyrics(videoId: String, result: LyricsRepository.Result) {
-        viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.put(getApplication(), videoId, result) }
+    /** The enabled sources in the order they are asked, and the word-sync preference. */
+    private fun lyricsOrderKey(sources: Set<LyricsSource>): String =
+        (AppSettings.lyricsSourceOrder.value + LyricsSource.offered).distinct()
+            .filter { it in sources && !it.hidden }
+            .joinToString(",") { it.name } + if (AppSettings.prioritizeSyllableSync.value) "+words" else ""
+
+    private fun isOnline(): Boolean = runCatching {
+        val manager = getApplication<android.app.Application>().getSystemService(android.net.ConnectivityManager::class.java)
+        manager.getNetworkCapabilities(manager.activeNetwork)
+            ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+    }.getOrDefault(true)
+
+    private fun saveLyrics(videoId: String, result: LyricsRepository.Result, order: String) {
+        viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LyricsCache.put(getApplication(), videoId, result, order) }
     }
 
     /**
-     * Metrolist's way of finding lyrics: the enabled providers one at a time, in the listener's
-     * order, each given [LYRICS_PER_PROVIDER_MS] and the whole search [LYRICS_TOTAL_MS]. The
-     * first one that answers wins, unless "prefer word-synced" is on, in which case a
-     * line-synced answer is held as a fallback while the rest are asked for word timing.
-     * (BitChord raced every provider at once and judged the winners afterwards.)
+     * Every enabled source is asked at once, and the answers are taken in the listener's
+     * order: a source lower down is used only once every source above it has answered with
+     * nothing or run out of time. That keeps the order (asking them one after another, as
+     * Metrolist does, made a slow or empty source at the top hold the lyrics up for 8s each),
+     * and the lyrics come as fast as the best-placed source that has them. With "prefer
+     * word-synced" on, a line-synced answer is held while the sources below it are checked for
+     * word timing.
      */
     private suspend fun fetchInOrder(
         videoId: String,
@@ -476,40 +508,58 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         album: String?,
         sources: Set<LyricsSource>,
         generation: Long,
-    ): LyricsRepository.Result? {
+    ): LyricsRepository.Result? = kotlinx.coroutines.coroutineScope {
         val order = (AppSettings.lyricsSourceOrder.value + LyricsSource.offered).distinct()
             .filter { it in sources && !it.hidden }
         val wantWords = AppSettings.prioritizeSyllableSync.value
-        var fallback: LyricsRepository.Result? = null
-        kotlinx.coroutines.withTimeoutOrNull(LYRICS_TOTAL_MS) {
-            for (source in order) {
-                if (generation != lyricsGeneration) return@withTimeoutOrNull
-                val result = kotlinx.coroutines.withTimeoutOrNull(LYRICS_PER_PROVIDER_MS) {
-                    LyricsRepository.lyrics(
-                        videoId, query.title, query.artist, durationMs, album,
-                        sources = setOf(source),
-                        order = listOf(source),
-                        prioritizeSyllableSync = false,
-                        onSourceStarted = { providerStarted(generation, it) },
-                        onSourceResult = { s, r -> providerFinished(generation, s, r) },
-                        onSourceCancelled = { providerCancelled(generation, it) },
-                    )
+        val started = android.os.SystemClock.elapsedRealtime()
+        val asked = order.map { source ->
+            source to async(Dispatchers.IO) {
+                kotlinx.coroutines.withTimeoutOrNull(LYRICS_PER_PROVIDER_MS) {
+                    runCatching {
+                        LyricsRepository.lyrics(
+                            videoId, query.title, query.artist, durationMs, album,
+                            sources = setOf(source),
+                            order = listOf(source),
+                            prioritizeSyllableSync = false,
+                            onSourceStarted = { providerStarted(generation, it) },
+                            onSourceResult = { s, r -> providerFinished(generation, s, r) },
+                            onSourceCancelled = { providerCancelled(generation, it) },
+                        )
+                    }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
                 }
-                if (result == null) {
+            }
+        }
+        var chosen: LyricsRepository.Result? = null
+        val misses = mutableListOf<String>()
+        try {
+            for ((source, job) in asked) {
+                if (generation != lyricsGeneration) break
+                val left = LYRICS_TOTAL_MS - (android.os.SystemClock.elapsedRealtime() - started)
+                val result = if (left > 0) kotlinx.coroutines.withTimeoutOrNull(left) { job.await() } else null
+                if (result == null || result.lines.isEmpty()) {
                     _lyricsProviderStates.update { states ->
                         if (states[source] == LyricsProviderState.FETCHING) states + (source to LyricsProviderState.NOT_FOUND) else states
                     }
+                    misses += source.label
                     continue
                 }
-                if (result.lines.isEmpty()) continue
                 if (!wantWords || result.lines.any { it.isWordSynced }) {
-                    fallback = result
-                    return@withTimeoutOrNull
+                    chosen = result
+                    break
                 }
-                if (fallback == null) fallback = result
+                if (chosen == null) chosen = result
             }
+        } finally {
+            asked.forEach { it.second.cancel() }
         }
-        return fallback
+        android.util.Log.i(
+            "Sonder",
+            "lyrics for $videoId: " + (chosen?.source?.label ?: "none") +
+                (if (misses.isNotEmpty()) " (nothing from ${misses.joinToString()})" else "") +
+                " in ${android.os.SystemClock.elapsedRealtime() - started}ms; order ${order.joinToString { it.label }}",
+        )
+        chosen
     }
 
     /**
@@ -548,7 +598,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _lyricsProviderStates.update { it + (result.source to LyricsProviderState.FOUND) }
         selectedLyricsSource = result.source
         showLyricsResult(result)
-        saveLyrics(request.videoId, result)
     }
 
     /** What the automatic search used for the playing track, to start a manual search from. */
@@ -584,11 +633,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         source: LyricsSource,
     ) {
         if (manualLyricsJobs[source]?.isActive == true) return
+        // The same cleaned title and artist the automatic search used.
+        val query = com.music.bitchord.data.LyricsQuery.of(request.title, request.artist, request.isVideo)
         manualLyricsJobs[source] = viewModelScope.launch {
             LyricsRepository.lyrics(
                 videoId = request.videoId,
-                title = request.title,
-                artist = request.artist,
+                title = query.title,
+                artist = query.artist,
                 durationMs = request.durationMs,
                 album = request.album,
                 sources = setOf(source),
@@ -670,8 +721,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun showLyricsResult(result: LyricsRepository.Result) {
-        // A provider picked by hand is the one to come back to next time.
-        currentLyricsRequest?.let { saveLyrics(it.videoId, result) }
+        // A provider picked by hand is the one to come back to next time, whatever the order.
+        currentLyricsRequest?.let { saveLyrics(it.videoId, result, com.music.bitchord.data.LyricsCache.PICKED) }
         _lyricsEdited.value = false
         _lyrics.value = result.lines
         _lyricsSource.value = result.source

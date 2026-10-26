@@ -192,8 +192,14 @@ the reconstructed implementation:
   `LyricsUtils`. Provider results are written out as Metrolist's rich-sync LRC
   (`LyricsModel.toMetrolistText()`) and read back by `MetrolistLyrics.parseLyrics`; BitChord's own
   syllable split and guessed background vocals are no longer used (they caused the jumpy animation).
-- **Fetching is Metrolist's way** (`MainViewModel.fetchInOrder`): providers one at a time in the
-  user's order, 8s each, 25s in all, word-synced preferred when that setting is on. The query comes
+- **Fetching** (`MainViewModel.fetchInOrder`): every enabled provider is asked at once, and
+  answers are taken strictly in the user's order (a lower one wins only after everything above it
+  missed or passed its 8s; 25s in all). One-at-a-time, as Metrolist does it, let a slow top source
+  hold lyrics up for 8s each. Each lookup logs `lyrics for <id>: <source> … order …` (tag `Sonder`).
+- The cache records the order a result was found under (`LyricsCache.Saved.order`, or `picked` for
+  a hand-picked provider); found under another order, it's only a fallback while the sources are
+  asked again. A downloaded file's embedded lyrics are used offline, and as the fallback online.
+  Changing the order or "prefer word-synced" triggers a new lookup. The query comes
   from `data/LyricsQuery.kt`: bracketed parts and "official video" words go, and for a music video
   (or a "VEVO" / "- Topic" channel) the artist is taken from an "Artist - Title" title, since the
   uploader isn't the artist.

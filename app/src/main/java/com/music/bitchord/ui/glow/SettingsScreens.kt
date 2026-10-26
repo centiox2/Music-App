@@ -404,6 +404,17 @@ fun ThemeScreen() {
 
 // ---- Lyrics sources ----
 
+/**
+ * Moves the source shown at [from] to [to] among the [shown] ones. The stored order also holds
+ * sources this list doesn't show; moving within that list used to swap with a hidden one, so a
+ * tap on an arrow could change nothing that could be seen.
+ */
+internal fun moveSource(shown: List<LyricsSource>, order: List<LyricsSource>, from: Int, to: Int): List<LyricsSource> {
+    if (from !in shown.indices || to !in shown.indices) return order
+    val moved = shown.toMutableList().apply { add(to, removeAt(from)) }
+    return moved + order.filterNot { it in moved }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LyricsSourcesScreen() {
@@ -434,10 +445,10 @@ fun LyricsSourcesScreen() {
                     })
                     Column {
                         IconTap(Icons.Rounded.ArrowUpward, "Move up", size = 30.dp, iconSize = 18.dp, enabled = i > 0) {
-                            AppSettings.setLyricsSourceOrder(order.toMutableList().apply { val j = indexOf(source); add(j - 1, removeAt(j)) })
+                            AppSettings.setLyricsSourceOrder(moveSource(sources, order, i, i - 1))
                         }
                         IconTap(Icons.Rounded.ArrowDownward, "Move down", size = 30.dp, iconSize = 18.dp, enabled = i < sources.lastIndex) {
-                            AppSettings.setLyricsSourceOrder(order.toMutableList().apply { val j = indexOf(source); add(j + 1, removeAt(j)) })
+                            AppSettings.setLyricsSourceOrder(moveSource(sources, order, i, i + 1))
                         }
                     }
                 }

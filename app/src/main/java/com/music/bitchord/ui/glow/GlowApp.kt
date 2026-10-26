@@ -179,7 +179,9 @@ private fun GlowRoot(state: GlowState) {
     // provider at once and was competing with Home for the network while the app was starting.
     var lyricsWanted by remember { androidx.compose.runtime.mutableStateOf(false) }
     LaunchedEffect(state.playerOpen) { if (state.playerOpen) lyricsWanted = true }
-    LaunchedEffect(player.song?.videoId, player.durationMs, syncedLyrics, lyricsSources, lyricsWanted) {
+    val lyricsOrder by AppSettings.lyricsSourceOrder.collectAsStateWithLifecycle()
+    val preferWordSync by AppSettings.prioritizeSyllableSync.collectAsStateWithLifecycle()
+    LaunchedEffect(player.song?.videoId, player.durationMs, syncedLyrics, lyricsSources, lyricsOrder, preferWordSync, lyricsWanted) {
         if (!lyricsWanted) return@LaunchedEffect
         player.song?.let {
             vm.loadLyrics(
