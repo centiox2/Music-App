@@ -31,6 +31,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -166,8 +169,10 @@ internal fun LyricsLine(
                 } else {
                     inactiveAlpha
                 }
-                val animatedAlpha by animateFloatAsState(targetAlpha, tween(250), label = "lyricsLineAlpha")
-                val lineColor = accent.copy(alpha = if (item.isBackground) focusedAlpha else animatedAlpha)
+                // Read only where the line is drawn, so the fade redraws the line rather than
+                // rebuilding it (and every line near it) on each frame of every line change.
+                val alphaState = animateFloatAsState(targetAlpha, tween(250), label = "lyricsLineAlpha")
+                val lineColor = { accent.copy(alpha = if (item.isBackground) focusedAlpha else alphaState.value) }
 
                 val mainText = if (item.isBackground) item.text.removePrefix("(").removeSuffix(")") else item.text
 
@@ -220,7 +225,7 @@ internal fun LyricsLine(
                 } else {
                     Text(
                         text = mainText,
-                        style = lyricStyle.copy(color = if (isActiveLine || !isSynced) accent else lineColor),
+                        style = lyricStyle.copy(color = if (isActiveLine || !isSynced) accent else lineColor()),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -230,7 +235,7 @@ internal fun LyricsLine(
                         when {
                             !isSynced || isActiveLine -> 0.7f
                             item.isBackground -> focusedAlpha * 0.8f
-                            else -> (animatedAlpha * 1.4f).coerceAtMost(0.5f)
+                            else -> (targetAlpha * 1.4f).coerceAtMost(0.5f)
                         },
                         tween(250),
                         label = "translationAlpha",
@@ -274,7 +279,7 @@ private fun WordLevelLyrics(
     positionProvider: () -> Long,
     isPlayingProvider: () -> Boolean,
     lyricStyle: TextStyle,
-    lineColor: Color,
+    lineColor: () -> Color,
     accent: Color,
     isBackground: Boolean,
     focusedAlpha: Float,
@@ -458,8 +463,19 @@ private fun WordLevelLyrics(
                 softWrap = true,
             )
         }
-        val letterLayouts = remember(mainText, lyricStyle) {
-            graphemeClusters.map { cluster -> textMeasurer.measure(cluster, lyricStyle) }
+        // One measured layout per letter, for the sung line's per-letter effects. Measuring them
+        // all at once (around 40 for a line) took longer than a frame, and it happened as each
+        // line came near, right when the next line started: the highlight stalled, then leapt
+        // to catch up. They are measured a few per frame instead, long before the line is sung;
+        // until they are ready the line is highlighted word by word without the letter effects.
+        var letterLayouts by remember(mainText, lyricStyle) { mutableStateOf<List<TextLayoutResult>?>(null) }
+        LaunchedEffect(mainText, lyricStyle) {
+            val measured = ArrayList<TextLayoutResult>(graphemeClusters.size)
+            graphemeClusters.chunked(LETTERS_PER_FRAME).forEach { chunk ->
+                withFrameNanos { }
+                chunk.forEach { measured += textMeasurer.measure(it, lyricStyle) }
+            }
+            letterLayouts = measured
         }
         val drawWholeLine = remember(mainText) { mainText.containsRtl() || mainText.containsJoinedIndic() }
 
@@ -471,12 +487,13 @@ private fun WordLevelLyrics(
         ) {
             if (mainText.isEmpty()) return@Canvas
             if (!isActiveLine) {
-                drawText(layoutResult, color = lineColor)
+                drawText(layoutResult, color = lineColor())
                 return@Canvas
             }
-            if (drawWholeLine) {
+            val letters = letterLayouts
+            if (drawWholeLine || letters == null) {
                 val (wordIdxMap, _, _) = charToWordData
-                drawText(layoutResult, color = lineColor.copy(alpha = focusedAlpha))
+                drawText(layoutResult, color = lineColor().copy(alpha = focusedAlpha))
                 effectiveWords.forEachIndexed { wIdx, word ->
                     val wStartMs = (word.startTime * 1000).toLong()
                     val wEndMs = (word.endTime * 1000).toLong()
@@ -647,26 +664,26 @@ private fun WordLevelLyrics(
                                 glowPaint.maskFilter = BlurMaskFilter(12.dp.toPx() * impactFactor, BlurMaskFilter.Blur.NORMAL)
                                 glowPaint.color = accent.copy(alpha = (0.35f * impactFactor).coerceIn(0f, 0.4f)).toArgb()
                                 glowPaint.textSize = lyricStyle.fontSize.toPx()
-                                canvas.nativeCanvas.drawText(letterLayouts[i].layoutInput.text.text, 0f, letterLayouts[i].firstBaseline, glowPaint)
+                                canvas.nativeCanvas.drawText(letters[i].layoutInput.text.text, 0f, letters[i].firstBaseline, glowPaint)
                             }
                         }
                     }
                     val baseAlpha = if (isWordSung || charLp > 0.99f) 1f else focusedAlpha + (1f - focusedAlpha) * sungFactor
-                    drawText(letterLayouts[i], color = accent.copy(alpha = if (wordIdx == -1) focusedAlpha else baseAlpha))
+                    drawText(letters[i], color = accent.copy(alpha = if (wordIdx == -1) focusedAlpha else baseAlpha))
                     if (!isWordSung && charLp > 0f && charLp < 1f) {
                         // The fill's leading edge is a soft 12-step gradient, not a hard line.
                         val fXL = charBounds.width * charLp
                         val eW = (charBounds.width * 0.45f).coerceAtLeast(1f)
                         val sWL = (fXL - eW).coerceAtLeast(0f)
                         if (sWL > 0f) {
-                            clipRect(left = 0f, top = 0f, right = sWL, bottom = charBounds.height) { drawText(letterLayouts[i], color = accent) }
+                            clipRect(left = 0f, top = 0f, right = sWL, bottom = charBounds.height) { drawText(letters[i], color = accent) }
                         }
                         for (j in 0 until 12) {
                             val start = sWL + j * eW / 12f
                             val end = (sWL + (j + 1) * eW / 12f + 0.5f).coerceAtMost(fXL)
                             if (end > start) {
                                 clipRect(left = start, top = 0f, right = end, bottom = charBounds.height) {
-                                    drawText(letterLayouts[i], color = accent.copy(alpha = 1f - (j + 0.5f) / 12f))
+                                    drawText(letters[i], color = accent.copy(alpha = 1f - (j + 0.5f) / 12f))
                                 }
                             }
                         }
@@ -688,3 +705,6 @@ private fun String.normalizedForMatch(): String = map { ch ->
         else -> ch
     }
 }.joinToString("")
+
+/** Letters measured per frame while a line is prepared; see `letterLayouts`. */
+private const val LETTERS_PER_FRAME = 6
