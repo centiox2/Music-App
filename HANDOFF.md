@@ -381,7 +381,11 @@ gap markers.
 
 Kotlin may print `e: … metadata version` lines during the release build; they are non-fatal.
 
-**Signing.** The APK the owner installs is signed with a self-made key that lived in the session's
+**Signing (update).** The owner kept the key: `coverglow2.jks`, alias `coverglow`, certificate
+SHA-256 `07:14:CC:5C:…:94:0B`. Ask them to upload it with its password file; never commit either.
+Sign with `apksigner sign --ks coverglow2.jks --ks-key-alias coverglow --ks-pass file:password.txt`.
+
+**Signing (original note).** The APK the owner installs is signed with a self-made key that lived in the session's
 scratch folder: `signing/coverglow.jks`, with the password in `signing/password.txt`. **That folder
 is temporary and won't survive the container.** If the key is lost, a new key means the owner must
 uninstall the old app before installing (Android rejects updates signed with a different key), and
@@ -407,7 +411,12 @@ sdkmanager --sdk_root=/opt/android-sdk "platforms;android-37.0" "build-tools;37.
 # platforms/android-37, set AndroidVersion.ApiLevel=37 in its source.properties, delete its package.xml.
 echo "sdk.dir=/opt/android-sdk" > local.properties
 ```
-Maven Central answers 429 when hit hard: build with `--max-workers=1`, retry, and fetch large jars
+For the release build (native code) also install `"ndk;27.0.12077973" "cmake;3.22.1"`.
+
+Maven Central answers 429 from these machines. A Gradle init script in `~/.gradle/init.d/` that
+puts `https://maven-central.storage-download.googleapis.com/maven2/` first in the settings,
+plugin and buildscript repositories fixes it for good (not committed; container-only).
+Without it: build with `--max-workers=1`, retry, and fetch large jars
 (Robolectric's `android-all-instrumented`) from `maven-central.storage-download.googleapis.com`
 into `~/.m2/repository`, then run tests with `-Drobolectric.offline=true`.
 

@@ -71,6 +71,8 @@ class ReviewScreenshotTest {
     private fun launch(light: Boolean = false, route: Route? = null, signedIn: Boolean = true) {
         assumeTrue(System.getenv("REVIEW_SHOTS") != null)
         val app = RuntimeEnvironment.getApplication()
+        // Robolectric has no native ImageDecoder; BitmapFactory decodes covers there.
+        coil3.SingletonImageLoader.setUnsafe(coil3.ImageLoader.Builder(RuntimeEnvironment.getApplication()).components { add(coil3.decode.BitmapFactoryDecoder.Factory()) }.build())
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
         val cm = app.getSystemService(ConnectivityManager::class.java)
         val caps = ShadowNetworkCapabilities.newInstance()
