@@ -527,6 +527,18 @@ either form (that mismatch crashed the app at launch until `6dc1972`).
   ported (see that commit). v1.9's big features (bit-perfect USB, loop mix, podcasts, video,
   download/audio-quality refactors) were not: they need native code, Gradle and resource changes
   and upstream UI. Upstream clone: `github.com/kushagrasinghx/BitChord`, compare from `fea57eba`.
+- **ViVi Music import** (`data/stats/ViViImport.kt`): reads `song.db` from a ViVi/Metrolist
+  `.backup` zip, plays only (never its settings, which hold a YouTube cookie). Event times are
+  local clock time stored as UTC. Merged with `ListeningStats.mergeAll(ADD)`; the newest imported
+  play is kept in `files/listening_imports.json` (and in Sonder backups) so a re-import adds
+  nothing. All restores now merge (`MergeMode.MAX` for our own backups) instead of replacing.
+- **Automix from BitChord v1.9:** CrossfadeController, TrackAnalyzer, TransitionPlanner/Policy,
+  LoopMix (Kotlin + `native/loopmix`, Signalsmith Stretch, `bitchord_loopmix` in CMake), the new
+  Beat This! model (`beat_this_final0_q8.onnx`; the int8 one was retired upstream as broken) and
+  the loop-mix splice in `PrecisionAudioSink`. The bit-perfect check in the controller was
+  dropped (no bit-perfect output here). `AppSettings.smartMixView/automixDetail` are published
+  but no Sonder screen shows them yet. If `libbitchord_loopmix.so` fails to load, Automix falls
+  back to its blends.
 - **Not compiled:** this round was committed without a build (no Android SDK in the session,
   and the owner asked for no build). Build and run the tests before shipping.
 

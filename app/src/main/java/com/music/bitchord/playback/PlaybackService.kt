@@ -1864,7 +1864,53 @@ class PlaybackService : MediaLibraryService() {
                 }
             },
             versionSwapActive = { versionSwapJob?.isActive == true },
+            // Automix's mix view: a three-band waveform of each side of the blend.
+            mixWaveform = { item, durationMs, from, to, bins ->
+                item.localConfiguration?.uri?.let { uri ->
+                    trackAnalyzer.mixWaveform(item.mediaId, uri, durationMs / 1000.0, from, to, bins)
+                }
+            },
+            // Each sink's loop-mix port rides on its transition filter, so the
+            // player and the port trade roles together at every handoff.
+            loopPortOf = { target ->
+                when {
+                    target === player -> activeFilter.loop
+                    target === spare -> spareFilter.loop
+                    else -> null
+                }
+            },
+            loopRegion = { item, durationMs, from, to, rate ->
+                item.localConfiguration?.uri?.let { uri ->
+                    trackAnalyzer.loopRegion(item.mediaId, uri, durationMs / 1000.0, from, to, rate)
+                }
+            },
+            syncedLines = ::loopMixLyrics,
+            loudnessGain = ::loudnessGainFor,
+            onMixPositionJump = { wrapped -> (mediaSession?.player as? SessionPlayer)?.announceMixPosition(wrapped) },
         )
+
+    /**
+     * A track's synced lyrics for the loop mix, which lets a loop be vouched
+     * instrumental by when its lines are sung rather than by the vocal model.
+     * Only with synced lyrics switched on, and never for longer than
+     * [LOOP_MIX_LYRICS_TIMEOUT_MS]: the mask stands in for whatever doesn't come.
+     */
+    private suspend fun loopMixLyrics(item: MediaItem, durationMs: Long): List<LyricLine>? {
+        if (!AppSettings.syncedLyrics.value) return null
+        val song = item.toSong()
+        return kotlinx.coroutines.withTimeoutOrNull(LOOP_MIX_LYRICS_TIMEOUT_MS) {
+            song.localUri?.let { EmbeddedLyrics.forUri(this@PlaybackService, it) }
+                ?: LyricsRepository.lyrics(
+                    videoId = song.videoId,
+                    title = song.title,
+                    artist = song.artist,
+                    durationMs = durationMs,
+                    album = song.albumName,
+                    sources = AppSettings.lyricsSources.value,
+                    order = AppSettings.lyricsSourceOrder.value,
+                )?.lines
+        }
+    }
 
     /**
      * Whether Like is offered for [item] — the player's own rule, so no surface
@@ -7405,7 +7451,7 @@ class PlaybackService : MediaLibraryService() {
         val exoPlayer = player ?: return
         val currentSong = exoPlayer.currentMediaItem?.toSong() ?: return
         val lines = serviceLyrics
-        val pos = exoPlayer.currentPosition
+        val pos = crossfade?.loopPositionMs() ?: exoPlayer.currentPosition
         val subtitleText = if (lines != null && lines.isNotEmpty() && AppSettings.syncedLyrics.value) {
             val idx = lines.indexOfLast { it.timeMs <= pos }
             val currentLine = lines.getOrNull(idx)
@@ -7528,9 +7574,44 @@ class PlaybackService : MediaLibraryService() {
 
         override fun getPlaybackState() = if (cast.active) cast.playbackState else super.getPlaybackState()
 
-        override fun getCurrentPosition() = if (cast.active) cast.positionMs else super.getCurrentPosition()
+        // During a loop mix the song loops and follows the tempo ramp, so its
+        // playhead is the mix's own, not the player's: the seek bar, the
+        // lyrics and every controller read it here.
+        override fun getCurrentPosition() =
+            if (cast.active) cast.positionMs else crossfade.loopPositionMs() ?: super.getCurrentPosition()
 
-        override fun getContentPosition() = if (cast.active) cast.positionMs else super.getContentPosition()
+        override fun getContentPosition() =
+            if (cast.active) cast.positionMs else crossfade.loopPositionMs() ?: super.getContentPosition()
+
+        private var lastMixPositionMs = C.TIME_UNSET
+
+        /**
+         * Re-anchors every controller on the loop mix's playhead. A wrap is a
+         * deliberate jump back, announced as one (the lyrics follow it); a
+         * re-anchor through the ramp is reported moving forward, so nothing
+         * reads it as a seek.
+         */
+        fun announceMixPosition(wrapped: Boolean) {
+            val now = currentPosition
+            val before = if (wrapped && lastMixPositionMs != C.TIME_UNSET) lastMixPositionMs else (now - 1).coerceAtLeast(0L)
+            lastMixPositionMs = now
+            fun info(position: Long) = Player.PositionInfo(
+                null,
+                currentMediaItemIndex,
+                currentMediaItem,
+                null,
+                currentPeriodIndex,
+                position,
+                position,
+                C.INDEX_UNSET,
+                C.INDEX_UNSET,
+            )
+            val old = info(before)
+            val new = info(now)
+            listeners.forEach { it.onPositionDiscontinuity(old, new, Player.DISCONTINUITY_REASON_INTERNAL) }
+            val events = Player.Events(FlagSet.Builder().add(Player.EVENT_POSITION_DISCONTINUITY).build())
+            listeners.forEach { it.onEvents(this, events) }
+        }
 
         override fun getBufferedPosition() = if (cast.active) cast.positionMs else super.getBufferedPosition()
 
@@ -8761,6 +8842,8 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
     private companion object {
+        /** How long the loop mix waits for a track's synced lyrics. */
+        const val LOOP_MIX_LYRICS_TIMEOUT_MS = 10_000L
         const val MEDIA_ROOT_ID = "root"
         const val MEDIA_RECENTS_ID = "recents"
         const val MEDIA_QUICK_PICKS_ID = "quick_picks"

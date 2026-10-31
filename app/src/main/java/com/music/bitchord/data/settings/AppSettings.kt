@@ -710,6 +710,19 @@ object AppSettings {
      */
     val smartMixInProgress = MutableStateFlow(false)
 
+    /** The Automix blend in flight laid out for a mix view, or null between blends. */
+    val smartMixView = MutableStateFlow<MixTransitionView?>(null)
+
+    /** How far through [smartMixView]'s blend playback is, 0..1. Read it in draw. */
+    val smartMixProgress = MutableStateFlow(0f)
+
+    /**
+     * Automix's detailed line: each song's analysis while it waits, then the planned mix
+     * (a loop mix's loops and tempo ramp, a blend's length and stretch, or why the pair isn't
+     * beatmatched). Published by the crossfade controller; null while Automix is off.
+     */
+    val automixDetail = MutableStateFlow<String?>(null)
+
     /**
      * The Automix blend in flight — its progress and the beat it runs on — or
      * null between blends. Published by the crossfade controller every fade
