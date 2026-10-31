@@ -50,10 +50,7 @@ import com.music.bitchord.data.sources.DeviceCodecs
 import com.music.bitchord.ui.glow.lyrics.TranslationMode
 import com.music.bitchord.ui.glow.lyrics.TranslationPrefs
 import com.music.bitchord.ui.glow.lyrics.TranslationProvider
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -357,61 +354,82 @@ fun PrivacyScreen() {
     }
 }
 
-// ---- Backup & restore (BitChord's export/import) ----
+// ---- Backup & restore ----
 
+/**
+ * Backs up everything that lives only on this phone (settings, listening statistics, history,
+ * edited lyrics) to one file, and restores it. See [com.music.bitchord.data.SonderBackup].
+ */
 @Composable
 fun BackupScreen() {
     val c = Glow.colors
     val g = LocalGlow.current
     val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var pendingRestore by remember { mutableStateOf<Uri?>(null) }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri ?: return@rememberLauncherForActivityResult
+        busy = true
         scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    val json = JSONObject()
-                        .put("format", "sonder-settings")
-                        .put("version", 1)
-                        .put("app", AppSettings.exportPrefs().toTypedJson())
-                        .put("glow", GlowPrefs.export().toTypedJson())
-                    g.context.contentResolver.openOutputStream(uri)?.use { it.write(json.toString(2).toByteArray()) } != null
-                }.getOrDefault(false)
-            }
-            g.notify(if (ok) "Settings saved" else "Couldn't save the backup")
+            val result = com.music.bitchord.data.SonderBackup.export(g.context, uri)
+            busy = false
+            g.notify(result.fold({ "Backed up ${it.describe()}" }, { "Couldn't save the backup" }))
         }
     }
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    val text = g.context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() } ?: return@runCatching false
-                    val json = JSONObject(text)
-                    // Backups made before the rename still restore.
-                    require(json.optString("format") in setOf("sonder-settings", "cover-glow-settings"))
-                    val app = json.getJSONObject("app").fromTypedJson()
-                    val glow = json.optJSONObject("glow")?.fromTypedJson().orEmpty()
-                    withContext(Dispatchers.Main) {
-                        AppSettings.importPrefs(app)
-                        GlowPrefs.import(glow, g.context)
-                    }
-                    true
-                }.getOrDefault(false)
-            }
-            g.notify(if (ok) "Settings restored" else "That file isn't a Sonder backup")
-        }
+        pendingRestore = uri
     }
     SettingsPage("Backup & restore") {
         Text(
-            "Save your settings to a file and bring them back on this or another phone. Passwords, keys and sign-ins are never included.",
+            "Save your settings, listening statistics, listening history and edited lyrics to a file, and bring them back on this or another phone. Passwords, keys and sign-ins are never included.",
             style = GlowType.bodyRegular.copy(fontSize = 16.sp),
             color = c.textSecondary,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         )
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
-            SettingRow("Back up settings", icon = Icons.Rounded.Upload, chevron = true) { export.launch("sonder-settings.json") }
+            SettingRow(
+                "Back up",
+                subtitle = "Settings, statistics, history and lyrics",
+                icon = Icons.Rounded.Upload,
+                chevron = true,
+            ) { if (!busy) export.launch(com.music.bitchord.data.SonderBackup.suggestedName()) }
             CardDivider()
-            SettingRow("Restore settings", icon = Icons.Rounded.Download, chevron = true) { import.launch(arrayOf("application/json", "text/plain", "*/*")) }
+            SettingRow(
+                "Restore from a backup",
+                subtitle = "Replaces what's on this phone",
+                icon = Icons.Rounded.Download,
+                chevron = true,
+            ) { if (!busy) import.launch(arrayOf("application/json", "text/plain", "*/*")) }
+        }
+        Text(
+            "Downloads, the library in your YouTube Music account and cached pictures aren't part of a backup: they come back on their own. Backups from earlier versions of Sonder and from BitChord can be restored too.",
+            style = GlowType.secondary,
+            color = c.textSecondary,
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+        )
+    }
+    pendingRestore?.let { uri ->
+        GlowDialog({ pendingRestore = null }) {
+            Text("Restore this backup?", style = GlowType.title, color = c.text)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Your settings, statistics, listening history and edited lyrics on this phone will be replaced with the ones in the backup. This can't be undone.",
+                style = GlowType.bodyRegular,
+                color = c.textSecondary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(18.dp))
+            PillButton("Restore", Modifier.fillMaxWidth(), height = 48.dp) {
+                pendingRestore = null
+                busy = true
+                scope.launch {
+                    val result = com.music.bitchord.data.SonderBackup.restore(g.context, uri)
+                    busy = false
+                    g.notify(result.fold({ "Restored ${it.describe()}" }, { it.message ?: "That file isn't a Sonder backup" }))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            PillButton("Cancel", Modifier.fillMaxWidth(), primary = false, height = 48.dp) { pendingRestore = null }
         }
     }
 }
@@ -467,42 +485,4 @@ fun ScrobbleRulesSection() {
         }
     }
     Spacer(Modifier.width(1.dp))
-}
-
-/**
- * Preferences as JSON with each value's type beside it: JSON has one number
- * type, and a float written as 1.0 reads back as the integer 1, which a
- * float preference can't hold.
- */
-private fun Map<String, Any?>.toTypedJson(): JSONObject = JSONObject().also { out ->
-    forEach { (key, value) ->
-        val (type, v) = when (value) {
-            is Boolean -> "b" to value
-            is Int -> "i" to value
-            is Long -> "l" to value
-            is Float -> "f" to value.toDouble()
-            is String -> "s" to value
-            is Set<*> -> "set" to org.json.JSONArray(value.filterIsInstance<String>())
-            else -> return@forEach
-        }
-        out.put(key, JSONObject().put("t", type).put("v", v))
-    }
-}
-
-private fun JSONObject.fromTypedJson(): Map<String, Any?> = buildMap {
-    keys().forEach { key ->
-        val entry = optJSONObject(key) ?: return@forEach
-        put(
-            key,
-            when (entry.optString("t")) {
-                "b" -> entry.getBoolean("v")
-                "i" -> entry.getInt("v")
-                "l" -> entry.getLong("v")
-                "f" -> entry.getDouble("v").toFloat()
-                "s" -> entry.getString("v")
-                "set" -> entry.getJSONArray("v").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
-                else -> return@forEach
-            },
-        )
-    }
 }

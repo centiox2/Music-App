@@ -22,6 +22,7 @@ import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.ui.MainViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
 
 /** Pages pushed over the three tabs. */
 sealed interface Route {
@@ -33,6 +34,8 @@ sealed interface Route {
     data object Liked : Route
     data object Downloads : Route
     data object History : Route
+    data object Statistics : Route
+    data class StatsList(val kind: StatsListKind, val period: Int) : Route
     data object Settings : Route
     data object SettingsTheme : Route
     data object SettingsLyrics : Route
@@ -367,6 +370,30 @@ val LocalGlow = staticCompositionLocalOf<GlowState> { error("GlowState not provi
 object LikedSongsCache {
     val songs = kotlinx.coroutines.flow.MutableStateFlow<List<Song>?>(null)
     val complete = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    private var started = false
+
+    /**
+     * Loads the list saved last time and keeps the file up to date. Without it, offline (where
+     * the full list can't be read again) Liked songs fell back to the library's first 100.
+     */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    fun init(context: android.content.Context) {
+        if (started) return
+        started = true
+        val app = context.applicationContext
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+        scope.launch {
+            val saved = com.music.bitchord.data.LibrarySnapshot.loadLiked(app)
+            if (saved != null && songs.value == null) {
+                songs.value = saved
+                complete.value = true
+            }
+            songs.debounce(1_000).collect { list ->
+                if (list != null) com.music.bitchord.data.LibrarySnapshot.saveLiked(app, list)
+            }
+        }
+    }
 
     fun liked(song: Song) {
         songs.value = songs.value?.let { list -> listOf(song) + list.filterNot { it.videoId == song.videoId } }

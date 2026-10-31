@@ -1983,6 +1983,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 else UiState.Success(page.copy(likedContinuation = null)).also {
                     val data = it.data
                     viewModelScope.launch(Dispatchers.IO) { com.music.bitchord.data.LibrarySnapshot.save(getApplication(), identity, data) }
+                    // Playlist covers are saved on the phone and only fetched again here, when
+                    // the library is read from YouTube, and only for covers that changed.
+                    viewModelScope.launch(Dispatchers.IO) {
+                        com.music.bitchord.data.PlaylistCovers.init(getApplication())
+                        com.music.bitchord.data.PlaylistCovers.sync(
+                            data.shelves.firstOrNull { shelf -> shelf.title == YtMusicRepository.PLAYLISTS_SHELF }?.items.orEmpty(),
+                        )
+                    }
                 }
             },
             onFailure = { UiState.Error(it.friendly()) },
@@ -3578,7 +3586,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         authStore.signOut()
+        com.music.bitchord.ui.glow.LikedSongsCache.songs.value = null
+        com.music.bitchord.ui.glow.LikedSongsCache.complete.value = false
         com.music.bitchord.data.LibrarySnapshot.clear(getApplication())
+        com.music.bitchord.data.PlaylistCovers.clear()
         Innertube.cookie = null
         // The mirror image: verdicts reached with a session in hand say nothing
         // about what an anonymous walk will be told, and the clients stood down

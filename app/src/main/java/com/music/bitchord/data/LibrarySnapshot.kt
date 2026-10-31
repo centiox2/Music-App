@@ -50,6 +50,27 @@ object LibrarySnapshot {
 
     fun clear(context: Context) {
         context.filesDir.listFiles { f -> f.name.startsWith("library_snapshot_") }?.forEach { it.delete() }
+        likedFile(context).delete()
+    }
+
+    /**
+     * Every liked song, not only the library's first page of 100, so Liked songs shows all of
+     * them offline too. Written whenever the full list is read again.
+     */
+    private fun likedFile(context: Context) = File(context.filesDir, "liked_songs.json")
+
+    fun loadLiked(context: Context): List<Song>? = runCatching {
+        val f = likedFile(context).takeIf { it.exists() } ?: return null
+        JSONArray(f.readText()).songs()
+    }.getOrNull()
+
+    fun saveLiked(context: Context, songs: List<Song>) {
+        runCatching {
+            val f = likedFile(context)
+            val tmp = File(f.parentFile, f.name + ".tmp")
+            tmp.writeText(JSONArray(songs.map { it.json() }).toString())
+            if (!tmp.renameTo(f)) { f.delete(); tmp.renameTo(f) }
+        }
     }
 
     private fun Song.json() = JSONObject()

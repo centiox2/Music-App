@@ -51,6 +51,17 @@ object PlayHistory {
         persist(emptyList())
     }
 
+    /** The whole history as stored, for a backup. */
+    fun exportRaw(): String = prefs?.getString(KEY, null) ?: "[]"
+
+    /** Replaces the history with one from a backup ([exportRaw]'s form). */
+    fun importRaw(raw: String) {
+        val list = runCatching { parse(raw) }.getOrNull() ?: return
+        val trimmed = list.take(MAX_ENTRIES)
+        _entries.value = trimmed
+        persist(trimmed)
+    }
+
     private fun persist(list: List<Entry>) {
         val array = JSONArray()
         list.forEach { e ->

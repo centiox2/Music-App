@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Translate
@@ -211,6 +212,9 @@ fun SettingsScreen() {
         },
         SettingEntry("Privacy", "Privacy & data") {
             SettingRow("History", icon = Icons.Rounded.History, subtitle = "Pause or clear listening and search history", chevron = true) { g.push(Route.SettingsPrivacy) }
+        },
+        SettingEntry("Listening statistics", "Privacy & data") {
+            SettingRow("Listening statistics", icon = Icons.Rounded.BarChart, subtitle = "Kept on this phone only", chevron = true) { g.push(Route.Statistics) }
         },
         SettingEntry("Backup & restore", "Privacy & data") {
             SettingRow("Backup & restore", icon = Icons.Rounded.Backup, chevron = true) { g.push(Route.SettingsBackup) }

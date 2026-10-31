@@ -230,6 +230,7 @@ object ListeningStats {
             }
 
             bucket.hours[at.hour] += playedMs
+            if (countsAsPlay) bucket.hourPlays[at.hour]++
             val day = at.dayOfMonth
             bucket.days[day] = (bucket.days[day] ?: 0L) + playedMs
             dirty = true
@@ -478,6 +479,8 @@ object ListeningStats {
         val albums: MutableMap<String, NameEntry>,
         val hours: LongArray,
         val days: MutableMap<Int, Long>,
+        /** Plays counted per hour of the day, 0..23. */
+        val hourPlays: IntArray = IntArray(24),
         /** Per-day sub-buckets for track/artist/album. Key: "YYYY-MM-DD". */
         val trackDays: MutableMap<String, DayStats> = mutableMapOf(),
         val artistDays: MutableMap<String, DayStats> = mutableMapOf(),
@@ -489,6 +492,7 @@ object ListeningStats {
             artists = artists.map { (key, entry) -> entry.copy(key = key) },
             albums = albums.map { (key, entry) -> entry.copy(key = key) },
             hours = hours.toList(),
+            hourPlays = hourPlays.toList(),
             days = days.toMap(),
             trackDays = trackDays.mapValues { it.value },
             artistDays = artistDays.mapValues { it.value },
@@ -508,6 +512,7 @@ object ListeningStats {
                 albums = stored.albums.mergedBy(LinkedHashMap()) { albumKey(it.name, it.sub.orEmpty()) },
                 hours = LongArray(24) { stored.hours.getOrElse(it) { 0L } },
                 days = stored.days.toMutableMap(),
+                hourPlays = IntArray(24) { stored.hourPlays.getOrElse(it) { 0 } },
                 trackDays = stored.trackDays?.toMutableMap() ?: mutableMapOf(),
                 artistDays = stored.artistDays?.toMutableMap() ?: mutableMapOf(),
                 albumDays = stored.albumDays?.toMutableMap() ?: mutableMapOf(),
@@ -964,6 +969,8 @@ data class StoredBucket(
     val hours: List<Long> = List(24) { 0L },
     /** Milliseconds played per day of the month. */
     val days: Map<Int, Long> = emptyMap(),
+    /** Plays counted per hour of the day, 0..23. Absent from buckets written before it existed. */
+    val hourPlays: List<Int> = emptyList(),
     /** Per-day sub-buckets for tracks. Key: "YYYY-MM-DD". */
     val trackDays: Map<String, DayStats>? = null,
     /** Per-day sub-buckets for artists. Key: "YYYY-MM-DD". */

@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,12 +75,16 @@ fun <T> SortMenu(
     selected: T,
     label: (T) -> String,
     modifier: Modifier = Modifier,
+    /** Just the ↓↑ icon, as in the Library toolbar; the choice shows in the menu. */
+    iconOnly: Boolean = false,
     onSelect: (T) -> Unit,
 ) {
     val c = Glow.colors
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        Row(
+        if (iconOnly) {
+            IconTap(Icons.Rounded.SwapVert, "Sort: ${label(selected)}", size = 40.dp, iconSize = 22.dp) { open = true }
+        } else Row(
             Modifier.clip(RoundedCornerShape(10.dp)).background(c.glass).clickable { open = true }
                 .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,

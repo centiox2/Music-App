@@ -2508,7 +2508,7 @@ class PlaybackService : MediaLibraryService() {
             if (window.currentCanonicalIndex != anchor) window.jumpTo(anchor)
         }
         if (edit.desiredShuffle != null) {
-            window.setShuffle(edit.desiredShuffle)
+            window.setShuffle(edit.desiredShuffle, reseed = kotlin.random.Random.nextLong())
             QueueShuffle.setEnabled(edit.desiredShuffle)
             AppSettings.setShuffleEnabled(edit.desiredShuffle)
             replaceBoundedUpcoming(exoPlayer, window)
@@ -2590,7 +2590,9 @@ class PlaybackService : MediaLibraryService() {
         val selectedIndex = registered.songs.indexOfFirst { it.contextEntryKey() == selectedKey }
             .takeIf { it >= 0 } ?: 0
         val shuffle = request.shuffle
-        val window = QueueWindow(registered.songs.size).startAt(selectedIndex, shuffle)
+        // A new seed per request: with the fixed default, every Shuffle press on the same
+        // playlist dealt the same order.
+        val window = QueueWindow(registered.songs.size, kotlin.random.Random.nextLong()).startAt(selectedIndex, shuffle)
 
         boundedContinuationJob?.cancel()
         boundedContextWindow = window

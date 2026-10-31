@@ -117,6 +117,8 @@ fun GlowApp(
     remember(context) {
         GlowPrefs.init(context)
         PlayHistory.init(context)
+        LikedSongsCache.init(context)
+        com.music.bitchord.data.PlaylistCovers.init(context)
     }
     val scope = rememberCoroutineScope()
     val controller = rememberMediaController()
@@ -324,6 +326,8 @@ private fun GlowRoot(state: GlowState) {
                     Route.Liked -> LikedSongsScreen()
                     Route.Downloads -> DownloadsScreen()
                     Route.History -> HistoryScreen()
+                    Route.Statistics -> StatisticsScreen()
+                    is Route.StatsList -> StatsListScreen(route)
                     Route.Settings -> SettingsScreen()
                     Route.SettingsTheme -> ThemeScreen()
                     Route.SettingsLyrics -> LyricsSourcesScreen()

@@ -101,15 +101,29 @@ fun SearchScreen() {
     val query by vm.query.collectAsStateWithLifecycle()
     val results by vm.results.collectAsStateWithLifecycle()
     var typing by rememberSaveable { mutableStateOf(false) }
+    // Editing the text of a search already made: suggestions come back as you type, and the
+    // results return once a search is made again (or with Back).
+    var editing by rememberSaveable { mutableStateOf(false) }
+    val searchMade by vm.searchScrollReset.collectAsStateWithLifecycle()
+    LaunchedEffect(searchMade) { if (vm.query.value.isNotBlank()) editing = false }
 
     when {
-        results != null -> SearchResults(query, onBack = {
+        results != null && !editing -> SearchResults(query, onBack = {
             vm.onQueryChange("")
             typing = false
+        }, onEdit = {
+            editing = true
+            // Ask for suggestions for the text already there, so they show before a key is pressed.
+            vm.onQueryChange(vm.query.value)
         })
-        typing || query.isNotEmpty() -> SearchTyping(query, onBack = {
-            vm.onQueryChange("")
-            typing = false
+        editing || typing || query.isNotEmpty() -> SearchTyping(query, onBack = {
+            if (editing && results != null && query.isNotBlank()) {
+                editing = false
+            } else {
+                vm.onQueryChange("")
+                typing = false
+                editing = false
+            }
         })
         else -> SearchIdle(onStartTyping = { typing = true })
     }
@@ -348,7 +362,7 @@ private fun resultKey(r: SearchResult) = when (r) {
 }
 
 @Composable
-private fun SearchResults(query: String, onBack: () -> Unit) {
+private fun SearchResults(query: String, onBack: () -> Unit, onEdit: () -> Unit) {
     val g = LocalGlow.current
     val vm = g.vm
     val c = Glow.colors
@@ -372,9 +386,15 @@ private fun SearchResults(query: String, onBack: () -> Unit) {
                         onValueChange = {
                             vm.onQueryChange(it)
                             editing = true
+                            onEdit()
                         },
                         placeholder = "Search",
-                        modifier = Modifier.weight(1f).onFocusChanged { if (it.isFocused) editing = true },
+                        modifier = Modifier.weight(1f).onFocusChanged {
+                            if (it.isFocused) {
+                                editing = true
+                                onEdit()
+                            }
+                        },
                         onSearch = {
                             vm.submitSearch()
                             editing = false
