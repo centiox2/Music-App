@@ -1340,9 +1340,12 @@ class PlaybackService : MediaLibraryService() {
 
         bluetoothTracker.start()
         scope.launch {
-            bluetoothTracker.telemetry.collect {
-                applyOutputRoute()
-            }
+            // A codec change (LDAC 24-bit ↔ SBC) can flip float output on or off,
+            // which needs a sink rebuild, not just a route refresh.
+            bluetoothTracker.telemetry
+                .map { Triple(it.isConnected, it.isAuthoritative, it.bitDepth) }
+                .distinctUntilChanged()
+                .collect { requestOutputReconfiguration() }
         }
 
         val streamResolver = ResolvingDataSource.Resolver { dataSpec ->
@@ -1991,11 +1994,14 @@ class PlaybackService : MediaLibraryService() {
 
             beginRadioQueue()
             val currentIndex = activePlayer.currentMediaItemIndex
-            if (currentIndex + 1 < activePlayer.mediaItemCount) {
-                activePlayer.removeMediaItems(currentIndex + 1, activePlayer.mediaItemCount)
+            // Station first, old tail after, so the current track is never
+            // briefly last and AutoPlay does not append this radio again.
+            activePlayer.addMediaItems(currentIndex + 1, related.map { it.toMediaItem() })
+            val oldTail = currentIndex + 1 + related.size
+            if (oldTail < activePlayer.mediaItemCount) {
+                activePlayer.removeMediaItems(oldTail, activePlayer.mediaItemCount)
             }
             if (currentIndex > 0) activePlayer.removeMediaItems(0, currentIndex)
-            activePlayer.addMediaItems(1, related.map { it.toMediaItem() })
             saveQueueSnapshotImmediately(activePlayer)
         }
     }
@@ -2455,7 +2461,10 @@ class PlaybackService : MediaLibraryService() {
 
         val position = activePlayer.currentPosition
         val wasPlaying = activePlayer.isPlaying
-        swappingMediaId = song.videoId
+        // The new item has a different id, so the transition callback must be
+        // told to treat it as the same listen, not a new track to record.
+        swappingMediaId = targetVideoId
+        PlaybackTracker.onVersionSwapped(song.videoId, targetVideoId)
 
         // Create the target song with the appropriate flags
         val targetSong = song.copy(
@@ -2964,7 +2973,19 @@ class PlaybackService : MediaLibraryService() {
                             return@launch
                         }
                     } else {
-                        latestPlayer.addMediaItems(resolved.map { it.toMediaItem() })
+                        // The queue may have changed while the radio request
+                        // was out — a station landing behind it is the usual
+                        // case — so check against what is queued now, not the
+                        // snapshot the batch was picked against.
+                        val queuedNow = (0 until latestPlayer.mediaItemCount)
+                            .map { latestPlayer.getMediaItemAt(it).toSong() }
+                        val room = MAX_QUEUED_AUTOPLAY -
+                            (latestPlayer.currentMediaItemIndex + 1 until latestPlayer.mediaItemCount)
+                                .count { latestPlayer.getMediaItemAt(it).fromAutoplay }
+                        val fresh = resolved
+                            .filterNot { song -> queuedNow.any { QueueBuilder.isSameRecording(it, song) } }
+                            .take(room.coerceAtLeast(0))
+                        if (fresh.isNotEmpty()) latestPlayer.addMediaItems(fresh.map { it.toMediaItem() })
                     }
                     if (AppSettings.dontRepeatSuggestions.value) sessionSongHistory += resolved
                     return@launch
@@ -3031,16 +3052,28 @@ class PlaybackService : MediaLibraryService() {
             }
         }
 
-    /** Re-arms AutoPlay when an external queue edit exposes an empty tail. */
+    /** AutoPlay tracks ahead of the current one as of the last queue edit. */
+    private var autoplayAheadSeen = 0
+
+    /** Re-arms AutoPlay when an external queue edit empties or shrinks its tail. */
     private fun refreshAutoplayIfQueueEmpty() {
         val exoPlayer = player ?: return
+        val aheadNow = (exoPlayer.currentMediaItemIndex + 1 until exoPlayer.mediaItemCount)
+            .count { exoPlayer.getMediaItemAt(it).fromAutoplay }
+        // Removing some of AutoPlay's tracks leaves a non-empty tail, which the
+        // empty-tail check below misses; a shrunken tail needs topping up too.
+        val tailShrank = aheadNow < autoplayAheadSeen
+        autoplayAheadSeen = aheadNow
         if (!autoplayQueueNeedsRefresh(
                 enabled = autoplayEnabled(ListenTogether.state.value),
                 repeatAll = exoPlayer.repeatMode == Player.REPEAT_MODE_ALL,
                 currentIndex = exoPlayer.currentMediaItemIndex,
                 itemCount = exoPlayer.mediaItemCount,
                 loadInProgress = autoplayLoadJob?.isActive == true,
-            )
+            ) && !(tailShrank && aheadNow < MAX_QUEUED_AUTOPLAY &&
+                autoplayEnabled(ListenTogether.state.value) &&
+                exoPlayer.repeatMode != Player.REPEAT_MODE_ALL &&
+                autoplayLoadJob?.isActive != true)
         ) {
             return
         }
@@ -6650,7 +6683,15 @@ class PlaybackService : MediaLibraryService() {
             requestedMode = AppSettings.outputPcmMode.value,
             routeKind = routeKind,
             advertisesPcmFloat = advertisesFloat || directFloatSupported,
+            bluetoothCodecBitDepth = bluetoothCodecBitDepth(routeKind),
         )
+    }
+
+    /** The negotiated A2DP bit depth, only when Android actually reported it. */
+    private fun bluetoothCodecBitDepth(routeKind: AudioRouting.Kind): Int? {
+        if (routeKind != AudioRouting.Kind.BLUETOOTH) return null
+        val telemetry = bluetoothTracker.telemetry.value
+        return telemetry.bitDepth.takeIf { telemetry.isConnected && telemetry.isAuthoritative }
     }
 
     /** Runs [body] against both players, in whichever roles they currently hold. */
