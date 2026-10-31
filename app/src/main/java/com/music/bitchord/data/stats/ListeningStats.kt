@@ -462,6 +462,135 @@ object ListeningStats {
         }
     }
 
+    /** How [mergeAll] combines a month that is already on the phone with an incoming one. */
+    enum class MergeMode {
+        /** Different listening (another app's history): the two are added together. */
+        ADD,
+
+        /**
+         * The same listening, or part of it (a backup of this app): each figure keeps the larger
+         * of the two, so restoring the same backup twice changes nothing and never lowers a count.
+         */
+        MAX,
+    }
+
+    /**
+     * Folds [incoming] into what is already kept, month by month. Nothing on the phone is
+     * deleted or lowered: a month only present here is left alone, one only in [incoming] is
+     * added, and one in both is combined by [mode].
+     */
+    suspend fun mergeAll(incoming: List<StoredBucket>, mode: MergeMode) {
+        if (!ready || incoming.isEmpty()) return
+        flushAndAwait()
+        incoming.groupBy { runCatching { YearMonth.parse(it.month).toString() }.getOrNull() }
+            .forEach { (key, parts) ->
+                if (key == null) return@forEach
+                // Several parts for one month (it shouldn't happen) are the same kind of data.
+                val bucket = parts.drop(1).fold(parts.first().copy(month = key)) { a, b -> combine(a, b, mode) }
+                val inMemory = synchronized(lock) {
+                    val current = open
+                    if (current != null && current.key == key) {
+                        open = OpenBucket.of(key, combine(current.snapshot(), bucket, mode))
+                        dirty = true
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!inMemory) {
+                    val merged = combine(read(key) ?: StoredBucket(month = key), bucket, mode)
+                    write(key, merged)
+                }
+            }
+        synchronized(lock) {
+            version++
+            cached = null
+        }
+        flushAndAwait()
+    }
+
+    private fun combine(here: StoredBucket, other: StoredBucket, mode: MergeMode): StoredBucket {
+        val add = mode == MergeMode.ADD
+        fun pickL(a: Long, b: Long) = if (add) a + b else maxOf(a, b)
+        fun pickI(a: Int, b: Int) = if (add) a + b else maxOf(a, b)
+        fun dayStats(a: Map<String, DayStats>?, b: Map<String, DayStats>?): Map<String, DayStats>? {
+            if (a == null && b == null) return null
+            val out = LinkedHashMap<String, DayStats>()
+            a?.forEach { (k, v) -> out[k] = v.copy() }
+            b?.forEach { (k, v) ->
+                val e = out[k]
+                out[k] = if (e == null) v.copy() else DayStats(pickL(e.ms, v.ms), pickI(e.plays, v.plays))
+            }
+            return out
+        }
+        fun dayMap(a: MutableMap<String, DayStats>, b: MutableMap<String, DayStats>): MutableMap<String, DayStats> =
+            dayStats(a, b)?.toMutableMap() ?: mutableMapOf()
+
+        val tracks = LinkedHashMap<String, TrackEntry>()
+        here.tracks.forEach { tracks[it.id] = it.copy(days = dayMap(it.days, mutableMapOf())) }
+        other.tracks.forEach { t ->
+            val e = tracks[t.id]
+            tracks[t.id] = if (e == null) t.copy(days = dayMap(t.days, mutableMapOf())) else e.copy(
+                ms = pickL(e.ms, t.ms),
+                plays = pickI(e.plays, t.plays),
+                last = maxOf(e.last, t.last),
+                album = e.album ?: t.album,
+                albumId = e.albumId ?: t.albumId,
+                artistId = e.artistId ?: t.artistId,
+                art = e.art ?: t.art,
+                days = dayMap(e.days, t.days),
+            )
+        }
+        fun names(a: List<NameEntry>, b: List<NameEntry>, key: (NameEntry) -> String): List<NameEntry> {
+            val out = LinkedHashMap<String, NameEntry>()
+            fun put(n: NameEntry) {
+                val k = key(n)
+                val e = out[k]
+                out[k] = if (e == null) n.copy(days = dayMap(n.days, mutableMapOf())) else e.copy(
+                    ms = pickL(e.ms, n.ms),
+                    plays = pickI(e.plays, n.plays),
+                    art = e.art ?: n.art,
+                    id = e.id ?: n.id,
+                    days = dayMap(e.days, n.days),
+                )
+            }
+            // Entries already here are folded first (they may hold duplicates an older build filed
+            // apart, which add up), then the incoming ones are combined with them by mode.
+            a.forEach { n ->
+                val k = key(n)
+                val e = out[k]
+                out[k] = if (e == null) n.copy(days = dayMap(n.days, mutableMapOf())) else e.copy(
+                    ms = e.ms + n.ms, plays = e.plays + n.plays, art = e.art ?: n.art, id = e.id ?: n.id,
+                    days = dayMap(e.days, mutableMapOf()).also { d ->
+                        n.days.forEach { (dk, v) -> d.merge(dk, v.copy()) { x, y -> DayStats(x.ms + y.ms, x.plays + y.plays) } }
+                    },
+                )
+            }
+            b.forEach(::put)
+            return out.values.toList()
+        }
+        val artists = names(
+            here.artists.map { it.copy(name = primaryArtist(it.name) ?: it.name) },
+            other.artists.map { it.copy(name = primaryArtist(it.name) ?: it.name) },
+        ) { it.name.lowercase(Locale.ROOT) }
+        val albums = names(here.albums, other.albums) { albumKey(it.id, it.name, it.sub.orEmpty()) }
+        val dayTotals = HashMap<Int, Long>(here.days)
+        other.days.forEach { (d, ms) -> dayTotals[d] = pickL(dayTotals[d] ?: 0L, ms) }
+        return StoredBucket(
+            version = maxOf(here.version, other.version),
+            month = here.month,
+            tracks = tracks.values.toList(),
+            artists = artists,
+            albums = albums,
+            hours = List(24) { pickL(here.hours.getOrElse(it) { 0L }, other.hours.getOrElse(it) { 0L }) },
+            hourPlays = List(24) { pickI(here.hourPlays.getOrElse(it) { 0 }, other.hourPlays.getOrElse(it) { 0 }) },
+            days = dayTotals,
+            trackDays = dayStats(here.trackDays, other.trackDays),
+            artistDays = dayStats(here.artistDays, other.artistDays),
+            albumDays = dayStats(here.albumDays, other.albumDays),
+        )
+    }
+
     // ── Shapes ──────────────────────────────────────────────────────────────
 
     /**

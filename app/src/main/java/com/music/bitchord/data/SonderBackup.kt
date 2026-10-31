@@ -46,8 +46,20 @@ object SonderBackup {
         val months: Int,
         val history: Int,
         val lyrics: Int,
+        /** Set for a ViVi / Metrolist import: plays added, and plays already imported before. */
+        val importedPlays: Int? = null,
+        val alreadyImported: Int = 0,
+        val importedMs: Long = 0L,
     ) {
-        fun describe(): String = buildList {
+        fun describe(): String = if (importedPlays != null) {
+            when {
+                importedPlays > 0 -> "%,d plays (%s) from ViVi Music, added to your statistics".format(
+                    importedPlays,
+                    com.music.bitchord.ui.glow.formatHoursMinutes(importedMs),
+                ) + if (alreadyImported > 0) "; %,d were already imported".format(alreadyImported) else ""
+                else -> "nothing new: those %,d plays were already imported".format(alreadyImported)
+            }
+        } else buildList {
             add(if (settings == 1) "1 setting" else "$settings settings")
             if (months > 0) add(if (months == 1) "1 month of statistics" else "$months months of statistics")
             if (history > 0) add(if (history == 1) "1 song of history" else "$history songs of history")
@@ -78,6 +90,7 @@ object SonderBackup {
                 .put("listening", JSONArray(json.encodeToString(ListSerializer(StoredBucket.serializer()), buckets)))
                 .put("playHistory", history)
                 .put("lyricsEdits", lyrics)
+                .put("listeningImports", com.music.bitchord.data.stats.ViViImport.exportMarks(context))
             context.contentResolver.openOutputStream(target, "wt")?.use { it.write(file.toString(2).toByteArray()) }
                 ?: error("Couldn't open that file for writing")
             Summary(app.length() + glow.length(), buckets.size, history.length(), lyrics.length())
@@ -90,8 +103,14 @@ object SonderBackup {
      */
     suspend fun restore(context: Context, source: Uri): Result<Summary> = withContext(Dispatchers.IO) {
         runCatching {
-            val text = context.contentResolver.openInputStream(source)?.use { it.readBytes().decodeToString() }
+            val bytes = context.contentResolver.openInputStream(source)?.use { it.readBytes() }
                 ?: error("Couldn't open that file")
+            // ViVi Music / Metrolist backups are zips with the listening in song.db.
+            if (com.music.bitchord.data.stats.ViViImport.looksLikeZip(bytes)) {
+                val r = com.music.bitchord.data.stats.ViViImport.import(context, source).getOrThrow()
+                return@runCatching Summary(0, r.months, 0, 0, importedPlays = r.plays, alreadyImported = r.skipped, importedMs = r.totalMs)
+            }
+            val text = bytes.decodeToString()
             val root = runCatching { JSONObject(text) }.getOrElse { error("That file isn't a Sonder backup") }
             when {
                 root.optString("format") == FORMAT -> restoreFull(context, root)
@@ -121,8 +140,16 @@ object SonderBackup {
             GlowPrefs.import(glow, context)
             SearchHistory.reload()
         }
-        buckets?.let(ListeningStats::importAll)
-        history?.let { PlayHistory.importRaw(it.toString()) }
+        // Merged, never replaced: statistics already on this phone are kept (each figure keeps
+        // the larger of the two), so restoring can't lose listening or count it twice.
+        buckets?.let { ListeningStats.mergeAll(it, ListeningStats.MergeMode.MAX) }
+        root.optJSONObject("listeningImports")?.let { com.music.bitchord.data.stats.ViViImport.restoreMarks(context, it) }
+        // Merged with this phone's history rather than replacing it.
+        history?.let { raw ->
+            val before = PlayHistory.entries.value
+            PlayHistory.importRaw(raw.toString())
+            PlayHistory.mergeOlder(before)
+        }
         var lyricCount = 0
         lyrics?.let { edits ->
             val dir = lyricsDir(context)

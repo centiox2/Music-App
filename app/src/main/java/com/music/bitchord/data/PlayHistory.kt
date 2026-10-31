@@ -17,7 +17,7 @@ import org.json.JSONObject
 object PlayHistory {
     data class Entry(val song: Song, val playedAtMs: Long)
 
-    private const val MAX_ENTRIES = 300
+    const val MAX_ENTRIES = 300
     private const val KEY = "entries"
 
     private var prefs: SharedPreferences? = null
@@ -49,6 +49,20 @@ object PlayHistory {
     fun clear() {
         _entries.value = emptyList()
         persist(emptyList())
+    }
+
+    /**
+     * Adds plays from elsewhere (an imported backup). Kept newest first; anything already listed
+     * at the same moment is not added twice, and only the newest [MAX_ENTRIES] remain.
+     */
+    fun mergeOlder(more: List<Entry>) {
+        if (more.isEmpty()) return
+        val merged = (_entries.value + more)
+            .distinctBy { it.song.videoId + "@" + it.playedAtMs / 1000 }
+            .sortedByDescending { it.playedAtMs }
+            .take(MAX_ENTRIES)
+        _entries.value = merged
+        persist(merged)
     }
 
     /** The whole history as stored, for a backup. */

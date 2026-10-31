@@ -99,7 +99,9 @@ object Backup {
                 "That backup was written by a newer version of BitChord"
             }
 
-            ListeningStats.importAll(file.listening)
+            // Merged, never replaced: statistics already on this phone are kept, and restoring
+            // the same backup twice doesn't count anything twice.
+            ListeningStats.mergeAll(file.listening, ListeningStats.MergeMode.MAX)
             AppSettings.importPrefs(file.settings.mapValues { it.value.decoded() })
             // Shares AppSettings' preference file, so it has already been
             // overwritten by the line above — it just doesn't know yet.

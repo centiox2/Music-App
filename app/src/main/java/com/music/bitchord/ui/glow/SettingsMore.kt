@@ -396,13 +396,20 @@ fun BackupScreen() {
             CardDivider()
             SettingRow(
                 "Restore from a backup",
-                subtitle = "Replaces what's on this phone",
+                subtitle = "Statistics are added to, never deleted",
                 icon = Icons.Rounded.Download,
                 chevron = true,
             ) { if (!busy) import.launch(arrayOf("application/json", "text/plain", "*/*")) }
+            CardDivider()
+            SettingRow(
+                "Import from ViVi Music",
+                subtitle = "Listening history from a .backup file (also Metrolist)",
+                icon = Icons.Rounded.History,
+                chevron = true,
+            ) { if (!busy) import.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
         }
         Text(
-            "Downloads, the library in your YouTube Music account and cached pictures aren't part of a backup: they come back on their own. Backups from earlier versions of Sonder and from BitChord can be restored too.",
+            "Downloads, the library in your YouTube Music account and cached pictures aren't part of a backup: they come back on their own. Backups from earlier versions of Sonder and from BitChord can be restored too. From a ViVi Music backup only the listening history is taken, never its settings or sign-in, and importing the same file again adds nothing twice.",
             style = GlowType.secondary,
             color = c.textSecondary,
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
@@ -410,10 +417,10 @@ fun BackupScreen() {
     }
     pendingRestore?.let { uri ->
         GlowDialog({ pendingRestore = null }) {
-            Text("Restore this backup?", style = GlowType.title, color = c.text)
+            Text("Restore from this file?", style = GlowType.title, color = c.text)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Your settings, statistics, listening history and edited lyrics on this phone will be replaced with the ones in the backup. This can't be undone.",
+                "Settings and edited lyrics from the backup replace the ones here. Statistics and listening history are added to what's on this phone: nothing already here is deleted, and nothing is counted twice.",
                 style = GlowType.bodyRegular,
                 color = c.textSecondary,
                 textAlign = TextAlign.Center,
