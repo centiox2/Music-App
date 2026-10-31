@@ -398,6 +398,22 @@ The owner's phone is arm64; send `Sonder-arm64-v8a.apk`.
 
 ---
 
+### Setting up an SDK in a fresh cloud session
+No SDK is preinstalled. What worked:
+```bash
+# command-line tools from dl.google.com into /opt/android-sdk/cmdline-tools/latest, then:
+sdkmanager --sdk_root=/opt/android-sdk "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
+# AGP 8.10 looks for "android-37" and can't read the newer package.xml: copy the folder to
+# platforms/android-37, set AndroidVersion.ApiLevel=37 in its source.properties, delete its package.xml.
+echo "sdk.dir=/opt/android-sdk" > local.properties
+```
+Maven Central answers 429 when hit hard: build with `--max-workers=1`, retry, and fetch large jars
+(Robolectric's `android-all-instrumented`) from `maven-central.storage-download.googleapis.com`
+into `~/.m2/repository`, then run tests with `-Drobolectric.offline=true`.
+
+`ReviewScreenshotTest` (opt-in, `REVIEW_SHOTS=/dir`, optionally `VIVI_BACKUP=/path`) renders
+Library, Statistics, Backup and Downloads, and checks a ViVi import adds exactly its plays once.
+
 ## 7. Tests
 
 ```bash

@@ -69,7 +69,13 @@ import java.util.Locale
 private val HeroColor = Color(0xFF1D3B3A)
 private val HeroGlow = Color(0xFF5FB3AD)
 private val PageGlow = Color(0xFF2F5A55)
-private val HeatScale = listOf(Color(0x0FFFFFFF), Color(0xFF1D3B3A), Color(0xFF2F5A55), Color(0xFF5FB3AD), Color(0xFFBFE3D8))
+private val HeatScaleDark = listOf(Color(0x0FFFFFFF), Color(0xFF1D3B3A), Color(0xFF2F5A55), Color(0xFF5FB3AD), Color(0xFFBFE3D8))
+
+/** In light mode the empty cell is a visible grey and the scale darkens, so "more" reads as more. */
+private val HeatScaleLight = listOf(Color(0x1414243A), Color(0xFFCFE6DF), Color(0xFF8CC7B9), Color(0xFF3E9C8C), Color(0xFF14806D))
+
+@Composable
+private fun heatScale() = if (Glow.colors.isDark) HeatScaleDark else HeatScaleLight
 private const val HEAT_WEEKS = 11
 
 /** What the page last showed, so coming back opens on the same view and period. */
@@ -103,7 +109,9 @@ fun StatisticsScreen() {
                     StatsPageMemory.detailed = detailed
                 }
             }
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            androidx.compose.runtime.LaunchedEffect(detailed) { listState.scrollToItem(0) }
+            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = pageContentPadding()) {
                 item(key = "periods") {
                     ChipRow(StatsPeriod.entries.map { it.label }, periodIndex) {
                         periodIndex = it
@@ -162,9 +170,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.overviewContent(g: Gl
                 .clip(RoundedCornerShape(14.dp)).background(c.glass).padding(horizontal = 16.dp),
         ) {
             FactRow("Busiest day", r.busiestWeekday?.getDisplayName(TextStyle.FULL, Locale.getDefault()) ?: "—")
-            CardDivider(start = 0.dp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.divider))
             FactRow("Longest streak", if (r.longestStreak == 1) "1 day" else "${r.longestStreak} days")
-            CardDivider(start = 0.dp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.divider))
             FactRow("Top artist", top?.title ?: "—", onClick = top?.let { artist -> { g.openArtist(artist.browseId, artist.title) } })
         }
     }
@@ -217,26 +225,29 @@ private fun ActivityCard(r: StatsReport, modifier: Modifier) {
         if (v <= 0 || max <= 0) return 0
         return (1 + (3.0 * v / max).toInt()).coerceIn(1, 4)
     }
+    val scale = heatScale()
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.glass).padding(16.dp)) {
         CardTitle("Activity", "Last $HEAT_WEEKS weeks")
         Spacer(Modifier.height(12.dp))
         Row(
-            Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.25f)).padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(10.dp)).background(if (c.isDark) Color.Black.copy(alpha = 0.25f) else c.glassStrong).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+          Row(Modifier.weight(1f)) {
             Text(
                 selected.format(DateTimeFormatter.ofPattern("EEE, d MMMM")),
                 style = GlowType.bodyRegular.copy(fontSize = 14.sp),
                 color = c.text.copy(alpha = 0.85f),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).alignByBaseline(),
             )
             if (usePlays) {
                 val n = r.dailyPlays[selected] ?: 0
-                Text("%,d".format(n), style = GlowType.title.copy(fontSize = 18.sp), color = c.text)
-                Text(if (n == 1) " listen" else " listens", style = GlowType.bodyRegular.copy(fontSize = 14.sp), color = c.textSecondary)
+                Text("%,d".format(n), style = GlowType.title.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.alignByBaseline())
+                Text(if (n == 1) " listen" else " listens", style = GlowType.bodyRegular.copy(fontSize = 14.sp), color = c.textSecondary, modifier = Modifier.alignByBaseline())
             } else {
-                Text(formatHoursMinutes(r.dailyMs[selected] ?: 0L), style = GlowType.title.copy(fontSize = 18.sp), color = c.text)
+                Text(formatHoursMinutes(r.dailyMs[selected] ?: 0L), style = GlowType.title.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.alignByBaseline())
             }
+          }
         }
         Spacer(Modifier.height(12.dp))
         Row {
@@ -255,7 +266,9 @@ private fun ActivityCard(r: StatsReport, modifier: Modifier) {
                         val monday = firstMonday.plusWeeks(w.toLong())
                         val previous = monday.minusWeeks(1)
                         Box(Modifier.weight(1f).fillMaxHeight()) {
-                            if (w == 0 || monday.month != previous.month) {
+                            val next = monday.plusWeeks(1)
+                            val starts = if (w == 0) next.month == monday.month else monday.month != previous.month
+                            if (starts) {
                                 Text(
                                     monday.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                                     style = GlowType.secondary.copy(fontSize = 10.sp),
@@ -277,7 +290,7 @@ private fun ActivityCard(r: StatsReport, modifier: Modifier) {
                                     .weight(1f)
                                     .height(22.dp)
                                     .clip(RoundedCornerShape(5.dp))
-                                    .background(HeatScale[if (future) 0 else level(day)])
+                                    .background(scale[if (future) 0 else level(day)])
                                     .then(if (day == selected) Modifier.border(2.dp, c.text, RoundedCornerShape(5.dp)) else Modifier)
                                     .then(if (!future) Modifier.clickable { selected = day } else Modifier),
                             )
@@ -290,7 +303,7 @@ private fun ActivityCard(r: StatsReport, modifier: Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Less", style = GlowType.secondary.copy(fontSize = 11.sp), color = c.textSecondary)
             Spacer(Modifier.weight(1f))
-            HeatScale.forEach {
+            scale.forEach {
                 Box(Modifier.padding(horizontal = 2.dp).size(14.dp).clip(RoundedCornerShape(4.dp)).background(it))
             }
             Spacer(Modifier.weight(1f))
@@ -310,11 +323,12 @@ private fun HoursCard(r: StatsReport, modifier: Modifier) {
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.glass).padding(16.dp)) {
         CardTitle("When you listen", "By hour")
         Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
+        Row {
             Text(
                 peak?.let(::hourLabel) ?: "—",
                 style = GlowType.display.copy(fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.02).em),
                 color = c.text,
+                modifier = Modifier.alignByBaseline(),
             )
             Spacer(Modifier.width(8.dp))
             if (peak != null) {
@@ -322,7 +336,7 @@ private fun HoursCard(r: StatsReport, modifier: Modifier) {
                     "is your peak · " + if (usePlays) "%,d listens".format(max) else formatHoursMinutes(max),
                     style = GlowType.secondary,
                     color = c.textSecondary,
-                    modifier = Modifier.padding(bottom = 5.dp),
+                    modifier = Modifier.alignByBaseline(),
                 )
             }
         }
@@ -352,9 +366,9 @@ private fun HoursCard(r: StatsReport, modifier: Modifier) {
 @Composable
 private fun CardTitle(title: String, note: String) {
     val c = Glow.colors
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(title, style = GlowType.title.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.weight(1f), maxLines = 1)
-        Text(note, style = GlowType.secondary.copy(fontSize = 12.sp), color = c.textSecondary, modifier = Modifier.padding(bottom = 2.dp))
+    Row {
+        Text(title, style = GlowType.title.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.weight(1f).alignByBaseline(), maxLines = 1)
+        Text(note, style = GlowType.secondary.copy(fontSize = 12.sp), color = c.textSecondary, modifier = Modifier.alignByBaseline())
     }
 }
 
@@ -427,7 +441,13 @@ private fun ChartHeader(title: String, onSeeAll: () -> Unit) {
 }
 
 @Composable
-private fun RankBadge(rank: Int, modifier: Modifier = Modifier, background: Color = Color.Black.copy(alpha = 0.55f), ring: Color? = null) {
+private fun RankBadge(
+    rank: Int,
+    modifier: Modifier = Modifier,
+    background: Color = Color.Black.copy(alpha = 0.55f),
+    ring: Color? = null,
+    textColor: Color = Color.White,
+) {
     Box(
         modifier
             .defaultMinSize(minWidth = 26.dp)
@@ -438,7 +458,7 @@ private fun RankBadge(rank: Int, modifier: Modifier = Modifier, background: Colo
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text("$rank", style = GlowType.label.copy(fontWeight = FontWeight.Bold), color = Color.White)
+        Text("$rank", style = GlowType.label.copy(fontWeight = FontWeight.Bold), color = textColor)
     }
 }
 
@@ -505,7 +525,7 @@ private fun ArtistCircle(g: GlowState, index: Int, a: RankedEntry) {
     ) {
         Box(Modifier.size(120.dp)) {
             Cover(a.artworkUrl, size = 120.dp, shape = CircleShape)
-            RankBadge(index + 1, Modifier.padding(4.dp), background = c.base, ring = c.base)
+            RankBadge(index + 1, Modifier.padding(4.dp), background = c.base, ring = c.base, textColor = c.text)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             GlowText(a.title, GlowType.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)

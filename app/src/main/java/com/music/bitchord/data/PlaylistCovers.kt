@@ -52,7 +52,7 @@ object PlaylistCovers {
                 val file = fileFor(d, id, url)
                 if (file.exists()) {
                     sources[id] = url
-                    shown[id] = file.toURI().toString()
+                    shown[id] = android.net.Uri.fromFile(file).toString()
                 }
             }
             _local.value = shown
@@ -90,7 +90,7 @@ object PlaylistCovers {
             }
             if (changed) {
                 runCatching { File(d, "index.json").writeText(JSONObject(sources as Map<*, *>).toString()) }
-                _local.value = sources.mapValues { (id, url) -> fileFor(d, id, url).toURI().toString() }
+                _local.value = sources.mapValues { (id, url) -> android.net.Uri.fromFile(fileFor(d, id, url)).toString() }
             }
         }
     }

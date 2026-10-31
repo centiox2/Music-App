@@ -103,8 +103,9 @@ fun LibraryScreen() {
         vm.ensureLibrary()
         vm.onLibraryShown()
         // The full liked list, read once in the background, so its count is right before Liked songs is opened.
-        if (LikedSongsCache.songs.value == null) {
+        if (!LikedSongsCache.refreshedThisSession) {
             YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
+                LikedSongsCache.refreshedThisSession = true
                 LikedSongsCache.songs.value = it
                 LikedSongsCache.complete.value = true
             }
@@ -347,7 +348,7 @@ private fun LazyListScope.playlistsTab(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.padding(start = 20.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(start = 20.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 CompactSegmented(PLAYLIST_FILTERS, filter, onFilter)
                 Spacer(Modifier.weight(1f))
                 SortMenu(PlaylistSort.entries, sort, label = { it.label }, iconOnly = true) { GlowPrefs.setPlaylistSort(it.ordinal) }
@@ -441,7 +442,7 @@ private fun PlaylistRow(g: GlowState, item: ShelfItem, view: PlaylistsView, onMe
             .height(64.dp)
             .pressScale(interaction, 0.98f)
             .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(item, "Library") }
-            .padding(start = 20.dp, end = 10.dp),
+            .padding(start = 20.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(com.music.bitchord.data.PlaylistCovers.coverFor(item, view.covers), size = 52.dp)
@@ -688,6 +689,7 @@ fun LikedSongsScreen() {
         // Refreshed each visit, but what was read last time shows meanwhile.
         YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
             LikedSongsCache.songs.value = it
+            LikedSongsCache.refreshedThisSession = true
             LikedSongsCache.complete.value = true
         }
     }

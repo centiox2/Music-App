@@ -108,6 +108,13 @@ object ListeningStats {
 
     fun init(context: Context) {
         directory = File(context.filesDir, DIRECTORY)
+        // A month held from an earlier folder (only possible when init runs again, as in tests)
+        // belongs to that folder, not this one.
+        synchronized(lock) {
+            open = null
+            dirty = false
+            cached = null
+        }
         // Opening a month means reading and parsing it, and the first thing to
         // ask for one is the playback sampler — on the main thread, a few
         // seconds into the first track. Done here instead, it has happened long

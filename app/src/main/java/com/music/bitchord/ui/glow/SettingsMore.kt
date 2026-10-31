@@ -412,7 +412,7 @@ fun BackupScreen() {
             "Downloads, the library in your YouTube Music account and cached pictures aren't part of a backup: they come back on their own. Backups from earlier versions of Sonder and from BitChord can be restored too. From a ViVi Music backup only the listening history is taken, never its settings or sign-in, and importing the same file again adds nothing twice.",
             style = GlowType.secondary,
             color = c.textSecondary,
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         )
     }
     pendingRestore?.let { uri ->

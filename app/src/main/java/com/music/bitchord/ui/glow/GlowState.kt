@@ -241,6 +241,7 @@ class GlowState(
             if (!quiet || LikedSongsCache.songs.value != null) {
                 com.music.bitchord.data.YtMusicRepository.allSongs(com.music.bitchord.data.YtMusicRepository.LIKED_MUSIC).onSuccess {
                     LikedSongsCache.songs.value = it
+                    LikedSongsCache.refreshedThisSession = true
                     LikedSongsCache.complete.value = true
                 }
             }
@@ -372,6 +373,9 @@ object LikedSongsCache {
     val complete = kotlinx.coroutines.flow.MutableStateFlow(false)
 
     private var started = false
+
+    /** Whether the full list has been read from YouTube since launch (the saved copy may be old). */
+    @Volatile var refreshedThisSession = false
 
     /**
      * Loads the list saved last time and keeps the file up to date. Without it, offline (where
