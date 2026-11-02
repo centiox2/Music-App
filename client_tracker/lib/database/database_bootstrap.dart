@@ -10,5 +10,5 @@ export 'database_bootstrap_stub.dart'
 
 /// Convenience for callers that just need the database:
 /// `final db = await openAppDatabase(directory);`
-Future<AppDatabase> openAppDatabase(String directory) =>
+Future<AppDatabase> openAppDatabase(String directory) async =>
     openPlatformDatabase(directory);
