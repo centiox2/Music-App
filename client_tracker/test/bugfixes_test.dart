@@ -8,7 +8,7 @@ import 'package:client_tracker/models/staff.dart';
 import 'package:client_tracker/repositories/client_count_repository.dart'
     show WeekTotals;
 import 'package:client_tracker/screens/history/history_screen.dart';
-import 'package:client_tracker/services/backup_service.dart';
+import 'package:client_tracker/services/auto_backup_store.dart';
 import 'package:client_tracker/state/app_state.dart';
 import 'package:client_tracker/repositories/week_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -214,25 +214,32 @@ void main() {
     });
   });
 
-  group('auto backup pruning', () {
-    test('keeps at most [keep] backup files', () async {
+  group('automatic backups', () {
+    test('a backup folder keeps the newest 30 files', () async {
       final dir = await Directory.systemTemp.createTemp('ct_backup_test');
       addTearDown(() => dir.deleteSync(recursive: true));
 
-      final db = openInMemoryDatabase();
-      addTearDown(db.close);
-      final service = BackupService(db, backupDirectory: dir.path);
-
-      // More backups than the retention limit.
-      for (var i = 0; i < 13; i++) {
-        service.autoBackup(keep: 10);
+      final store = createAutoBackupStore(
+        databaseFile: '${dir.path}/client_tracker.db',
+        folder: '${dir.path}/auto',
+      );
+      expect(store.enabled, isTrue);
+      for (var i = 0; i < 33; i++) {
+        await store.save(
+          'client_tracker_backup_${i.toString().padLeft(3, '0')}.json',
+          '{"n": $i}',
+        );
       }
-      final files = dir
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.contains('client_tracker_backup_'))
-          .toList();
-      expect(files.length, 10, reason: 'older backups must be pruned');
+      final entries = await store.list();
+      expect(entries.length, 30, reason: 'older backups must be pruned');
+      expect(await store.read(entries.first.id), startsWith('{"n"'));
+      // Nothing outside the backup folder can be read through it.
+      expect(await store.read('${dir.path}/client_tracker.db'), isNull);
+    });
+
+    test('in-memory data (tests) never writes backup files', () {
+      final store = createAutoBackupStore(databaseFile: ':memory:');
+      expect(store.enabled, isFalse);
     });
   });
 }

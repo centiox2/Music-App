@@ -5,20 +5,25 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
+import 'config/cloud_config.dart';
 import 'database/database_bootstrap.dart';
 import 'design/app_theme.dart';
-import 'services/backup_service.dart';
 import 'state/providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Sync with the online database (Supabase) when this build was given its
+  // details. Tests leave this off.
+  CloudConfig.active = CloudConfig.configured;
 
   // path_provider has no web implementation; the browser backend stores its
   // database in IndexedDB and ignores the directory entirely.
   final dataDir = kIsWeb
       ? '/client_tracker'
       : p.join(
-          (await getApplicationDocumentsDirectory()).path, 'ClientTracker');
+          (await getApplicationDocumentsDirectory()).path,
+          'ClientTracker',
+        );
 
   AppDatabase db;
   try {
@@ -28,12 +33,7 @@ Future<void> main() async {
     return;
   }
 
-  // Best-effort JSON backup at every launch (keeps the last 10 sessions).
-  // On the web the database persists in IndexedDB and backups are produced
-  // through downloads in Settings, so this is io-only.
-  if (!isWebDatabase) {
-    BackupService(db).autoBackup();
-  }
+  // Automatic backups run daily from the app itself (autoBackupProvider).
 
   runApp(
     ProviderScope(
@@ -85,17 +85,14 @@ class _StartupErrorApp extends StatelessWidget {
                 const SizedBox(height: Dt.s8),
                 Text(
                   '$error\n\n'
-                  '${web
-                      ? 'Try reloading the page. Your data is stored in this '
-                          'browser (IndexedDB); do not clear site data.'
-                      : 'Your data folder contains rolling backups '
-                          '(client_tracker.db.bak1 … bak5) and automatic JSON '
-                          'backups in the auto_backups folder. Do not delete '
-                          'the data folder — restore one of those files.'}',
+                  '${web ? 'Try reloading the page. Your data is stored in this '
+                            'browser (IndexedDB); do not clear site data.' : 'Your data folder contains rolling backups '
+                            '(client_tracker.db.bak1 … bak5) and automatic JSON '
+                            'backups in the auto_backups folder. Do not delete '
+                            'the data folder — restore one of those files.'}',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Dt.textMuted(Theme.of(context)),
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: Dt.textMuted(Theme.of(context))),
                 ),
               ],
             ),

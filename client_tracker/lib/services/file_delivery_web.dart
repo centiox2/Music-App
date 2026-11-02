@@ -52,9 +52,7 @@ Future<Uint8List?> openFileBytes({
         if (result == null) {
           completer.complete(null);
         } else {
-          completer.complete(
-            (result as JSArrayBuffer).toDart.asUint8List(),
-          );
+          completer.complete((result as JSArrayBuffer).toDart.asUint8List());
         }
       }
     }).toJS;
@@ -83,5 +81,6 @@ String _mimeType(String name) {
     return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   }
   if (name.endsWith('.json')) return 'application/json';
+  if (name.endsWith('.html')) return 'text/html';
   return 'application/octet-stream';
 }

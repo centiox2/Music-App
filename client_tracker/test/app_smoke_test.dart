@@ -5,7 +5,10 @@ import 'package:client_tracker/app.dart';
 import 'package:client_tracker/database/app_database_io.dart';
 import 'package:client_tracker/database/database.dart';
 import 'package:client_tracker/repositories/week_repository.dart';
-import 'package:client_tracker/state/providers.dart';
+import 'package:client_tracker/state/app_state.dart';
+
+import 'test_helpers.dart';
+
 import 'package:intl/intl.dart';
 
 void main() {
@@ -29,7 +32,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [databaseProvider.overrideWithValue(db)],
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          adminSessionProvider.overrideWith(SignedInSession.new),
+        ],
         child: const ClientTrackerApp(),
       ),
     );
@@ -43,8 +49,37 @@ void main() {
 
     expect(find.text('New clients'), findsOneWidget);
     expect(find.text('Total clients'), findsOneWidget);
-    expect(find.text('Month to date'), findsOneWidget);
+    expect(find.text('Clients this month'), findsOneWidget);
     expect(find.text('Active staff'), findsOneWidget);
+  });
+
+  testWidgets('wide dashboard metrics fit one row without clipping', (
+    tester,
+  ) async {
+    const size = Size(1864, 884);
+    await pumpApp(tester, size: size);
+
+    final metricLabels = [
+      'New clients',
+      'Existing clients',
+      'Total clients',
+      'Clients this month',
+      'Active staff',
+    ];
+    final labelTops = metricLabels
+        .map((label) => tester.getTopLeft(find.text(label)).dy)
+        .toList();
+    expect(
+      labelTops.every((top) => (top - labelTops.first).abs() < 1),
+      isTrue,
+      reason: 'all five metric cards should use one row at wide widths',
+    );
+    expect(
+      tester.getBottomRight(find.text('Export this week')).dy,
+      lessThan(size.height - 10),
+      reason: 'the last dashboard action should remain above the viewport edge',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Refresh reloads data added since the screen was opened', (
@@ -137,7 +172,7 @@ void main() {
             ).first['new_clients']!
             as int;
     expect(stored, 7);
-    expect(find.textContaining('WEEK'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Week \d+$')), findsOneWidget);
   });
 
   testWidgets('show zeros toggle refreshes even the focused count field', (
@@ -285,7 +320,7 @@ void main() {
     await tester.tap(find.text('Weekly tracker').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('MOST CLIENTS THIS WEEK'), findsOneWidget);
+    expect(find.text('Most clients this week'), findsOneWidget);
     expect(find.byType(Scrollbar), findsNothing);
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.windows));

@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/staff.dart';
 import '../repositories/client_count_repository.dart';
+import '../repositories/report_repository.dart';
+import '../repositories/week_repository.dart';
 import 'providers.dart';
 
 export 'providers.dart';
@@ -26,8 +28,39 @@ final staffListProvider = Provider<List<Staff>>((ref) {
   return ref.read(staffRepositoryProvider).getAll();
 });
 
+/// True while the admin is signed in to the workspace. Signed out, the app
+/// shows Reports only — open to anyone, no login needed. Not persisted:
+/// every launch starts signed out.
+final adminSessionProvider = NotifierProvider<AdminSessionNotifier, bool>(
+  AdminSessionNotifier.new,
+);
+
+class AdminSessionNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  /// Checks the admin [password] and signs in on success.
+  bool signIn(String password) {
+    final ok = ref.read(authRepositoryProvider).verifyAdmin(password);
+    if (ok) signInAfterSetup();
+    return ok;
+  }
+
+  /// Signs straight in (after first-run setup, the password was just set).
+  void signInAfterSetup() {
+    ref.read(navTabProvider.notifier).set(AppTab.home);
+    state = true;
+  }
+
+  /// Back to the open Reports view.
+  void signOut() {
+    ref.read(navTabProvider.notifier).set(AppTab.reports);
+    state = false;
+  }
+}
+
 /// Navigation sections, shared by sidebar (desktop) and bottom bar (mobile).
-enum AppTab { home, week, history, staff, settings }
+enum AppTab { home, week, history, staff, reports, settings }
 
 /// The shell's context, captured by [HomeShell] so helper functions outside
 /// the widget tree (e.g. [jumpWeeks]) can show snackbars. Null until the
@@ -57,6 +90,33 @@ class NavTabNotifier extends Notifier<AppTab> {
   void set(AppTab tab) => state = tab;
 }
 
+/// A day whose week Reports should open on in Details (set by History's
+/// "View report"); Reports consumes and clears it when it opens.
+final reportWeekRequestProvider =
+    NotifierProvider<ReportWeekRequestNotifier, DateTime?>(
+      ReportWeekRequestNotifier.new,
+    );
+
+class ReportWeekRequestNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void set(DateTime? day) => state = day;
+}
+
+/// Future days the user has confirmed editing in this session (the
+/// tracker dims days after today and asks before the first number).
+final unlockedDaysProvider = NotifierProvider<UnlockedDaysNotifier, Set<int>>(
+  UnlockedDaysNotifier.new,
+);
+
+class UnlockedDaysNotifier extends Notifier<Set<int>> {
+  @override
+  Set<int> build() => const {};
+
+  void unlock(int dayId) => state = {...state, dayId};
+}
+
 /// The week the user is currently working with (dashboard + tracker).
 final currentWeekIdProvider = NotifierProvider<CurrentWeekIdNotifier, int?>(
   CurrentWeekIdNotifier.new,
@@ -75,12 +135,16 @@ class CurrentWeekData {
     required this.days,
     required this.totals,
     required this.staffTotals,
+    this.notes = const {},
   });
 
   final Week week;
   final List<DayWithCounts> days;
   final WeekTotals totals;
   final List<StaffWeekTotals> staffTotals;
+
+  /// Day notes for this week, keyed by day id.
+  final Map<int, String> notes;
 
   DayWithCounts? dayFor(DateTime date) {
     for (final d in days) {
@@ -103,15 +167,13 @@ final currentWeekProvider = Provider<CurrentWeekData?>((ref) {
   final stats = ref.read(statisticsServiceProvider);
 
   CurrentWeekData? build(Week week) {
-    final days = weeks
-        .getDays(week.id)
-        .map((d) => counts.getDayWithCounts(d.id))
-        .toList();
+    final days = counts.weekDaysWithCounts(week.id);
     return CurrentWeekData(
       week: week,
       days: days,
       totals: stats.weekTotals(week),
       staffTotals: stats.staffWeekTotals(week),
+      notes: ref.read(dayNotesRepositoryProvider).notesForWeek(week.id),
     );
   }
 
@@ -123,6 +185,70 @@ final currentWeekProvider = Provider<CurrentWeekData?>((ref) {
   final latest = weeks.getAllWeeks().firstOrNull;
   return latest == null ? null : build(latest);
 });
+
+/// Totals for the week before the one being worked with, used for the
+/// dashboard's "vs last week" comparison. Null when that week doesn't exist.
+final previousWeekTotalsProvider = Provider<WeekTotals?>((ref) {
+  final current = ref.watch(currentWeekProvider);
+  if (current == null) return null;
+  final previous = ref
+      .read(weekRepositoryProvider)
+      .findByStartDate(
+        current.week.startDate.subtract(const Duration(days: 7)),
+      );
+  return previous == null
+      ? null
+      : ref.read(statisticsServiceProvider).weekTotals(previous);
+});
+
+/// The Monday of the week the user should be working in today (next week on
+/// Saturdays and Sundays) when that week hasn't been created yet; otherwise
+/// null. Drives the dashboard's one-click "Start week" banner.
+final suggestedWeekStartProvider = Provider<DateTime?>((ref) {
+  ref.watch(dataVersionProvider);
+  final today = DateTime.now();
+  final monday = today.weekday >= DateTime.saturday
+      ? WeekRepository.mondayOf(today.add(const Duration(days: 7)))
+      : WeekRepository.mondayOf(today);
+  final exists =
+      ref.read(weekRepositoryProvider).findByStartDate(monday) != null;
+  return exists ? null : monday;
+});
+
+/// Detailed report for a date range (Reports page). Refreshes whenever any
+/// data changes, so numbers entered in the tracker show up immediately.
+/// Auto-disposed: periods you browse past are dropped instead of being kept
+/// (and recalculated) for the rest of the session.
+final reportProvider = Provider.autoDispose
+    .family<Report, (DateTime, DateTime)>((ref, range) {
+      ref.watch(dataVersionProvider);
+      return ref.read(reportRepositoryProvider).report(range.$1, range.$2);
+    });
+
+/// The first tracked working day (for "all time" ranges); null when none.
+final firstTrackedDayProvider = Provider<DateTime?>((ref) {
+  ref.watch(dataVersionProvider);
+  return ref.read(reportRepositoryProvider).firstDay();
+});
+
+/// Clients per day the team aims for (Settings); null when unset.
+final dailyTargetProvider = Provider<int?>((ref) {
+  ref.watch(dataVersionProvider);
+  return ref.read(appSettingsRepositoryProvider).dailyTarget;
+});
+
+/// When a number was last saved in this session — the tracker's quiet
+/// "Saved · 10:42" so you can trust autosave. Null until the first save.
+final lastSavedProvider = NotifierProvider<LastSavedNotifier, DateTime?>(
+  LastSavedNotifier.new,
+);
+
+class LastSavedNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void markNow() => state = DateTime.now();
+}
 
 /// Month-to-date totals (derived from day data, never stored).
 final monthTotalsProvider = Provider<MonthTotals>((ref) {
@@ -148,11 +274,46 @@ final historyProvider = Provider<List<WeekSummary>>((ref) {
       .toList();
 });
 
-/// The app's most recent week, if any (dashboard "current week" logic).
-final latestWeekProvider = Provider<Week?>((ref) {
-  ref.watch(dataVersionProvider);
-  final weeks = ref.read(weekRepositoryProvider).getAllWeeks();
-  return weeks.isEmpty ? null : weeks.first;
+/// When a backup file was last saved on this device (shared_preferences),
+/// for the "back up your data" reminder. Null: never, or not loaded yet.
+final lastBackupProvider = NotifierProvider<LastBackupNotifier, DateTime?>(
+  LastBackupNotifier.new,
+);
+
+class LastBackupNotifier extends Notifier<DateTime?> {
+  static const _key = 'last_backup_at';
+
+  /// True once the stored value has been read (so the reminder doesn't
+  /// flash before it's known).
+  bool loaded = false;
+
+  @override
+  DateTime? build() {
+    SharedPreferences.getInstance().then((prefs) {
+      loaded = true;
+      final raw = prefs.getString(_key);
+      state = raw == null ? null : DateTime.tryParse(raw);
+      ref.notifyListeners();
+    });
+    return null;
+  }
+
+  void markNow() {
+    final now = DateTime.now();
+    state = now;
+    SharedPreferences.getInstance().then(
+      (p) => p.setString(_key, now.toIso8601String()),
+    );
+  }
+}
+
+/// True when the backup reminder should show: never backed up, or not in
+/// the last 7 days.
+final backupDueProvider = Provider<bool>((ref) {
+  final last = ref.watch(lastBackupProvider);
+  if (!ref.read(lastBackupProvider.notifier).loaded) return false;
+  return last == null ||
+      DateTime.now().difference(last) > const Duration(days: 7);
 });
 
 /// Theme mode (light / dark / system), persisted via shared_preferences.
@@ -195,6 +356,12 @@ class AppActions {
   final Ref _ref;
 
   /// Switches the visible section; can open a specific week in the tracker.
+  /// Opens Reports › Details on the week containing [day].
+  void openWeekReport(DateTime day) {
+    _ref.read(reportWeekRequestProvider.notifier).set(day);
+    _ref.read(navTabProvider.notifier).set(AppTab.reports);
+  }
+
   void selectTab(AppTab tab, {int? weekId}) {
     if (weekId != null) {
       _ref.read(currentWeekIdProvider.notifier).set(weekId);
@@ -222,7 +389,7 @@ class AppActions {
     required int existingClients,
   }) {
     final repo = _ref.read(clientCountRepositoryProvider);
-    final existing = repo.getDayWithCounts(dayId).countFor(staffId);
+    final existing = repo.countValues(dayId, staffId);
     rememberCount(dayId, staffId, true, existing.newClients);
     rememberCount(dayId, staffId, false, existing.existingClients);
     repo.saveCount(
@@ -231,7 +398,7 @@ class AppActions {
       newClients: newClients,
       existingClients: existingClients,
     );
-    _touch();
+    _saved();
   }
 
   /// Marks (or unmarks) one staff member off on one working day. Numbers
@@ -247,15 +414,16 @@ class AppActions {
     _touch();
   }
 
-  /// Marks (or unmarks) a staff member off on every working day of a week.
-  void setStaffWeekOff({
-    required int weekId,
-    required int staffId,
-    required bool off,
+  /// Marks several staff on or off for one day at once ([changes] maps
+  /// staff id → off) — the day time-off dialog and "Holiday".
+  void setDayOffForStaff({
+    required int dayId,
+    required Map<int, bool> changes,
   }) {
+    if (changes.isEmpty) return;
     _ref
         .read(timeOffRepositoryProvider)
-        .setAllWeekDays(weekId: weekId, staffId: staffId, off: off);
+        .setDayForStaff(dayId: dayId, changes: changes);
     _touch();
   }
 
@@ -275,6 +443,65 @@ class AppActions {
   }
 
   void _touch() => _ref.read(dataVersionProvider.notifier).bump();
+
+  /// A change to client numbers: refresh, and record the save time.
+  void _saved() {
+    _ref.read(lastSavedProvider.notifier).markNow();
+    _touch();
+  }
+
+  /// Saves (or, when blank, removes) a day's note.
+  void setDayNote(int dayId, String note) {
+    _ref.read(dayNotesRepositoryProvider).setNote(dayId, note);
+    _touch();
+  }
+
+  /// Sets the daily client target; null or 0 clears it.
+  void setDailyTarget(int? target) {
+    _ref.read(appSettingsRepositoryProvider).dailyTarget = target;
+    _touch();
+  }
+
+  /// Repeats last week's time off on the same weekdays of [weekId] — for
+  /// regular days off (e.g. someone who never works Fridays). Returns how
+  /// many staff-days were marked; existing marks are left as they are.
+  int copyPreviousWeekTimeOff(int weekId) {
+    final weeks = _ref.read(weekRepositoryProvider);
+    final week = weeks.getWeek(weekId);
+    if (week == null) return 0;
+    final previous = weeks.findByStartDate(
+      week.startDate.subtract(const Duration(days: 7)),
+    );
+    if (previous == null) return 0;
+    final timeOff = _ref.read(timeOffRepositoryProvider);
+    final lastWeek = timeOff.offMapForWeek(previous.id);
+    final prevDays = {for (final d in weeks.getDays(previous.id)) d.id: d};
+    final thisDays = {for (final d in weeks.getDays(weekId)) d.weekday: d};
+    // Only staff who are on this week's board.
+    final onBoard = {
+      for (final d
+          in _ref
+              .read(clientCountRepositoryProvider)
+              .weekDaysWithCounts(weekId))
+        for (final r in d.rows) r.staffId,
+    };
+    var marked = 0;
+    for (final MapEntry(key: prevDayId, value: staffIds) in lastWeek.entries) {
+      final weekday = prevDays[prevDayId]?.weekday;
+      final target = weekday == null ? null : thisDays[weekday];
+      if (target == null) continue;
+      final already = timeOff.offStaffIds(target.id);
+      final changes = {
+        for (final s in staffIds)
+          if (onBoard.contains(s) && !already.contains(s)) s: true,
+      };
+      if (changes.isEmpty) continue;
+      timeOff.setDayForStaff(dayId: target.id, changes: changes);
+      marked += changes.length;
+    }
+    if (marked > 0) _touch();
+    return marked;
+  }
 
   /// Remembers the last committed value for one count cell so the user can
   /// undo a mistaken edit (the Clear affordance and Ctrl+Z both restore it).
@@ -299,7 +526,7 @@ class AppActions {
           newClients: isNew ? restored : _currentNew(dayId, staffId),
           existingClients: isNew ? _currentExisting(dayId, staffId) : restored,
         );
-    _ref.read(dataVersionProvider.notifier).bump();
+    _saved();
     return restored;
   }
 
@@ -307,8 +534,7 @@ class AppActions {
   int _currentNew(int dayId, int staffId) {
     return _ref
         .read(clientCountRepositoryProvider)
-        .getDayWithCounts(dayId)
-        .countFor(staffId)
+        .countValues(dayId, staffId)
         .newClients;
   }
 
@@ -316,8 +542,7 @@ class AppActions {
   int _currentExisting(int dayId, int staffId) {
     return _ref
         .read(clientCountRepositoryProvider)
-        .getDayWithCounts(dayId)
-        .countFor(staffId)
+        .countValues(dayId, staffId)
         .existingClients;
   }
 
@@ -340,7 +565,7 @@ class AppActions {
           newClients: isNew ? previous : _currentNew(dayId, staffId),
           existingClients: isNew ? _currentExisting(dayId, staffId) : previous,
         );
-    _ref.read(dataVersionProvider.notifier).bump();
+    _saved();
     return (dayId: dayId, staffId: staffId, isNew: isNew, value: previous);
   }
 }

@@ -6,12 +6,16 @@ import '../../design/app_theme.dart';
 import '../../repositories/week_repository.dart';
 import '../../state/app_state.dart';
 
-/// Opens the New Week flow. Returns the created week id, or null if
-/// cancelled or the week already existed (user was warned).
-Future<int?> showNewWeekDialog(BuildContext context, WidgetRef ref) async {
+/// Opens the New Week flow, set to [initialMonday]'s week (default: this
+/// week). Returns the opened week id, or null if cancelled.
+Future<int?> showNewWeekDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  DateTime? initialMonday,
+}) async {
   final result = await showDialog<_NewWeekResult>(
     context: context,
-    builder: (_) => const _NewWeekDialog(),
+    builder: (_) => _NewWeekDialog(initialMonday: initialMonday),
   );
   if (result == null) return null;
   return result.weekId;
@@ -23,7 +27,9 @@ class _NewWeekResult {
 }
 
 class _NewWeekDialog extends ConsumerStatefulWidget {
-  const _NewWeekDialog();
+  const _NewWeekDialog({this.initialMonday});
+
+  final DateTime? initialMonday;
 
   @override
   ConsumerState<_NewWeekDialog> createState() => _NewWeekDialogState();
@@ -36,7 +42,7 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
   @override
   void initState() {
     super.initState();
-    _monday = WeekRepository.mondayOf(DateTime.now());
+    _monday = WeekRepository.mondayOf(widget.initialMonday ?? DateTime.now());
   }
 
   Future<void> _pickWeek() async {
@@ -67,9 +73,8 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create week: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not create week: $e')));
         Navigator.of(context).pop();
       }
     }
@@ -79,10 +84,11 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
   Widget build(BuildContext context) {
     final days = List.generate(5, (i) => _monday.add(Duration(days: i)));
     final fmt = DateFormat('EEEE – dd/MM/yyyy');
-    final activeStaff =
-        ref.watch(staffListProvider).where((s) => s.active).length;
-    final existing =
-        ref.watch(weekExistsProvider(_monday));
+    final activeStaff = ref
+        .watch(staffListProvider)
+        .where((s) => s.active)
+        .length;
+    final existing = ref.watch(weekExistsProvider(_monday));
 
     return AlertDialog(
       title: Text(existing ? 'Open existing week' : 'New week'),
@@ -108,46 +114,48 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...days.map((d) => Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: Dt.s4),
-                          child: Row(
-                            children: [
-                              Icon(Icons.event_outlined,
-                                  size: 14,
-                                  color: Dt.textFaint(Theme.of(context))),
-                              const SizedBox(width: Dt.s8),
-                              Text(
-                                fmt.format(d),
-                                style: Dt.mono(context, size: 12.5),
-                              ),
-                            ],
-                          ),
-                        )),
+                    ...days.map(
+                      (d) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: Dt.s4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.event_outlined,
+                              size: 14,
+                              color: Dt.textFaint(Theme.of(context)),
+                            ),
+                            const SizedBox(width: Dt.s8),
+                            Text(
+                              fmt.format(d),
+                              style: Dt.mono(context, size: 12.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: Dt.s12),
                     Text(
                       '$activeStaff active staff members will be added to every day.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                              color: Dt.textMuted(Theme.of(context))),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: Dt.textMuted(Theme.of(context))),
                     ),
                     if (existing)
                       Padding(
                         padding: const EdgeInsets.only(top: Dt.s8),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Theme.of(context).colorScheme.error,
-                                size: 16),
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 16,
+                            ),
                             const SizedBox(width: Dt.s8),
                             Expanded(
                               child: Text(
                                 'A week starting ${DateFormat('dd/MM/yyyy').format(_monday)} already exists. It will be opened instead of duplicated.',
                                 style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.error),
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
                               ),
                             ),
                           ],

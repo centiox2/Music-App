@@ -43,20 +43,20 @@ class Staff {
   }
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'name': name,
-        'active': active ? 1 : 0,
-        'display_order': displayOrder,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'active': active ? 1 : 0,
+    'display_order': displayOrder,
+    'created_at': createdAt.toIso8601String(),
+  };
 
   factory Staff.fromRow(Map<String, Object?> row) => Staff(
-        id: row['id']! as int,
-        name: row['name']! as String,
-        active: (row['active']! as int) != 0,
-        displayOrder: row['display_order']! as int,
-        createdAt: DateTime.parse(row['created_at']! as String),
-      );
+    id: row['id']! as int,
+    name: row['name']! as String,
+    active: (row['active']! as int) != 0,
+    displayOrder: row['display_order']! as int,
+    createdAt: DateTime.parse(row['created_at']! as String),
+  );
 
   @override
   String toString() => 'Staff($id, $name, active: $active)';
@@ -68,9 +68,21 @@ class Week {
     required this.id,
     required this.startDate,
     required this.endDate,
-    required this.createdAt,
-    required this.updatedAt,
+    required DateTime this._createdAt,
+    required DateTime this._updatedAt,
     this.showZeros = true,
+  });
+
+  /// From a database row: the audit timestamps stay as their stored strings
+  /// until read (they almost never are), so loading weeks doesn't pay for
+  /// parsing them.
+  const Week._raw({
+    required this.id,
+    required this.startDate,
+    required this.endDate,
+    required String this._createdAt,
+    required String this._updatedAt,
+    required this.showZeros,
   });
 
   final int id;
@@ -80,8 +92,12 @@ class Week {
 
   /// Always the Friday of the same week.
   final DateTime endDate;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+
+  /// A [DateTime], or the stored ISO string until first read.
+  final Object _createdAt;
+  final Object _updatedAt;
+  DateTime get createdAt => _asDateTime(_createdAt);
+  DateTime get updatedAt => _asDateTime(_updatedAt);
 
   /// When true, everyday day cells in the Week board, mobile view, dashboard
   /// strips, history rows and the Excel export show `0` instead of a blank
@@ -92,41 +108,41 @@ class Week {
   /// still counts as "inside" its own day — including the end date itself).
   bool containsDate(DateTime d) {
     final date = DateTime(d.year, d.month, d.day);
-    final start =
-        DateTime(startDate.year, startDate.month, startDate.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
     final end = DateTime(endDate.year, endDate.month, endDate.day);
     return !date.isBefore(start) && !date.isAfter(end);
   }
 
   Week copyWith({DateTime? updatedAt, bool? showZeros}) => Week(
-        id: id,
-        startDate: startDate,
-        endDate: endDate,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        showZeros: showZeros ?? this.showZeros,
-      );
+    id: id,
+    startDate: startDate,
+    endDate: endDate,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    showZeros: showZeros ?? this.showZeros,
+  );
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'start_date': _dateKey(startDate),
-        'end_date': _dateKey(endDate),
-        'created_at': createdAt.toIso8601String(),
-        'updated_at': updatedAt.toIso8601String(),
-        'show_zeros': showZeros ? 1 : 0,
-      };
+    'id': id,
+    'start_date': _dateKey(startDate),
+    'end_date': _dateKey(endDate),
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt.toIso8601String(),
+    'show_zeros': showZeros ? 1 : 0,
+  };
 
-  factory Week.fromRow(Map<String, Object?> row) => Week(
-        id: row['id']! as int,
-        startDate: _parseDateKey(row['start_date']! as String),
-        endDate: _parseDateKey(row['end_date']! as String),
-        createdAt: DateTime.parse(row['created_at']! as String),
-        updatedAt: DateTime.parse(row['updated_at']! as String),
-        showZeros: (row['show_zeros'] as int? ?? 1) != 0,
-      );
+  factory Week.fromRow(Map<String, Object?> row) => Week._raw(
+    id: row['id']! as int,
+    startDate: _parseDateKey(row['start_date']! as String),
+    endDate: _parseDateKey(row['end_date']! as String),
+    createdAt: row['created_at']! as String,
+    updatedAt: row['updated_at']! as String,
+    showZeros: (row['show_zeros'] as int? ?? 1) != 0,
+  );
 
   @override
-  String toString() => 'Week($id, ${_dateKey(startDate)}..${_dateKey(endDate)})';
+  String toString() =>
+      'Week($id, ${_dateKey(startDate)}..${_dateKey(endDate)})';
 }
 
 /// One working day inside a week.
@@ -148,18 +164,18 @@ class WorkDay {
   final int weekday;
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'week_id': weekId,
-        'date': _dateKey(date),
-        'weekday': weekday,
-      };
+    'id': id,
+    'week_id': weekId,
+    'date': _dateKey(date),
+    'weekday': weekday,
+  };
 
   factory WorkDay.fromRow(Map<String, Object?> row) => WorkDay(
-        id: row['id']! as int,
-        weekId: row['week_id']! as int,
-        date: _parseDateKey(row['date']! as String),
-        weekday: row['weekday']! as int,
-      );
+    id: row['id']! as int,
+    weekId: row['week_id']! as int,
+    date: _parseDateKey(row['date']! as String),
+    weekday: row['weekday']! as int,
+  );
 }
 
 /// The cumulative New/Existing counts for one staff member on one day.
@@ -172,7 +188,17 @@ class ClientCount {
     required this.staffId,
     required this.newClients,
     required this.existingClients,
-    required this.updatedAt,
+    required DateTime this._updatedAt,
+  });
+
+  /// From a database row; see [Week._raw] — the timestamp is parsed lazily.
+  const ClientCount._raw({
+    required this.id,
+    required this.dayId,
+    required this.staffId,
+    required this.newClients,
+    required this.existingClients,
+    required String this._updatedAt,
   });
 
   final int id;
@@ -180,7 +206,10 @@ class ClientCount {
   final int staffId;
   final int newClients;
   final int existingClients;
-  final DateTime updatedAt;
+
+  /// A [DateTime], or the stored ISO string until first read.
+  final Object _updatedAt;
+  DateTime get updatedAt => _asDateTime(_updatedAt);
 
   int get total => newClients + existingClients;
 
@@ -203,32 +232,41 @@ class ClientCount {
   }
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'day_id': dayId,
-        'staff_id': staffId,
-        'new_clients': newClients,
-        'existing_clients': existingClients,
-        'updated_at': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'day_id': dayId,
+    'staff_id': staffId,
+    'new_clients': newClients,
+    'existing_clients': existingClients,
+    'updated_at': updatedAt.toIso8601String(),
+  };
 
-  factory ClientCount.fromRow(Map<String, Object?> row) => ClientCount(
-        id: row['id']! as int,
-        dayId: row['day_id']! as int,
-        staffId: row['staff_id']! as int,
-        newClients: row['new_clients']! as int,
-        existingClients: row['existing_clients']! as int,
-        updatedAt: DateTime.parse(row['updated_at']! as String),
-      );
+  factory ClientCount.fromRow(Map<String, Object?> row) => ClientCount._raw(
+    id: row['id']! as int,
+    dayId: row['day_id']! as int,
+    staffId: row['staff_id']! as int,
+    newClients: row['new_clients']! as int,
+    existingClients: row['existing_clients']! as int,
+    updatedAt: row['updated_at']! as String,
+  );
 }
 
 String _dateKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-DateTime _parseDateKey(String s) {
+/// `yyyy-MM-dd` → local midnight. Cached: the same few hundred dates are
+/// read over and over (every week load), and building a local [DateTime] is
+/// comparatively expensive because it consults the time zone. [DateTime] is
+/// immutable, so sharing instances is safe.
+DateTime _parseDateKey(String s) => _dateKeyCache.putIfAbsent(s, () {
   final parts = s.split('-');
   return DateTime(
     int.parse(parts[0]),
     int.parse(parts[1]),
     int.parse(parts[2]),
   );
-}
+});
+
+final _dateKeyCache = <String, DateTime>{};
+
+DateTime _asDateTime(Object v) =>
+    v is DateTime ? v : DateTime.parse(v as String);

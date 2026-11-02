@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/app_theme.dart';
 
-/// Quiet empty state: faint icon in a hairline-bordered tile, serif title,
+/// Quiet empty state: faint icon in a hairline-bordered tile, short title,
 /// single primary action.
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -44,15 +44,18 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: Dt.s16),
             Text(
               title,
-              style: Dt.display(context, size: 30),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             if (message != null) ...[
               const SizedBox(height: Dt.s8),
               Text(
                 message!,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: Dt.textMuted(theme)),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Dt.textMuted(theme),
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

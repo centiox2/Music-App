@@ -120,6 +120,51 @@ class WeekRepository {
     });
   }
 
+  /// Adds [staffId] to every week that hasn't finished yet (this week and
+  /// any already-created later weeks) — for staff added or reactivated
+  /// mid-week, who would otherwise only appear from the next new week.
+  /// On a day where everyone else is marked off (a holiday) they're marked
+  /// off too, so the day stays a holiday.
+  void addStaffToOpenWeeks(int staffId) {
+    final weeks = _db.raw.select('SELECT id FROM weeks WHERE end_date >= ?;', [
+      _dateKey(DateTime.now()),
+    ]);
+    for (final w in weeks) {
+      final weekId = w['id']! as int;
+      addStaffToWeek(weekId, [staffId]);
+      _db.raw.execute(
+        '''
+        INSERT OR IGNORE INTO staff_day_off (day_id, staff_id)
+        SELECT wd.id, ? FROM work_days wd
+        WHERE wd.week_id = ?
+          AND EXISTS (SELECT 1 FROM client_counts cc
+                      WHERE cc.day_id = wd.id AND cc.staff_id != ?)
+          AND NOT EXISTS (
+            SELECT 1 FROM client_counts cc
+            WHERE cc.day_id = wd.id AND cc.staff_id != ?
+              AND NOT EXISTS (SELECT 1 FROM staff_day_off sdo
+                              WHERE sdo.day_id = cc.day_id
+                                AND sdo.staff_id = cc.staff_id));
+      ''',
+        [staffId, weekId, staffId, staffId],
+      );
+    }
+  }
+
+  /// The nearest existing week before (or after, with [forward]) the week
+  /// starting [monday], or null if there isn't one.
+  Week? adjacentWeek(DateTime monday, {required bool forward}) {
+    final rows = _db.raw.select(
+      forward
+          ? 'SELECT * FROM weeks WHERE start_date > ? '
+                'ORDER BY start_date ASC LIMIT 1;'
+          : 'SELECT * FROM weeks WHERE start_date < ? '
+                'ORDER BY start_date DESC LIMIT 1;',
+      [_dateKey(monday)],
+    );
+    return rows.isEmpty ? null : Week.fromRow(rows.first);
+  }
+
   /// Returns true when everyday day cells show `0` instead of a blank
   /// placeholder. Defaults to the stored value; weeks created before this
   /// feature (or with no row) return true (hidden zeros — the current app
@@ -153,12 +198,6 @@ class WeekRepository {
       [weekId],
     );
     return rows.map(WorkDay.fromRow).toList();
-  }
-
-  WorkDay getDay(int dayId) {
-    return WorkDay.fromRow(
-      _db.raw.select('SELECT * FROM work_days WHERE id = ?;', [dayId]).first,
-    );
   }
 }
 

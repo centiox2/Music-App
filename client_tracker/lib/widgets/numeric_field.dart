@@ -30,6 +30,8 @@ class NumericField extends StatefulWidget {
     this.placeholder = '',
     this.showZero = false,
     this.onClear,
+    this.plusOne = PlusOne.hidden,
+    this.confirmEdit,
   });
 
   final int value;
@@ -60,8 +62,29 @@ class NumericField extends StatefulWidget {
   /// committed value (via the undo buffer) rather than leaving a blank.
   final VoidCallback? onClear;
 
+  /// A small "+" inside the field that adds one (counting clients as they
+  /// arrive instead of retyping the day's running total).
+  final PlusOne plusOne;
+
+  /// Set for a guarded cell (a day in the future): the field is dimmed and
+  /// read-only, and clicking it or typing a digit calls this first. When it
+  /// returns true the caller unlocks the cell (rebuilding without it) and a
+  /// digit that was typed is kept.
+  final Future<bool> Function()? confirmEdit;
+
   @override
   State<NumericField> createState() => _NumericFieldState();
+}
+
+/// When [NumericField] shows its "+1" button.
+enum PlusOne {
+  hidden,
+
+  /// While the pointer is over the field or it's being edited (desktop).
+  onHover,
+
+  /// Always (touch screens, where there is no hover).
+  always,
 }
 
 class _NumericFieldState extends State<NumericField> {
@@ -69,6 +92,40 @@ class _NumericFieldState extends State<NumericField> {
   late final FocusNode _focus;
   bool _suppress = false;
   bool _focused = false;
+  bool _hovering = false;
+  bool _confirming = false;
+
+  bool get _guarded => widget.confirmEdit != null;
+
+  /// Asks to unlock a guarded cell; [typed] is a digit to enter afterwards.
+  Future<void> _requestEdit({String? typed}) async {
+    if (_confirming) return;
+    _confirming = true;
+    try {
+      final ok = await widget.confirmEdit!();
+      if (!ok || !mounted) return;
+      _focus.requestFocus();
+      if (typed != null) {
+        _suppress = true;
+        _controller.text = typed;
+        _controller.selection = TextSelection.collapsed(offset: typed.length);
+        _suppress = false;
+        widget.onChanged(int.parse(typed));
+      }
+    } finally {
+      _confirming = false;
+    }
+  }
+
+  /// "+1": shows the new value straight away (a focused field doesn't take
+  /// outside updates) and saves it through the normal change path.
+  void _increment() {
+    final next = widget.value + 1;
+    _suppress = true;
+    _controller.text = _display(next);
+    _suppress = false;
+    widget.onChanged(next);
+  }
 
   @override
   void initState() {
@@ -148,7 +205,24 @@ class _NumericFieldState extends State<NumericField> {
     final accent = widget.accent ?? scheme.primary;
     final dark = theme.brightness == Brightness.dark;
 
-    return Focus(
+    // Quiet "well" styling: a soft fill and no outline at rest, so a grid of
+    // dozens of fields reads as data rather than as a wall of boxes. The
+    // accent outline appears only on the field being edited, and zeros are
+    // drawn faint so the numbers that matter carry the colour.
+    final rest = scheme.onSurface.withValues(alpha: dark ? 0.045 : 0.04);
+    final valueColor = widget.value == 0
+        ? Dt.textFaint(theme)
+        : (widget.valueColor ?? scheme.onSurface);
+    TextStyle digits(Color color, FontWeight weight) => Dt.tab(
+      TextStyle(
+        fontFamily: 'Instrument Sans',
+        fontSize: widget.fontSize,
+        fontWeight: weight,
+        color: color,
+      ),
+    );
+
+    final field = Focus(
       // Keep this key-handler node separate from the TextField's node. The
       // EditableText inside TextField also installs a Focus widget for
       // `focusNode`; reusing `_focus` here attaches the same node twice in a
@@ -163,74 +237,109 @@ class _NumericFieldState extends State<NumericField> {
         // error stripe over every tracker field.
         width: widget.width.isFinite ? widget.width : null,
         height: widget.height,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Dt.rSm),
-            boxShadow: _focused
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: dark ? 0.25 : 0.18),
-                      blurRadius: 8,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hovering = true),
+          onExit: (_) => setState(() => _hovering = false),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  autofocus: widget.autofocus,
+                  readOnly: _guarded,
+                  onTap: _guarded ? _requestEdit : null,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  textAlignVertical: TextAlignVertical.center,
+                  cursorWidth: 1,
+                  style: digits(valueColor, FontWeight.w600),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: true,
+                    fillColor: _focused ? scheme.surfaceContainerLowest : rest,
+                    hoverColor: scheme.onSurface.withValues(alpha: 0.05),
+                    hintStyle: digits(Dt.textFaint(theme), FontWeight.w400),
+                    hintText: widget.placeholder,
+                    contentPadding: EdgeInsets.zero,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(Dt.rSm),
+                      borderSide: BorderSide.none,
                     ),
-                  ]
-                : null,
-          ),
-          child: TextField(
-            controller: _controller,
-            focusNode: _focus,
-            autofocus: widget.autofocus,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            textAlignVertical: TextAlignVertical.center,
-            cursorWidth: 1,
-            style: Dt.mono(
-              context,
-              size: widget.fontSize,
-              weight: FontWeight.w600,
-              color: widget.valueColor ?? scheme.onSurface,
-            ),
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: _focused
-                  ? scheme.surfaceContainerLowest
-                  : scheme.surfaceContainerLowest.withValues(
-                      alpha: dark ? 1 : 0.75,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(Dt.rSm),
+                      borderSide: BorderSide(color: accent, width: 1.5),
                     ),
-              hintStyle: Dt.mono(
-                context,
-                size: widget.fontSize,
-                weight: FontWeight.w400,
-                color: Dt.textFaint(theme),
-              ),
-              hintText: widget.placeholder,
-              contentPadding: EdgeInsets.zero,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Dt.rSm),
-                borderSide: BorderSide(
-                  color: scheme.outlineVariant.withValues(
-                    alpha: dark ? 1 : 0.9,
                   ),
+                  onChanged: _handleChange,
+                  onSubmitted: (_) => _handleSubmitted(),
                 ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Dt.rSm),
-                borderSide: BorderSide(color: accent, width: 1.4),
-              ),
-            ),
-            onChanged: _handleChange,
-            onSubmitted: (_) => _handleSubmitted(),
+              if (!_guarded &&
+                  (widget.plusOne == PlusOne.always ||
+                      (widget.plusOne == PlusOne.onHover &&
+                          (_hovering || _focused))))
+                Positioned(
+                  right: 2,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    // Not focusable: clicking "+" mustn't pull focus out of
+                    // the field (or the Tab order) being typed in.
+                    child: ExcludeFocus(
+                      child: Tooltip(
+                        message: 'Add one',
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: InkWell(
+                          onTap: _increment,
+                          borderRadius: BorderRadius.circular(Dt.rSm),
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(Dt.rSm),
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              size: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
+    return _guarded ? Opacity(opacity: 0.45, child: field) : field;
   }
+
+  static final _digits = {
+    for (var i = 0; i <= 9; i++) ...{
+      LogicalKeyboardKey(LogicalKeyboardKey.digit0.keyId + i): '$i',
+      LogicalKeyboardKey(LogicalKeyboardKey.numpad0.keyId + i): '$i',
+    },
+  };
 
   /// A Backspace on an already-empty field is treated as a clear gesture:
   /// the caller's [onClear] should restore the previously committed value
   /// (via the undo buffer) rather than leaving the field blank.
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (_guarded && event is KeyDownEvent) {
+      final digit = _digits[event.logicalKey];
+      if (digit != null) {
+        _requestEdit(typed: digit);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
         _controller.text.isEmpty) {

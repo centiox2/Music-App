@@ -1,10 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../database/database.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/client_count_repository.dart';
+import '../repositories/notes_settings_repository.dart';
+import '../repositories/report_repository.dart';
 import '../repositories/staff_repository.dart';
 import '../repositories/time_off_repository.dart';
 import '../repositories/week_repository.dart';
@@ -17,35 +17,50 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   throw UnimplementedError('Override in main() with the real database.');
 });
 
-final staffRepositoryProvider =
-    Provider<StaffRepository>((ref) => StaffRepository(ref.watch(databaseProvider)));
+final staffRepositoryProvider = Provider<StaffRepository>(
+  (ref) => StaffRepository(ref.watch(databaseProvider)),
+);
 
-final weekRepositoryProvider =
-    Provider<WeekRepository>((ref) => WeekRepository(ref.watch(databaseProvider)));
+final weekRepositoryProvider = Provider<WeekRepository>(
+  (ref) => WeekRepository(ref.watch(databaseProvider)),
+);
 
 final clientCountRepositoryProvider = Provider<ClientCountRepository>(
-    (ref) => ClientCountRepository(ref.watch(databaseProvider)));
+  (ref) => ClientCountRepository(ref.watch(databaseProvider)),
+);
 
 final timeOffRepositoryProvider = Provider<TimeOffRepository>(
-    (ref) => TimeOffRepository(ref.watch(databaseProvider)));
+  (ref) => TimeOffRepository(ref.watch(databaseProvider)),
+);
+
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => AuthRepository(ref.watch(databaseProvider)),
+);
+
+final dayNotesRepositoryProvider = Provider<DayNotesRepository>(
+  (ref) => DayNotesRepository(ref.watch(databaseProvider)),
+);
+
+final appSettingsRepositoryProvider = Provider<AppSettingsRepository>(
+  (ref) => AppSettingsRepository(ref.watch(databaseProvider)),
+);
+
+final reportRepositoryProvider = Provider<ReportRepository>(
+  (ref) => ReportRepository(ref.watch(databaseProvider)),
+);
 
 final statisticsServiceProvider = Provider<StatisticsService>(
-    (ref) => StatisticsService(ref.watch(clientCountRepositoryProvider)));
+  (ref) => StatisticsService(ref.watch(clientCountRepositoryProvider)),
+);
 
 final exportServiceProvider = Provider<ExportService>((ref) {
   final counts = ref.watch(clientCountRepositoryProvider);
-  final weekRepo = ref.watch(weekRepositoryProvider);
-  return ExportService((week) {
-    final days = weekRepo
-        .getDays(week.id)
-        .map((d) => counts.getDayWithCounts(d.id))
-        .toList();
-    return WeekWithDays(week: week, days: days);
-  });
+  return ExportService(counts.getWeekWithDays);
 });
 
 final backupServiceProvider = Provider<BackupService>(
-    (ref) => BackupService(ref.watch(databaseProvider)));
+  (ref) => BackupService(ref.watch(databaseProvider)),
+);
 
 // ---- Count-edit undo ----------------------------------------------------
 ///
@@ -53,8 +68,9 @@ final backupServiceProvider = Provider<BackupService>(
 /// *previous* value of one count cell before it is overwritten, so [pop] can
 /// restore the most recent edit (global Ctrl+Z) or a specific cell (Clear on
 /// that field). Kept short to bound memory.
-final undoProvider =
-    NotifierProvider<UndoBufferNotifier, UndoBuffer>(UndoBufferNotifier.new);
+final undoProvider = NotifierProvider<UndoBufferNotifier, UndoBuffer>(
+  UndoBufferNotifier.new,
+);
 
 class UndoBufferNotifier extends Notifier<UndoBuffer> {
   @override
@@ -123,13 +139,3 @@ class _Entry {
   final String key;
   final int value;
 }
-
-/// Convenience provider for the platform documents directory (backup/export
-/// default locations). Falls back to the system temp dir on failure.
-final appDocumentsDirProvider = FutureProvider<Directory>((ref) async {
-  try {
-    return await getApplicationDocumentsDirectory();
-  } catch (_) {
-    return Directory.systemTemp;
-  }
-});

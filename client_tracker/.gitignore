@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Supabase details for builds (see lib/config/cloud_config.dart)
+cloud.json

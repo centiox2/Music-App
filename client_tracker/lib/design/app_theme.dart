@@ -9,12 +9,13 @@ import 'package:flutter/material.dart';
 ///
 ///  1. **Quiet surfaces.** Structure comes from 1px outline rules and spacing,
 ///     not shadows. Cards and panels stay close to the page surface.
-///  2. **Serif display, sans UI.** Editorial headings and large figures use
-///     Instrument Serif; Instrument Sans carries interface text. Uppercase
-///     micro-labels use [microLabel].
+///  2. **One typeface.** Instrument Sans carries everything; numbers use
+///     tabular figures ([Dt.tab]) so columns line up. Uppercase micro-labels
+///     use [microLabel].
 ///  3. **A restrained color system.** Peach marks new-client data, periwinkle
 ///     marks existing-client data, and green is reserved for positive status.
-///     Other content stays neutral; blue is reserved for primary actions.
+///     Other content stays neutral; the company's navy (light theme) or
+///     gold (dark theme) is reserved for primary actions and selection.
 ///  4. **Compact controls.** Fields and standard action buttons use a 6px
 ///     radius, panels use the shared 8px radius, and pill shapes are reserved
 ///     for chips and toggles.
@@ -36,13 +37,31 @@ abstract final class Dt {
   static const double s24 = 24;
   static const double s32 = 32;
   static const double s44 = 44; // editorial gutter between columns
-  static const double s28 = 28; // editorial vertical rhythm
 
   /// Max width for centered reading content (dashboard, settings).
   static const double contentMaxWidth = 1240;
 
-  /// Orange brand mark used in the app shell.
-  static const Color brandOrange = Color(0xFFF48120);
+  /// The company behind the app, shown beside the logo.
+  static const String companyName = 'Studies and Awards Limited';
+
+  /// The "sa" logo on its own light square — readable on light and dark
+  /// backgrounds alike (the navy letters alone vanish on the dark theme).
+  static const String logoAsset = 'assets/branding/logo-square.png';
+
+  // ---- Brand ---------------------------------------------------------------
+
+  /// Studies and Awards Limited navy and gold, from the logo.
+  static const Color brandNavy = Color(0xFF001A45);
+  static const Color brandGold = Color(0xFFFBBA00);
+
+  /// The brand colour for primary actions and selection: navy on the light
+  /// theme, gold on the dark one (navy would vanish against near-black).
+  static Color brand(Brightness b) =>
+      b == Brightness.light ? brandNavy : brandGold;
+
+  /// Text and icons drawn on [brand].
+  static Color onBrand(Brightness b) =>
+      b == Brightness.light ? Colors.white : brandNavy;
 
   // ---- Semantic data colors ---------------------------------------------
 
@@ -103,49 +122,6 @@ abstract final class Dt {
   /// Tabular figures on any base style — columnar alignment without mono.
   static TextStyle tab(TextStyle base) =>
       base.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
-
-  /// Serif display text (Instrument Serif). [italic] flips to the italic
-  /// cut — used for the accented word in headlines ("The *week* of…").
-  static TextStyle display(
-    BuildContext context, {
-    double? size,
-    bool italic = false,
-    Color? color,
-    double? height,
-    double? letterSpacing,
-  }) {
-    // Default to onSurface (like Dt.numeral): raw RichTexts don't inherit the
-    // DefaultTextStyle, so a null color paints near-black in dark mode.
-    return TextStyle(
-      fontFamily: 'Instrument Serif',
-      fontFamilyFallback: const ['Georgia', 'Times New Roman', 'serif'],
-      fontSize: size,
-      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-      fontWeight: FontWeight.w400,
-      color: color ?? Theme.of(context).colorScheme.onSurface,
-      height: height,
-      letterSpacing: letterSpacing,
-    );
-  }
-
-  /// Big serif numeral with tabular figures (stat values, row totals).
-  static TextStyle numeral(
-    BuildContext context, {
-    double? size,
-    Color? color,
-    FontWeight weight = FontWeight.w400,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return TextStyle(
-      fontFamily: 'Instrument Serif',
-      fontFamilyFallback: const ['Georgia', 'Times New Roman', 'serif'],
-      fontSize: size,
-      fontWeight: weight,
-      fontFeatures: const [FontFeature.tabularFigures()],
-      color: color ?? scheme.onSurface,
-      height: 1.0,
-    );
-  }
 
   /// Muted text (third contrast level).
   static Color textMuted(ThemeData theme) =>
@@ -244,10 +220,12 @@ ThemeData buildAppTheme(Brightness brightness) {
   final light = brightness == Brightness.light;
   final p = light ? _Palette.light() : _Palette.dark();
 
+  final brand = Dt.brand(brightness);
+  final onBrand = Dt.onBrand(brightness);
   final scheme = ColorScheme(
     brightness: brightness,
-    primary: const Color(0xFF2F7CF6),
-    onPrimary: const Color(0xFFFFFFFF),
+    primary: brand,
+    onPrimary: onBrand,
     primaryContainer: p.panelStrong,
     onPrimaryContainer: p.fg,
     secondary: p.secondary,
@@ -271,7 +249,7 @@ ThemeData buildAppTheme(Brightness brightness) {
     scrim: const Color(0xFF000000),
     inverseSurface: p.fg,
     onInverseSurface: p.bg,
-    inversePrimary: const Color(0xFF2F7CF6),
+    inversePrimary: brand,
     surfaceTint: Colors.transparent,
     surfaceContainerLowest: p.bg,
     surfaceContainerLow: p.panel,
@@ -408,15 +386,15 @@ ThemeData buildAppTheme(Brightness brightness) {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: fieldBorder(),
       enabledBorder: fieldBorder(),
-      focusedBorder: fieldBorder(color: p.fg, width: 1.2),
+      focusedBorder: fieldBorder(color: brand, width: 1.4),
       errorBorder: fieldBorder(color: p.error),
       focusedErrorBorder: fieldBorder(color: p.error, width: 1.2),
     ),
 
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF2F7CF6),
-        foregroundColor: Colors.white,
+        backgroundColor: brand,
+        foregroundColor: onBrand,
         elevation: 0,
         minimumSize: const Size(0, 34),
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -465,12 +443,13 @@ ThemeData buildAppTheme(Brightness brightness) {
         side: WidgetStatePropertyAll(BorderSide(color: p.borderStrong)),
         shape: const WidgetStatePropertyAll(StadiumBorder()),
         backgroundColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? p.fg : Colors.transparent,
+          (states) => states.contains(WidgetState.selected)
+              ? brand
+              : Colors.transparent,
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) =>
-              states.contains(WidgetState.selected) ? p.bg : p.secondary,
+              states.contains(WidgetState.selected) ? onBrand : p.secondary,
         ),
         textStyle: const WidgetStatePropertyAll(
           TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
@@ -496,10 +475,12 @@ ThemeData buildAppTheme(Brightness brightness) {
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           size: 22,
-          color: states.contains(WidgetState.selected) ? p.fg : p.secondary,
+          color: states.contains(WidgetState.selected) ? brand : p.secondary,
         ),
       ),
     ),
+
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: brand),
 
     appBarTheme: AppBarTheme(
       backgroundColor: p.bg,

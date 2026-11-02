@@ -4,6 +4,7 @@ import 'package:client_tracker/database/app_database_io.dart';
 import 'package:client_tracker/database/database.dart';
 import 'package:client_tracker/repositories/client_count_repository.dart';
 import 'package:client_tracker/repositories/staff_repository.dart';
+import 'package:client_tracker/repositories/time_off_repository.dart';
 import 'package:client_tracker/repositories/week_repository.dart';
 import 'package:client_tracker/services/export_service.dart';
 import 'package:client_tracker/services/statistics_service.dart';
@@ -264,6 +265,48 @@ void main() {
         isEmpty,
       );
     });
+  });
+
+  test('batched week load matches loading each day on its own', () {
+    final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
+    final days = weekRepo.getDays(week.id);
+    final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
+    final ian = staffRepo.getAll().firstWhere((s) => s.name == 'Ian');
+    countRepo.saveCount(
+      dayId: days[0].id,
+      staffId: joy.id,
+      newClients: 3,
+      existingClients: 2,
+    );
+    countRepo.saveCount(
+      dayId: days[3].id,
+      staffId: ian.id,
+      newClients: 0,
+      existingClients: 5,
+    );
+    TimeOffRepository(db).setDay(dayId: days[2].id, staffId: joy.id, off: true);
+
+    final batched = countRepo.weekDaysWithCounts(week.id);
+    final single = [for (final d in days) countRepo.getDayWithCounts(d.id)];
+    expect(batched.length, single.length);
+    for (var i = 0; i < single.length; i++) {
+      expect(batched[i].day.date, single[i].day.date);
+      expect(batched[i].offStaffIds, single[i].offStaffIds);
+      expect(
+        batched[i].rows.map(
+          (r) => (r.staffName, r.newClients, r.existingClients),
+        ),
+        single[i].rows.map(
+          (r) => (r.staffName, r.newClients, r.existingClients),
+        ),
+      );
+    }
+    // Timestamps still read correctly although they're parsed lazily.
+    expect(
+      batched[0].countFor(joy.id).updatedAt.isAfter(DateTime(2020)),
+      isTrue,
+    );
+    expect(week.createdAt.isAfter(DateTime(2020)), isTrue);
   });
 
   group('export', () {

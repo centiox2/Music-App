@@ -34,7 +34,7 @@ class AppDatabase {
   final String file;
   final common.CommonDatabase _db;
 
-  static const int schemaVersion = 3;
+  static const int schemaVersion = 7;
   static const int rollingBackupCount = 5;
 
   /// Runs [action] inside a transaction; rolls back on any error.
@@ -130,6 +130,59 @@ class AppDatabase {
         );
       }
 
+      // v4: the admin login (guards the workspace; Reports need no login).
+      // Only a salted PBKDF2 hash is stored. Deliberately excluded from JSON
+      // backups so a backup file never carries credentials. The 'boss' role
+      // is unused (an earlier design) but kept in the CHECK so existing
+      // databases stay valid.
+      db.execute('''
+        CREATE TABLE IF NOT EXISTS app_accounts (
+          role          TEXT PRIMARY KEY CHECK (role IN ('admin', 'boss')),
+          password_hash TEXT NOT NULL,
+          salt          TEXT NOT NULL,
+          updated_at    TEXT NOT NULL
+        );
+      ''');
+
+      // v5: a short note per working day ("System down 2–4pm"), shown in
+      // the tracker and Reports; and simple app-wide settings (e.g. the
+      // daily client target). Both travel with backups.
+      db.execute('''
+        CREATE TABLE IF NOT EXISTS day_notes (
+          day_id     INTEGER PRIMARY KEY REFERENCES work_days(id) ON DELETE CASCADE,
+          note       TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      ''');
+      db.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key   TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      ''');
+
+      // v6: change history — every edit to a client number, with the value
+      // before and after. Quick re-edits of one cell are merged (see
+      // ClientCountRepository.saveCount), so typing "12" is one change.
+      db.execute('''
+        CREATE TABLE IF NOT EXISTS count_changes (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          day_id       INTEGER NOT NULL REFERENCES work_days(id) ON DELETE CASCADE,
+          staff_id     INTEGER NOT NULL,
+          old_new      INTEGER NOT NULL,
+          old_existing INTEGER NOT NULL,
+          new_new      INTEGER NOT NULL,
+          new_existing INTEGER NOT NULL,
+          changed_at   TEXT NOT NULL
+        );
+      ''');
+      db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_count_changes_at
+          ON count_changes(changed_at);
+      ''');
+
+      _createSyncTables(db);
+
       db.execute('''
         CREATE INDEX IF NOT EXISTS idx_work_days_week
           ON work_days(week_id);
@@ -148,6 +201,71 @@ class AppDatabase {
     } catch (e) {
       db.execute('ROLLBACK');
       throw DatabaseExceptionApp('Schema migration failed: $e');
+    }
+  }
+
+  // ---- Online sync (Supabase) --------------------------------------------
+
+  /// The tables that sync online, parents first, with their primary key.
+  /// (The admin password, `app_accounts`, never leaves the device.)
+  static const syncedTables = <String, String>{
+    'staff': 'id',
+    'weeks': 'id',
+    'work_days': 'id',
+    'client_counts': 'id',
+    'staff_day_off': 'id',
+    'day_notes': 'day_id',
+    'app_settings': 'key',
+    'count_changes': 'id',
+  };
+
+  /// v7: every change to a synced row is noted in `sync_outbox` by a
+  /// trigger, so nothing can be missed, whichever screen made it. Changes
+  /// arriving *from* the cloud are applied with `sync_state.applying = 1`,
+  /// which the triggers skip (no echo back).
+  static void _createSyncTables(common.CommonDatabase db) {
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_outbox (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        tbl TEXT NOT NULL,
+        pk  TEXT NOT NULL
+      );
+    ''');
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_state (
+        k TEXT PRIMARY KEY,
+        v TEXT NOT NULL
+      );
+    ''');
+    db.execute(
+      "INSERT OR IGNORE INTO sync_state (k, v) VALUES ('applying', '0');",
+    );
+    const skip = "(SELECT v FROM sync_state WHERE k = 'applying') = '0'";
+    for (final MapEntry(key: table, value: pk) in syncedTables.entries) {
+      for (final (op, row) in [
+        ('INSERT', 'NEW'),
+        ('UPDATE', 'NEW'),
+        ('DELETE', 'OLD'),
+      ]) {
+        db.execute('''
+          CREATE TRIGGER IF NOT EXISTS sync_${table}_${op.toLowerCase()}
+          AFTER $op ON $table WHEN $skip
+          BEGIN
+            INSERT INTO sync_outbox (tbl, pk) VALUES ('$table', $row.$pk);
+          END;
+        ''');
+      }
+    }
+  }
+
+  /// Runs [action] without recording its changes for upload (they came from
+  /// the cloud).
+  T applyingRemote<T>(T Function() action) {
+    _db.execute("UPDATE sync_state SET v = '1' WHERE k = 'applying';");
+    try {
+      return action();
+    } finally {
+      _db.execute("UPDATE sync_state SET v = '0' WHERE k = 'applying';");
     }
   }
 
@@ -206,6 +324,9 @@ class AppDatabase {
       'work_days': dump('SELECT * FROM work_days ORDER BY id;'),
       'client_counts': dump('SELECT * FROM client_counts ORDER BY id;'),
       'staff_day_off': dump('SELECT * FROM staff_day_off ORDER BY id;'),
+      'day_notes': dump('SELECT * FROM day_notes ORDER BY day_id;'),
+      'app_settings': dump('SELECT * FROM app_settings ORDER BY key;'),
+      'count_changes': dump('SELECT * FROM count_changes ORDER BY id;'),
     };
     return const JsonEncoder.withIndent('  ').convert({
       'format': 'client-tracker-backup',
@@ -241,6 +362,18 @@ class AppDatabase {
       'updated_at',
     },
     'staff_day_off': {'id', 'day_id', 'staff_id'},
+    'day_notes': {'day_id', 'note', 'updated_at'},
+    'app_settings': {'key', 'value'},
+    'count_changes': {
+      'id',
+      'day_id',
+      'staff_id',
+      'old_new',
+      'old_existing',
+      'new_new',
+      'new_existing',
+      'changed_at',
+    },
   };
 
   void restoreFromJson(String json) {
@@ -259,6 +392,13 @@ class AppDatabase {
     }
 
     transaction(() {
+      _db.execute('DELETE FROM count_changes;');
+      _db.execute('DELETE FROM day_notes;');
+      // Older backups (before v5) carry no settings — keep the current ones
+      // (e.g. the daily target) rather than wiping them.
+      if (tables['app_settings'] is List) {
+        _db.execute('DELETE FROM app_settings;');
+      }
       _db.execute('DELETE FROM staff_day_off;');
       _db.execute('DELETE FROM client_counts;');
       _db.execute('DELETE FROM work_days;');
@@ -270,6 +410,9 @@ class AppDatabase {
         'work_days',
         'client_counts',
         'staff_day_off',
+        'day_notes',
+        'app_settings',
+        'count_changes',
       ];
       for (final name in order) {
         final rows = tables[name];
@@ -289,6 +432,9 @@ class AppDatabase {
             [for (final c in cols) map[c]],
           );
         }
+        // Only AUTOINCREMENT tables (those with an `id`) have a sequence;
+        // day_notes and app_settings are keyed differently.
+        if (!allowed.contains('id')) continue;
         _db.execute('DELETE FROM sqlite_sequence WHERE name = ?;', [name]);
         _db.execute(
           'INSERT INTO sqlite_sequence(name, seq) '

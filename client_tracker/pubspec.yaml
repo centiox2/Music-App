@@ -22,6 +22,9 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.5.3
 
+  # Password hashing for the local admin / boss logins
+  crypto: ^3.0.6
+
   # Excel export
   excel: ^4.0.6
 
@@ -30,6 +33,7 @@ dependencies:
 
   # Browser DOM bindings (web build: downloads, file input)
   web: ^1.1.1
+  supabase: ^2.16.5
 
 dev_dependencies:
   flutter_test:
@@ -41,13 +45,9 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/branding/
 
   fonts:
-    - family: Instrument Serif
-      fonts:
-        - asset: assets/fonts/InstrumentSerif-400.ttf
-        - asset: assets/fonts/InstrumentSerif-400-Italic.ttf
-          style: italic
     - family: Instrument Sans
       fonts:
         - asset: assets/fonts/InstrumentSans-400.ttf

@@ -88,8 +88,9 @@ class _TimeOffDialogState extends ConsumerState<_TimeOffDialog> {
           children: [
             Text(
               'Week of ${DateFormat('MMMM d').format(data.week.startDate)}',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             SwitchListTile(
@@ -124,8 +125,9 @@ class _TimeOffDialogState extends ConsumerState<_TimeOffDialog> {
                 'Numbers already recorded for $newlyOff '
                 '${newlyOff == 1 ? 'day' : 'days'} are kept — they are just '
                 'excluded until the day is switched back on.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ],
