@@ -131,11 +131,24 @@ fun SongMenuSheet(song: Song, onDismiss: () -> Unit) {
         if (!isCurrent) MenuRow(Icons.Rounded.Podcasts, "Start radio") { close { g.actions.startRadio(song) } }
         // Both are looked up when the song didn't arrive with them.
         MenuRow(Icons.Rounded.Album, "Go to album") { close { g.playerOpen = false; g.openAlbumOf(song) } }
-        val artistId = song.artistId ?: song.artists.firstOrNull { it.browseId != null }?.browseId
-        MenuRow(Icons.Rounded.Person, "Go to artist") {
-            close {
-                g.playerOpen = false
-                if (artistId != null) g.openArtist(artistId, song.artist) else g.openArtistOf(song)
+        // One row per credited artist, so a collaboration reaches every name on it.
+        val credited = g.creditedArtists(song)
+        if (credited.size > 1) {
+            credited.forEach { artist ->
+                MenuRow(Icons.Rounded.Person, "Go to ${artist.name}") {
+                    close {
+                        g.playerOpen = false
+                        g.openArtistRef(artist)
+                    }
+                }
+            }
+        } else {
+            val artistId = song.artistId ?: song.artists.firstOrNull { it.browseId != null }?.browseId
+            MenuRow(Icons.Rounded.Person, "Go to artist") {
+                close {
+                    g.playerOpen = false
+                    if (artistId != null) g.openArtist(artistId, song.artist) else g.openArtistOf(song)
+                }
             }
         }
         when {

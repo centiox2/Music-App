@@ -1015,6 +1015,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Removes a saved playlist from the library straight from the Library tab, where its page
+     * (and so [toggleLibrary]'s token) isn't loaded. Reloads the library once YouTube agrees.
+     */
+    fun removeFromLibrary(browseId: String, onDone: (Boolean) -> Unit) {
+        if (!requireSignIn()) return
+        viewModelScope.launch {
+            val ok = YtMusicRepository.setSaved(browseId.removePrefix("VL"), false).isSuccess
+            if (ok) refresh(Feed.LIBRARY)
+            onDone(ok)
+        }
+    }
+
+    /** Unfollows an artist from the Library tab; see [removeFromLibrary]. */
+    fun unfollowArtist(channelId: String, onDone: (Boolean) -> Unit) {
+        if (!requireSignIn()) return
+        viewModelScope.launch {
+            val ok = YtMusicRepository.setSubscribed(channelId, false).isSuccess
+            if (ok) refresh(Feed.LIBRARY)
+            onDone(ok)
+        }
+    }
+
     /** As [setSavedOnPage], for the artist header's subscribe button. */
     private fun setSubscribedOnPage(browseId: String, subscribed: Boolean) {
         _detailStack.value = _detailStack.value.map { page ->

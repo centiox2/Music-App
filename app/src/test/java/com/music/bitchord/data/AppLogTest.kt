@@ -51,4 +51,21 @@ class AppLogTest {
         val last = AppLog.entries(context).first { it.title == "Last session" }
         assertEquals("first\nsecond\nthird\n", AppLog.read(context, last))
     }
+
+    @Test
+    fun threeSessionsAreKept() {
+        val logs = File(context.filesDir, "logs").apply { mkdirs() }
+        File(logs, "session.log").writeText("run one\n")
+        AppLog.install(context) // run two starts: run one becomes the last session
+        File(logs, "session.log").writeText("run two\n")
+        AppLog.install(context) // run three: run two is the last session, run one the one before
+        val titles = AppLog.entries(context).map { it.title }
+        assertTrue(titles.containsAll(listOf("This session", "Last session", "Session before last")))
+        assertEquals("run two\n", AppLog.read(context, AppLog.entries(context).first { it.title == "Last session" }))
+        assertEquals("run one\n", AppLog.read(context, AppLog.entries(context).first { it.title == "Session before last" }))
+        // A fourth run drops the oldest.
+        File(logs, "session.log").writeText("run three\n")
+        AppLog.install(context)
+        assertEquals("run two\n", AppLog.read(context, AppLog.entries(context).first { it.title == "Session before last" }))
+    }
 }

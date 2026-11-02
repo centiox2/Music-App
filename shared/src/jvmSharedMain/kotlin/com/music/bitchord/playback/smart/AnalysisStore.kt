@@ -97,7 +97,12 @@ class AnalysisStore(
                 // A half-written or outdated file is worth exactly nothing and
                 // costs a re-analysis to replace, so it goes rather than being
                 // returned as a partly-filled result.
-                AnalysisLog.warn("Discarding unreadable analysis for $trackId", it)
+                // An older format (after an update) is expected and needs no stack trace.
+                if (it is IllegalArgumentException && it.message?.startsWith("schema") == true) {
+                    AnalysisLog.warn("Re-analysing $trackId: stored analysis is from an older version (${it.message})")
+                } else {
+                    AnalysisLog.warn("Discarding unreadable analysis for $trackId", it)
+                }
                 file.delete()
                 known[trackId] = false
             }

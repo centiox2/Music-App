@@ -587,6 +587,7 @@ private fun ResultRow(result: SearchResult, compact: Boolean = false) {
                 listOfNotNull(kind, song.artist.ifBlank { null }, song.durationText).joinToString(" · "),
                 song.thumbnailUrl,
                 active = g.player.song?.videoId == song.videoId,
+                videoId = song.videoId,
                 onClick = { openResult(g, result) },
                 trailing = if (compact) null else ({ MoreButton { g.openSongMenu(song) } }),
             )

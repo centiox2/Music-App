@@ -210,6 +210,52 @@ class GlowState(
     }
 
     /** The artist page for [song], looked up when the song didn't carry it. */
+    /**
+     * Everyone credited on [song], in billing order, each with their page when YouTube said
+     * which it is. A row that carried no per-artist links is split on its credit
+     * ("A, B & C", "A feat. B"), and the lead keeps the song's own artist id.
+     */
+    fun creditedArtists(song: Song): List<com.music.bitchord.data.model.ArtistRef> {
+        if (song.artists.size > 1 || (song.artists.size == 1 && song.artists[0].browseId != null)) return song.artists
+        val names = song.artist.split(CREDIT_SPLIT).map { it.trim() }.filter { it.isNotEmpty() }
+        if (names.isEmpty()) return emptyList()
+        return names.mapIndexed { i, name ->
+            com.music.bitchord.data.model.ArtistRef(name, if (i == 0) song.artistId else null)
+        }
+    }
+
+    /**
+     * Runs [block] with every song of the playlist or album [browseId], read from YouTube, or
+     * offline from the songs downloaded for it. For the Library's ⋯ menus, which act on a
+     * collection without opening it.
+     */
+    fun withSongsOf(browseId: String, title: String, block: (List<Song>) -> Unit) {
+        scope.launch {
+            val online = com.music.bitchord.data.YtMusicRepository.allSongs(browseId).getOrNull().orEmpty()
+            val songs = online.ifEmpty {
+                val ids = com.music.bitchord.download.Downloads.collections.value.let { c ->
+                    (c[browseId] ?: c[browseId.removePrefix("VL")] ?: c["VL$browseId"])?.videoIds
+                }.orEmpty()
+                if (ids.isEmpty()) {
+                    emptyList()
+                } else {
+                    val byId = com.music.bitchord.download.Downloads.getDownloadedSongs(context).associateBy { it.videoId }
+                    ids.mapNotNull(byId::get)
+                }
+            }
+            if (songs.isEmpty()) notify("Couldn't load $title") else block(songs)
+        }
+    }
+
+    /** Opens [artist]'s page, looking it up by name when the credit didn't carry its id. */
+    fun openArtistRef(artist: com.music.bitchord.data.model.ArtistRef) {
+        artist.browseId?.let { return openArtist(it, artist.name) }
+        scope.launch {
+            val id = com.music.bitchord.data.YtMusicRepository.findArtistPageId(artist.name).getOrNull()
+            if (id != null) openArtist(id, artist.name) else notify("Couldn't find ${artist.name}'s page")
+        }
+    }
+
     fun openArtistOf(song: Song) {
         song.artistId?.let { return openArtist(it, song.artist) }
         scope.launch {
@@ -266,10 +312,25 @@ class GlowState(
 
     fun source(title: String, type: PlaybackSourceType, id: String? = null) = QueueSource(title, type, id)
 
-    fun playList(songs: List<Song>, index: Int, title: String, type: PlaybackSourceType, id: String? = null, bounded: Boolean = false) =
-        actions.playFrom(songs, index, QueueSource(title, type, id), boundedContext = bounded)
+    /**
+     * Tapping the song that is already playing pauses it (and resumes it when paused) rather
+     * than starting it again from the top. Every list's play-on-tap goes through here.
+     */
+    fun toggleIfCurrent(song: Song?): Boolean {
+        val current = player.song ?: return false
+        if (song == null || song.videoId != current.videoId) return false
+        com.music.bitchord.data.AppLog.event("Tapped the playing song: ${if (player.isPlaying) "pause" else "resume"}")
+        actions.togglePlayPause()
+        return true
+    }
 
-    fun playSingle(song: Song, from: String) =
+    fun playList(songs: List<Song>, index: Int, title: String, type: PlaybackSourceType, id: String? = null, bounded: Boolean = false) {
+        if (toggleIfCurrent(songs.getOrNull(index))) return
+        actions.playFrom(songs, index, QueueSource(title, type, id), boundedContext = bounded)
+    }
+
+    fun playSingle(song: Song, from: String) {
+        if (toggleIfCurrent(song)) return
         actions.playRadio(
             song,
             QueueSource(
@@ -281,6 +342,7 @@ class GlowState(
                 },
             ),
         )
+    }
 
     fun openSongMenu(song: Song, fromPlayer: Boolean = false, playlist: String? = null) {
         com.music.bitchord.data.AppLog.event("Song menu: ${song.title} (${song.videoId})")
@@ -359,9 +421,20 @@ class GlowState(
 }
 
 /** A route as it reads in the log: its kind, without the data it carries. */
-private fun Route.logName(): String = this::class.simpleName ?: toString()
+private fun Route.logName(): String = when (this) {
+    // Which page, not only which kind: "Open Detail MPREb_… (ALBUM)" can be traced in a log.
+    is Route.Detail -> "Detail $browseId ($type)"
+    is Route.Discography -> "Discography $browseId"
+    is Route.Mood -> "Mood $title"
+    is Route.EditPlaylist -> "EditPlaylist $browseId"
+    is Route.StatsList -> "StatsList $kind"
+    else -> this::class.simpleName ?: toString()
+}
 
 val LocalGlow = staticCompositionLocalOf<GlowState> { error("GlowState not provided") }
+
+/** How a credit joins its artists: "A, B", "A & B", "A x B", "A feat. B", "A ft B". */
+internal val CREDIT_SPLIT = Regex("""\s*,\s*|\s+&\s+|\s+x\s+|\s+(?:feat\.?|ft\.?|featuring)\s+""", RegexOption.IGNORE_CASE)
 
 /**
  * Every liked song, kept between visits to Liked songs: the page used to start

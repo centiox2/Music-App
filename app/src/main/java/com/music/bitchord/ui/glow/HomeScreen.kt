@@ -331,7 +331,14 @@ fun ShelfCard(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text(item.title, style = GlowType.body, color = c.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(item.title, style = GlowType.body, color = c.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            // A song card shows the same liked/downloaded marks as a song row.
+            if (item.videoId != null) {
+                Spacer(Modifier.width(4.dp))
+                SongMarks(item.videoId)
+            }
+        }
         if (item.subtitle.isNotBlank()) {
             Text(item.subtitle, style = GlowType.secondary, color = c.textSecondary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
@@ -392,7 +399,6 @@ private fun OfflineDownloads() {
                 song,
                 onClick = { g.playList(songs, i, "Downloads", PlaybackSourceType.QUEUE) },
                 onMore = { g.openSongMenu(song) },
-                trailing = { Box(Modifier.padding(12.dp)) { DownloadedMark(Glow.colors.textSecondary) } },
             )
         }
     }
@@ -424,27 +430,9 @@ private fun HomeSkeleton() {
 /** Whether the device has a validated internet connection right now. */
 @Composable
 fun rememberOnline(): Boolean {
-    val context = LocalContext.current
-    var online by remember { mutableStateOf(isOnline(context)) }
-    DisposableEffect(context) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { online = true }
-            override fun onLost(network: Network) { online = isOnline(context) }
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                online = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            }
-        }
-        runCatching { cm.registerDefaultNetworkCallback(callback) }
-        onDispose { runCatching { cm.unregisterNetworkCallback(callback) } }
-    }
+    // App-wide, so every screen agrees and the state survives leaving Home.
+    val online by com.music.bitchord.data.Connectivity.online.collectAsStateWithLifecycle()
     return online
-}
-
-private fun isOnline(context: Context): Boolean {
-    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 }
 
 /** Opens Listen together; a green dot shows while a session is live. */

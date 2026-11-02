@@ -61,6 +61,7 @@ fun LogsScreen() {
                     subtitle = when {
                         crash -> "The app closed unexpectedly"
                         entry.title == "Last session" -> "Up to when the app last closed"
+                        entry.title == "Session before last" -> "The run before that"
                         else -> "Since the app opened"
                     },
                     chevron = true,

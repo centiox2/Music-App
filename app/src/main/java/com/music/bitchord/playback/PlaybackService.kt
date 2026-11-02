@@ -1006,9 +1006,10 @@ class PlaybackService : MediaLibraryService() {
                     reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
                 reason = reason,
             )
-            // Prune consumed USER_QUEUE entries when playback enters CONTEXT,
-            // keeping the timeline clean and ensuring REPEAT_MODE_ALL loops only CONTEXT items.
-            QueueCoordinator.consumePlayedUserQueue(exoPlayer)
+            // Songs the listener queued stay in the queue once played (under Earlier), so they
+            // can be played again from there. BitChord deleted them here as soon as playback moved
+            // on into the album or playlist (QueueCoordinator.consumePlayedUserQueue), which read
+            // as songs vanishing from the queue. History is still capped elsewhere.
 
             // The queue moving on by itself. Nobody pressed anything, but it
             // is still this device deciding what the party plays next, and no
@@ -1771,6 +1772,8 @@ class PlaybackService : MediaLibraryService() {
         )
             .setId(SESSION_ID)
             .setSessionActivity(sessionActivity())
+            // Artwork through the app's image cache, so the notification keeps its cover offline.
+            .setBitmapLoader(CoilBitmapLoader(this))
             .build()
         refreshCustomLayouts()
 

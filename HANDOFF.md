@@ -567,6 +567,34 @@ either form (that mismatch crashed the app at launch until `6dc1972`).
 - **Not compiled:** this round was committed without a build (no Android SDK in the session,
   and the owner asked for no build). Build and run the tests before shipping.
 
+### 5.13 Round 1.9.1 (owner's bug list)
+- **Queue:** played user-queued songs stay (Earlier); `consumePlayedUserQueue` is no longer
+  called. Search inside Liked songs/playlists queues the full list. `GlowState.toggleIfCurrent`
+  makes tapping the playing song pause/resume (in `playList`, `playSingle`, `playOrdered`).
+- **Marks:** `SongMarks` (liked heart + `DownloadedMark`) is drawn by every `SongRow`, Home song
+  cards, queue rows and artist top songs; `LocalShowDownloadedMark` turns the arrow off on
+  Downloads. A fully downloaded collection shows only its cover badge.
+- **Artists:** `GlowState.creditedArtists` / `openArtistRef`, `ArtistLinks` (one link per
+  artist) in the player and album page, one "Go to …" per artist in the song menu.
+  `FitWordsText` shrinks a display title only as much as its longest word needs.
+- **Album page:** `AlbumHero` (cover full bleed, tint from it, Archivo title, actions) on
+  `ReleaseBackground`; playlists keep the glow page.
+- **Library ⋯:** `CollectionMenuSheet` for playlists, albums and artists (play next, queue,
+  save to playlist, download/remove, pin, share, remove from library, unfollow);
+  `GlowState.withSongsOf` reads a collection's songs (offline: downloaded ones).
+- **Automix:** analysis requests reach one track further ahead (`requestAnalysisAround`); the
+  owner's log showed 35 of 77 transitions planned with the incoming track still unanalysed
+  (analysis took ~2-3 min per track on the phone with BALANCED = 2 threads).
+- **Liquid background:** the readability shade and the player's underlay are neutral
+  black/white, not the app's blue-teal base; artwork identity keys the cross-fade
+  (`LiquidCovers.identity`) so size variants of one cover don't re-fade.
+- **Logs:** three sessions (`older-session.log`), `AppLog.state` lines (network, foreground,
+  memory, settings), route ids in navigation lines. `Connectivity` is the app-wide online state;
+  `OfflinePill` shows above the mini player off Home. `CoilBitmapLoader` gives the notification
+  cached artwork offline.
+- **Test environment:** YouTube gives this cloud server no album data and cut-down artist pages;
+  `ReviewScreenshotTest.realAlbumPage` injects a page instead.
+
 ## 10. Project history (one commit per round, newest last)
 
 | Commit | Round |

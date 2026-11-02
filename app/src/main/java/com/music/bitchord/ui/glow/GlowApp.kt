@@ -1,5 +1,9 @@
 package com.music.bitchord.ui.glow
 
+import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.foundation.border
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Delete
@@ -367,6 +371,14 @@ private fun GlowRoot(state: GlowState) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ToastHost(state)
+                // Offline: a slim card above the mini player on every page (Home shows its own
+                // banner with Retry, so not there).
+                val online by com.music.bitchord.data.Connectivity.online.collectAsStateWithLifecycle()
+                AnimatedVisibility(
+                    visible = !online && !(state.tab == 0 && state.stack.isEmpty()),
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) { OfflinePill() }
                 AnimatedVisibility(
                     visible = state.selecting,
                     enter = slideInVertically { it } + fadeIn(),
@@ -818,7 +830,10 @@ fun pageContentPadding(top: androidx.compose.ui.unit.Dp = 0.dp): PaddingValues {
     val g = LocalGlow.current
     val hasSong = g.player.song != null
     val tabs = if (g.wide) 72.dp else 0.dp
-    return PaddingValues(top = top, bottom = (if (hasSong) BottomChrome + 20.dp else 110.dp) - tabs)
+    // Room for the offline card too, so a list's last row can scroll clear of it.
+    val online by com.music.bitchord.data.Connectivity.online.collectAsStateWithLifecycle()
+    val offlineCard = if (online) 0.dp else 50.dp
+    return PaddingValues(top = top, bottom = (if (hasSong) BottomChrome + 20.dp else 110.dp) - tabs + offlineCard)
 }
 
 /** A shelf card's song, when the card is a track rather than a collection. */
@@ -915,4 +930,30 @@ private fun SelectionAction(icon: ImageVector, label: String, danger: Boolean = 
 internal fun fractionOf(part: Float, whole: Float): Float {
     if (!(whole > 0f) || !whole.isFinite() || !part.isFinite()) return 0f
     return (part / whole).coerceIn(0f, 1f)
+}
+
+/** The app-wide "you're offline" card: what still works, in the offline banner's colours. */
+@Composable
+private fun OfflinePill() {
+    val c = Glow.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(c.warningSurface)
+            .border(1.dp, c.warning.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 9.dp)
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.WifiOff, null, tint = c.warning, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "You're offline · downloaded music still plays",
+            style = GlowType.secondary.copy(fontWeight = FontWeight.Medium),
+            color = c.warning,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
 }

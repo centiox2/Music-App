@@ -106,14 +106,17 @@ object PlaylistCovers {
             val ok = runCatching {
                 Http.client.newCall(Request.Builder().url(candidate).build()).execute().use { response ->
                     val body = response.body
-                    if (!response.isSuccessful || body == null) return@use false
+                    if (!response.isSuccessful || body == null) {
+                        Log.w(TAG, "playlist cover: HTTP ${response.code} for $candidate (an earlier copy, if any, is kept)")
+                        return@use false
+                    }
                     val tmp = File(into.parentFile, into.name + ".tmp")
                     tmp.outputStream().use { out -> body.byteStream().copyTo(out) }
                     if (tmp.length() == 0L) { tmp.delete(); return@use false }
                     into.delete()
                     tmp.renameTo(into)
                 }
-            }.onFailure { Log.w(TAG, "playlist cover: couldn't save $candidate", it) }.getOrDefault(false)
+            }.onFailure { Log.w(TAG, "playlist cover: couldn't save $candidate: ${it.message}") }.getOrDefault(false)
             if (ok) return true
         }
         return false

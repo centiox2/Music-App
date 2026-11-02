@@ -81,7 +81,8 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
         // The shared trackers report model failures and their timings through
         // this; with no sink they went nowhere on the phone, which is how a
         // beat model that found nothing went unnoticed.
-        AnalysisLog.install { message, error -> Log.w(TAG, message, error) }
+        // Timings (no error) are routine and go at debug level; failures stay warnings.
+        AnalysisLog.install { message, error -> if (error == null) Log.d(TAG, message) else Log.w(TAG, message, error) }
     }
 
     /**

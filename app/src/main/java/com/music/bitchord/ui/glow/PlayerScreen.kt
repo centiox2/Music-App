@@ -149,7 +149,9 @@ fun PlayerScreen() {
     Box(
         Modifier
             .fillMaxSize()
-            .background(c.base)
+            // Neutral under the background, not the app's blue-tinted base: below full glow
+            // strength it shows through, and tinted every cover's colours towards blue.
+            .background(if (c.isDark) Color.Black else Color.White)
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
         PlayerBackdrop(song)
@@ -257,7 +259,9 @@ private fun PlayerBackdrop(song: Song) {
     val cover = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
     val palette = when {
         !fromArtwork -> Color(fixed).let { f -> CoverPalette(listOf(f, lerp(f, Color.White, 0.25f)), listOf(0.8f, 0.2f)) }
-        else -> cover ?: ArtworkPalettes.last ?: CoverPalette(listOf(c.base), listOf(1f))
+        // Until the cover's colours are known: the last cover's, or a neutral, never the
+        // app's own blue-tinted base.
+        else -> cover ?: ArtworkPalettes.last ?: CoverPalette(listOf(if (c.isDark) Color(0xFF121212) else Color(0xFFEDEDED)), listOf(1f))
     }
     // Opaque at the default strength, so the colours on screen are the cover's.
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = intensity.coerceIn(0.3f, 1f) }) {
@@ -268,12 +272,16 @@ private fun PlayerBackdrop(song: Song) {
         }
     }
     // Only enough shade to keep the controls readable, mostly at the bottom where they are.
+    // Neutral black (white in light mode): the app's base colour is a dark blue-teal, and at
+    // up to 70% it turned the lower half of every cover's colours blue. On If You're Reading
+    // This It's Too Late (white and black) the bottom came out (65, 73, 74) instead of grey.
+    val shade = if (c.isDark) Color.Black else Color.White
     Box(
         Modifier.fillMaxSize().background(
             androidx.compose.ui.graphics.Brush.verticalGradient(
-                0f to c.base.copy(alpha = 0.12f),
-                0.55f to c.base.copy(alpha = 0.18f),
-                1f to c.base.copy(alpha = if (c.isDark) 0.7f else 0.75f),
+                0f to shade.copy(alpha = 0.12f),
+                0.55f to shade.copy(alpha = 0.18f),
+                1f to shade.copy(alpha = if (c.isDark) 0.7f else 0.75f),
             ),
         ),
     )
@@ -620,16 +628,12 @@ private fun TitleRow(song: Song, large: Boolean) {
                     .clickable { g.playerOpen = false; g.openAlbumOf(song) }
                     .basicMarquee(iterations = 3, initialDelayMillis = 1500, repeatDelayMillis = 2000),
             )
-            Text(
-                song.artist,
+            // Each credited artist opens their own page.
+            ArtistLinks(
+                song,
                 style = GlowType.bodyRegular.copy(fontSize = if (large) 17.sp else 15.sp),
                 color = c.textSecondary,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.clickable {
-                    g.playerOpen = false
-                    g.openArtistOf(song)
-                },
+                before = { g.playerOpen = false },
             )
         }
         }
@@ -1078,6 +1082,7 @@ private fun QueueRow(
                 GlowText(song.title, GlowType.body, maxLines = 1)
                 GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
             }
+            SongMarks(song.videoId)
             if (onRemove != null) IconTap(Icons.Rounded.Close, "Remove from queue", tint = c.textTertiary, size = 40.dp, iconSize = 18.dp, onClick = onRemove)
             handle?.invoke()
         }

@@ -1273,6 +1273,19 @@ class CrossfadeController(
         if (currentItem.isVideoOrigin || nextItem.isVideoOrigin) return
         requestAnalysis(currentItem, duration)
         requestAnalysis(nextItem, nextItemDurationMs(nextIndex, nextItem))
+        // One further ahead. Analysing a track takes about as long as a song on a mid-range
+        // phone, and only starting it once its predecessor began meant the incoming track was
+        // still being measured when its transition arrived, so most blends fell back to a plain
+        // crossfade (the owner's logs: 35 of 77 planned with no tempo for the incoming track).
+        // Queued behind the pair above on the analyzer's single thread, so it never delays
+        // them; the request itself is a no-op once that track is done or in flight.
+        val afterIndex = player.currentTimeline.takeIf { !it.isEmpty }
+            ?.getNextWindowIndex(nextIndex, player.repeatMode, player.shuffleModeEnabled)
+            ?: C.INDEX_UNSET
+        if (afterIndex != C.INDEX_UNSET && afterIndex != player.currentMediaItemIndex) {
+            val afterItem = player.getMediaItemAt(afterIndex)
+            if (!afterItem.isVideoOrigin) requestAnalysis(afterItem, nextItemDurationMs(afterIndex, afterItem))
+        }
     }
 
     /**

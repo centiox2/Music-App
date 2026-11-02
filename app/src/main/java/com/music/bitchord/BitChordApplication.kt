@@ -110,7 +110,18 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        // The settings that most change how playback behaves, once per launch.
+        runCatching {
+            com.music.bitchord.data.AppLog.state(
+                "settings: automix=${AppSettings.smartFadeEnabled.value} " +
+                    "analysis=${AppSettings.automixPerformanceMode.value} " +
+                    "output=${AppSettings.outputPcmMode.value} " +
+                    "quality=${AppSettings.effectiveAudioQuality} " +
+                    "autoplay=${AppSettings.autoplay.value}",
+            )
+        }
         watchNetworkChanges()
+        com.music.bitchord.data.Connectivity.install(this)
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.music.bitchord.playback.audio.LosslessOutput.init(this)

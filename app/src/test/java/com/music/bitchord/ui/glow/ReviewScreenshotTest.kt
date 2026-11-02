@@ -58,7 +58,7 @@ class ReviewScreenshotTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
 
-    private val song = Song(
+    private var song = Song(
         videoId = "yX0_s1-ExwE",
         title = "Kilimani Nights",
         artist = "Amani Wave",
@@ -84,6 +84,8 @@ class ReviewScreenshotTest {
         GlowPrefs.init(app)
         GlowPrefs.setNotificationsAsked()
         val player = PlayerState(song = song, isPlaying = true, durationMs = 145_000, queue = listOf(song), queueIndex = 0)
+        // Robolectric never delivers the startup network callback; say what the test means.
+        setOnline(true)
         rule.setContent { GlowTheme { GlowApp(playerOverride = player, startRoute = route) } }
         if (signedIn) fakeLibrary()
         settle(20)
@@ -107,7 +109,8 @@ class ReviewScreenshotTest {
             "Atmospheric Night" to "90 songs", "My Songs" to "164 songs", "Hip-hop Chill" to "37 songs",
             "All My R&B" to "2 songs", "A playlist with a rather long name that should be cut short" to "12 songs")
         val playlists = names.mapIndexed { i, (t, s) -> ShelfItem(t, s, covers[i % covers.size], null, "VLPL$i") }
-        GlowPrefs.togglePinned("VLPL2"); GlowPrefs.togglePinned("VLPL1"); GlowPrefs.togglePinned("VLPL0")
+        // Toggles, and the pins outlive a test in-process, so only pin what isn't pinned yet.
+        listOf("VLPL2", "VLPL1", "VLPL0").forEach { if (!GlowPrefs.isPinned(it)) GlowPrefs.togglePinned(it) }
         LikedSongsCache.songs.value = List(574) { song.copy(videoId = "id$it") }
         LikedSongsCache.complete.value = true
         LikedSongsCache.refreshedThisSession = true
@@ -228,5 +231,157 @@ class ReviewScreenshotTest {
     fun downloads() {
         launch(route = Route.Downloads)
         shot("r21-downloads")
+    }
+
+    // ---- 1.9.1 review ----
+
+    @Suppress("UNCHECKED_CAST")
+    private fun fakeDownloads(vararg ids: String) {
+        val f = com.music.bitchord.download.Downloads::class.java.getDeclaredField("_saved").apply { isAccessible = true }
+        (f.get(com.music.bitchord.download.Downloads) as MutableStateFlow<Map<String, String>>).value =
+            ids.associateWith { "file:///nowhere/$it.webm" }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun setOnline(online: Boolean) {
+        val f = com.music.bitchord.data.Connectivity::class.java.getDeclaredField("_online").apply { isAccessible = true }
+        (f.get(com.music.bitchord.data.Connectivity) as MutableStateFlow<Boolean>).value = online
+    }
+
+    private fun vm() = ViewModelProvider(rule.activity)[MainViewModel::class.java]
+
+    /** A result row, never the search field that holds the same words. */
+    private fun clickResult(text: String, substring: Boolean = false) {
+        val matcher = hasText(text, substring = substring) and !androidx.compose.ui.test.hasSetTextAction()
+        rule.waitUntil(30_000) { rule.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        rule.onAllNodes(matcher, useUnmergedTree = true)[0].performClick()
+        settle()
+    }
+
+    private fun openArtistBySearch(query: String, name: String, shotName: String) {
+        click("Search")
+        vm().searchFor(query)
+        settle(14)
+        clickResult(name)
+        settle(16)
+        shot(shotName)
+    }
+
+    @Test
+    fun artistLongName() {
+        launch()
+        openArtistBySearch("PARTYNEXTDOOR", "PARTYNEXTDOOR", "v01-artist-partynextdoor")
+    }
+
+    @Test
+    fun artistTwoWords() {
+        launch()
+        openArtistBySearch("Brent Faiyaz", "Brent Faiyaz", "v02-artist-brent")
+    }
+
+    @Test
+    fun albumPage() {
+        launch()
+        click("Search")
+        vm().searchFor("If You're Reading This It's Too Late Drake album")
+        settle(14)
+        clickResult("If You're Reading This It's Too Late", substring = true)
+        settle(18)
+        shot("v03-playlist-page")
+    }
+
+    @Test
+    fun realAlbumPage() {
+        // YouTube gives this test server no album data, so the page is given one: the real
+        // cover and track names of If You're Reading This It's Too Late.
+        val id = "MPREb_eGx1fAyRxNl"
+        val cover = "https://yt3.googleusercontent.com/SlmTZt3dmf2H4G92zV34XKiQACYdDKwve16hSMK6UZ63Gas7WGYYoKq6M83KL_MXhA2r8HYLwp4OqZI=w544-h544-l90-rj"
+        val drake = com.music.bitchord.data.model.ArtistRef("Drake", "UCByOQJjav0CUDwxCk-jVNRQ")
+        val tracks = listOf("Legend" to "4:01", "Energy" to "3:01", "10 Bands" to "2:57", "Know Yourself" to "4:35", "No Tellin'" to "5:10", "Madonna" to "2:57", "6 God" to "3:00", "Star67" to "4:54")
+            .mapIndexed { i, (t, d) -> Song(videoId = "iyrtitl$i", title = t, artist = "Drake", thumbnailUrl = cover, durationText = d, artists = listOf(drake), albumId = id) }
+        fakeDownloads("iyrtitl1", "iyrtitl3")
+        val page = com.music.bitchord.data.model.DetailPage(
+            browseId = id,
+            title = "If You're Reading This It's Too Late",
+            subtitle = "Drake • Album • 2015",
+            thumbnailUrl = cover,
+            songs = UiState.Success(tracks),
+            type = com.music.bitchord.data.model.BrowseType.ALBUM,
+        )
+        launch(route = Route.Detail(id, com.music.bitchord.data.model.BrowseType.ALBUM), signedIn = false)
+        @Suppress("UNCHECKED_CAST")
+        val stack = MainViewModel::class.java.getDeclaredField("_detailStack").apply { isAccessible = true }.get(vm()) as MutableStateFlow<List<com.music.bitchord.data.model.DetailPage>>
+        rule.runOnUiThread { stack.value = listOf(page) }
+        settle(16)
+        shot("v03-album")
+        rule.onRoot().performTouchInput { swipeUp() }
+        settle(6)
+        shot("v04-album-tracks")
+    }
+
+    @Test
+    fun listenTogether() {
+        launch(route = Route.ListenTogether)
+        shot("v05-listen-together")
+    }
+
+    @Test
+    fun playerTwoArtists() {
+        song = Song(
+            videoId = "fHI8X4OXluQ",
+            title = "Mob Ties",
+            artist = "Drake, Future",
+            thumbnailUrl = "https://i.ytimg.com/vi/fHI8X4OXluQ/hqdefault.jpg",
+            durationText = "3:24",
+            artists = listOf(
+                com.music.bitchord.data.model.ArtistRef("Drake", "UCByOQJjav0CUDwxCk-jVNRQ"),
+                com.music.bitchord.data.model.ArtistRef("Future", "UCSDvKdIQOwTfcyOimSi9oYA"),
+            ),
+        )
+        launch()
+        click("Mob Ties")
+        settle(6)
+        shot("v06-player-two-artists")
+    }
+
+    @Test
+    fun likedWithMarks() {
+        launch()
+        fakeDownloads("id1", "id2", "id5")
+        click("Library")
+        click("Liked songs")
+        settle(6)
+        shot("v07-liked-marks")
+    }
+
+    @Test
+    fun libraryMenusAndOffline() {
+        launch()
+        setOnline(false)
+        click("Library")
+        settle(4)
+        shot("v08-library-offline")
+        rule.onAllNodes(hasContentDescription("More options"))[0].performClick()
+        settle()
+        val items = listOf("Play", "Shuffle play", "Play next", "Add to queue", "Save to playlist", "Download", "Unpin from library", "Share", "Remove from library")
+        val present = items.map { it to rule.onAllNodes(hasText(it), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        File(dir(), "menu-v2.txt").writeText(present.joinToString("\n"))
+        setOnline(true)
+    }
+
+    @Test
+    fun searchDiagnostic() {
+        launch()
+        click("Search")
+        val out = StringBuilder()
+        vm().searchFor("drake")
+        repeat(10) { n ->
+            settle(4)
+            val results = vm().results.value
+            val chips = rule.onAllNodes(hasText("Songs"), useUnmergedTree = true).fetchSemanticsNodes().size
+            out.append("t=${n * 2}s results=${results?.let { it::class.simpleName }} ${if (results is UiState.Error) (results as UiState.Error).message else ""} songsChip=$chips query=${vm().query.value}\n")
+        }
+        File(dir(), "search-diag.txt").writeText(out.toString())
+        shot("v09-search-results")
     }
 }

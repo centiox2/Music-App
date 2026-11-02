@@ -91,7 +91,13 @@ fun <T> SortMenu(
         ) {
             Icon(Icons.AutoMirrored.Rounded.Sort, null, tint = c.text, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text(label(selected), style = GlowType.body, color = c.text, maxLines = 1)
+            Text(
+                label(selected),
+                style = GlowType.body,
+                color = c.text,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
         }
         DropdownMenu(
             expanded = open,
@@ -154,13 +160,6 @@ fun CollectionHeader(
                         },
                     )
                 }
-                if (downloaded) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        DownloadedMark(c.textSecondary)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Downloaded", style = GlowType.secondary, color = c.textSecondary)
-                    }
-                }
             }
         }
         if (!description.isNullOrBlank()) {
@@ -173,9 +172,11 @@ fun CollectionHeader(
             )
         }
         Spacer(Modifier.height(18.dp))
+        // The sort button gives way first (its label shortens), so the actions and Play always
+        // fit: with a long label and five actions, Play was pushed off the right edge.
         Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            sort()
-            Spacer(Modifier.weight(1f))
+            Box(Modifier.weight(1f)) { sort() }
+            Spacer(Modifier.width(6.dp))
             actions()
         }
         Spacer(Modifier.height(10.dp))
@@ -202,6 +203,6 @@ fun LikedMark(videoId: String?) {
     val g = LocalGlow.current
     val likes by g.vm.likeStatuses.collectAsStateWithLifecycle()
     if (likes[videoId] == LikeStatus.LIKE) {
-        Icon(Icons.Rounded.Favorite, "Liked", tint = Glow.colors.textSecondary, modifier = Modifier.padding(end = 2.dp).size(16.dp))
+        Icon(Icons.Rounded.Favorite, "Liked", tint = Glow.colors.textSecondary, modifier = Modifier.size(16.dp))
     }
 }
