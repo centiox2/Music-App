@@ -1,0 +1,41 @@
+name: Client Tracker – Windows build
+
+on:
+  push:
+    paths:
+      - 'client_tracker/**'
+      - '.github/workflows/client-tracker-windows.yml'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: client_tracker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: client_tracker-windows-x64
+          path: client_tracker/build/windows/x64/runner/Release/
+          if-no-files-found: error
