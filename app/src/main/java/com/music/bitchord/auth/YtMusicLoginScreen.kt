@@ -101,8 +101,17 @@ fun YtMusicLoginScreen(
                 settings.domStorageEnabled = true
                 configureWebView(this)
 
+                // A TV remote: the page itself takes focus once it has loaded, so the arrows move
+                // between its fields and buttons and OK types/presses.
+                isFocusable = true
+                isFocusableInTouchMode = true
+                var focusedOnce = false
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
+                        if (view != null && !view.isInTouchMode && !focusedOnce) {
+                            focusedOnce = true
+                            view.requestFocus()
+                        }
                         // Reaching the Music origin only enables confirmation.
                         // A multi-channel login can still be waiting for the
                         // listener to choose an identity on this very page.

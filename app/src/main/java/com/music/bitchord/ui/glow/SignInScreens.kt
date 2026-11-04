@@ -66,6 +66,15 @@ fun SignInFlow(onFinished: () -> Unit, closable: Boolean, mode: WebSessionMode =
             else -> Unit
         }
     }
+    // Remote: this covers the whole app, so focus is put into it (and kept there) on each step;
+    // otherwise the arrows had nothing to move to on the TV's first screen.
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+    androidx.compose.runtime.LaunchedEffect(stage, failure) {
+        kotlinx.coroutines.delay(300)
+        focus.enterIfRemote(inputMode.inputMode)
+    }
+    Box(Modifier.fillMaxSize().focusTrap(focus)) {
     when (stage) {
         0 -> Welcome(onSignIn = { stage = 1 }, onSkip = onFinished, closable = closable)
         else -> WebSignIn(
@@ -87,6 +96,7 @@ fun SignInFlow(onFinished: () -> Unit, closable: Boolean, mode: WebSessionMode =
                 onFinished()
             },
         )
+    }
     }
 }
 

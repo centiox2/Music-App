@@ -55,7 +55,7 @@ class TvDpadTest {
 
     private val song = Song(videoId = "yX0_s1-ExwE", title = "Kilimani Nights", artist = "Amani Wave", thumbnailUrl = null, durationText = "2:25")
 
-    private fun launch() {
+    private fun launch(welcome: Boolean = false) {
         val app = RuntimeEnvironment.getApplication()
         coil3.SingletonImageLoader.setUnsafe(coil3.ImageLoader.Builder(app).components { add(coil3.decode.BitmapFactoryDecoder.Factory()) }.build())
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
@@ -64,6 +64,7 @@ class TvDpadTest {
         shadowOf(caps).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         shadowOf(cm).setNetworkCapabilities(cm.activeNetwork, caps)
         AppSettings.setOnboardingComplete()
+        if (welcome) AppSettings.onboardingComplete.value = false
         AppSettings.setReduceAnimation(true)
         AppSettings.setThemeMode(ThemeMode.DARK)
         GlowPrefs.init(app)
@@ -73,7 +74,7 @@ class TvDpadTest {
             .get(com.music.bitchord.data.Connectivity) as MutableStateFlow<Boolean>).value = true
         val player = PlayerState(song = song, isPlaying = true, durationMs = 145_000, queue = listOf(song), queueIndex = 0)
         rule.setContent { GlowTheme { GlowApp(playerOverride = player) } }
-        fakeLibrary()
+        if (!welcome) fakeLibrary()
         settle(12)
         // A TV starts out of touch mode, and the window hands focus to the first focusable view
         // (here, Compose's) on its first layout. Robolectric does neither by itself.
@@ -190,5 +191,22 @@ class TvDpadTest {
         press(KeyEvent.KEYCODE_DPAD_UP)
         println("TV after back: ${focusedLabel()}")
         assertTrue(focused() != null)
+    }
+
+    @Test
+    fun welcomeScreenWithRemote() {
+        launch(welcome = true)
+        val seen = mutableListOf(focusedLabel())
+        repeat(3) { press(KeyEvent.KEYCODE_DPAD_DOWN); seen += focusedLabel() }
+        press(KeyEvent.KEYCODE_DPAD_UP); seen += focusedLabel()
+        println("TV welcome walk: $seen")
+        shot("tv05-welcome")
+        assertTrue("the welcome buttons take focus: $seen", seen.any { it.contains("Sign in with YouTube Music") })
+        assertTrue("both buttons are reachable: $seen", seen.any { it.contains("Continue without an account") })
+        // OK on "Continue without an account" leaves the welcome screen.
+        while (!focusedLabel().contains("Continue without")) press(KeyEvent.KEYCODE_DPAD_DOWN)
+        press(KeyEvent.KEYCODE_DPAD_CENTER)
+        settle(3)
+        assertTrue(AppSettings.onboardingComplete.value)
     }
 }

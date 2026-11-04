@@ -294,8 +294,10 @@ private fun GlowRoot(state: GlowState) {
 
     // Something full-screen on top: the remote's arrows must stay inside it (TvFocus.kt).
     val welcomeShown = !onboardingComplete && !signedIn
+    val promptShown = !notificationsAsked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
     val covered = (state.playerOpen && player.song != null) || state.devicesOpen ||
-        welcomeShown || state.signInOpen || state.switchChannelOpen
+        welcomeShown || state.signInOpen || state.switchChannelOpen || promptShown
     // With a remote, focus follows what is on top: into the player or devices sheet when one
     // opens, back into the page when it closes or a new page is pushed. (Switching tabs leaves it
     // on the tab, the way TV apps do: right goes on into the page.)
@@ -304,13 +306,13 @@ private fun GlowRoot(state: GlowState) {
     val playerFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val devicesFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val playerShown = state.playerOpen && player.song != null
-    LaunchedEffect(playerShown, state.devicesOpen, state.top) {
+    LaunchedEffect(playerShown, state.devicesOpen, state.top, covered) {
         // After the slide/fade, so the new content is in place to be focused.
         delay(420)
         when {
             state.devicesOpen -> devicesFocus.enterIfRemote(inputMode.inputMode)
             playerShown -> playerFocus.enterIfRemote(inputMode.inputMode)
-            else -> pageFocus.enterIfRemote(inputMode.inputMode)
+            !covered -> pageFocus.enterIfRemote(inputMode.inputMode)
         }
     }
 
@@ -488,13 +490,18 @@ private fun GlowRoot(state: GlowState) {
                 closable = true,
                 mode = com.music.bitchord.auth.WebSessionMode.SWITCH_CHANNEL,
             )
-        } else if (!notificationsAsked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
+        } else if (promptShown) {
+            val promptFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+            LaunchedEffect(Unit) {
+                delay(300)
+                promptFocus.enterIfRemote(inputMode.inputMode)
+            }
+            Box(Modifier.fillMaxSize().focusTrap(promptFocus)) {
             NotificationsPrompt(
                 onAllow = { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) },
                 onSkip = { GlowPrefs.setNotificationsAsked() },
             )
+            }
         }
     }
 
