@@ -117,9 +117,11 @@ fun LiquidArtwork(
         while (isActive) {
             // Sleep between ticks rather than wake on every frame: on a 120Hz screen that
             // was 120 wake-ups a second to draw 30.
-            delay(30)
+            // A 1 GB TV box redraws half as often; the motion is just as slow, only less smooth.
+            delay(if (com.music.bitchord.data.LowRam.active) 66 else 30)
             withFrameMillis { now ->
-                ticks += (now - last).coerceAtMost(100) / 33.333f
+                // Half the original's speed: the drift should be felt more than watched.
+                ticks += (now - last).coerceAtMost(150) / 33.333f * MOTION_SPEED
                 LiquidCovers.ticks = ticks
                 last = now
             }
@@ -281,3 +283,7 @@ internal object LiquidCovers {
         YT_VIDEO.find(url)?.groupValues?.get(1)?.let { "yt:$it" }
             ?: url.substringBefore("=w").substringBefore("=s").substringBefore("?")
 }
+
+
+/** How fast the liquid background drifts, relative to the original (1 = original speed). */
+private const val MOTION_SPEED = 0.5f

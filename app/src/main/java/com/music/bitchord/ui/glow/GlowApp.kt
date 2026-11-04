@@ -60,6 +60,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -708,6 +709,15 @@ private fun MiniPlayer(state: GlowState) {
                 }
             }
             // Just the icon, no white disc, and a heart where "next" was (swipe sideways skips).
+            // A remote can't swipe, so with one in use Previous and Next are buttons here too.
+            val remote = androidx.compose.ui.platform.LocalInputModeManager.current.inputMode ==
+                androidx.compose.ui.input.InputMode.Keyboard
+            if (remote) {
+                IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 44.dp, iconSize = 28.dp) {
+                    haptic()
+                    state.controller?.seekToPrevious()
+                }
+            }
             IconTap(
                 if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 if (player.isPlaying) "Pause" else "Play",
@@ -723,7 +733,8 @@ private fun MiniPlayer(state: GlowState) {
                     iconSize = 24.dp,
                     modifier = Modifier.popOnChange(liked, enabled = liked),
                 ) { haptic(); state.toggleLike(song) }
-            } else {
+            }
+            if (remote || !signedIn) {
                 IconTap(Icons.Rounded.SkipNext, "Next", size = 44.dp, iconSize = 28.dp, enabled = player.hasNext) {
                     haptic()
                     state.controller?.seekToNext()

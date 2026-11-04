@@ -253,8 +253,7 @@ private fun PlayerBackdrop(song: Song) {
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
     val intensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
-    // A low-memory device (a 1 GB TV box) keeps the background still: same colours, no animation.
-    val reduce = rememberReduceMotion() || com.music.bitchord.data.LowRam.active
+    val reduce = rememberReduceMotion()
     if (!liquid) {
         CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
         return
@@ -1015,6 +1014,12 @@ private fun QueuePane(modifier: Modifier) {
                             Box(
                                 Modifier
                                     .size(40.dp)
+                                    // Remote: focus the handle, then up/down move the song within Up next.
+                                    .dpadAdjust(
+                                        vertical = true,
+                                        onDecrease = { if (entry.index < queue.lastIndex) g.actions.moveQueueItem(entry.index, entry.index + 1) },
+                                        onIncrease = { if (entry.index > currentIndex + 1) g.actions.moveQueueItem(entry.index, entry.index - 1) },
+                                    )
                                     .pointerInput(entry.index) {
                                         detectDragGestures(
                                             onDragStart = { draggingIndex = entry.index; dragOffset = 0f },
