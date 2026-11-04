@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.material3.ripple
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +67,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -100,7 +100,7 @@ import com.music.bitchord.ui.player.rememberArtworkColors
 fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier =
     clickable(
         interactionSource = remember { MutableInteractionSource() },
-        indication = null,
+        indication = FocusRing,
         enabled = enabled,
         onClick = onClick,
     )
@@ -185,10 +185,31 @@ fun DownloadedBadge(modifier: Modifier = Modifier, size: Dp = 22.dp) {
     }
 }
 
-/** A song's downloaded mark in a list: the download arrow, where a tick used to be. */
+/**
+ * The one "this song is on the phone" mark, used everywhere a song is listed: the same arrow
+ * as the cover badge, in the accent colour, the size of the liked heart beside it.
+ */
 @Composable
-fun DownloadedMark(tint: Color = Glow.colors.textTertiary) {
-    Icon(Icons.Rounded.DownloadForOffline, "Downloaded", tint = tint, modifier = Modifier.size(18.dp))
+fun DownloadedMark(tint: Color = Glow.colors.accent, size: Dp = 16.dp) {
+    Icon(Icons.Rounded.Download, "Downloaded", tint = tint, modifier = Modifier.size(size))
+}
+
+/** Off on pages where every song is downloaded anyway (Downloads), so rows aren't all marks. */
+val LocalShowDownloadedMark = androidx.compose.runtime.compositionLocalOf { true }
+
+/**
+ * A song's marks beside its title: liked (a heart) and downloaded (an arrow). Every song row
+ * and song card shows them through here, so they look and behave the same on every page.
+ */
+@Composable
+fun SongMarks(videoId: String?) {
+    if (videoId == null) return
+    val saved by com.music.bitchord.download.Downloads.saved.collectAsStateWithLifecycle()
+    val showDownloaded = LocalShowDownloadedMark.current && videoId in saved
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (LocalShowLikedMark.current) LikedMark(videoId)
+        if (showDownloaded) DownloadedMark()
+    }
 }
 
 /**
@@ -394,7 +415,7 @@ fun IconTap(
             .size(size)
             .pressScale(interaction, 0.86f)
             .clip(CircleShape)
-            .clickable(interaction, ripple(bounded = true), enabled = enabled, onClick = onClick),
+            .clickable(interaction, glowRipple(bounded = true), enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription, tint = animatedTint, modifier = Modifier.size(iconSize))
@@ -417,7 +438,7 @@ fun GlassCircle(
             .pressScale(interaction, 0.9f)
             .clip(CircleShape)
             .background(background)
-            .clickable(interaction, ripple(), onClick = onClick),
+            .clickable(interaction, glowRipple(), onClick = onClick),
         contentAlignment = Alignment.Center,
         content = content,
     )
@@ -442,7 +463,7 @@ fun PrimaryCircle(
             .pressScale(interaction, 0.88f)
             .clip(CircleShape)
             .background(if (enabled) c.primary else c.primary.copy(alpha = 0.45f))
-            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
+            .clickable(interaction, glowRipple(), enabled = enabled, onClick = onClick)
             .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
@@ -479,7 +500,7 @@ fun GlowChip(
             .pressScale(interaction, 0.93f)
             .clip(if (pill) CircleShape else RoundedCornerShape(10.dp))
             .background(bg)
-            .clickable(interaction, ripple(), onClick = onClick)
+            .clickable(interaction, glowRipple(), onClick = onClick)
             .padding(horizontal = if (pill) 16.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -542,8 +563,9 @@ fun PillButton(
             .clip(CircleShape)
             .background(bg)
             .alpha(if (enabled) 1f else 0.5f)
-            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
-            .padding(horizontal = 22.dp),
+            .clickable(interaction, glowRipple(), enabled = enabled, onClick = onClick)
+            // Compact buttons often share a row; less side padding keeps their label whole.
+            .padding(horizontal = if (height < 54.dp) 14.dp else 22.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -551,7 +573,18 @@ fun PillButton(
             Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
         }
-        Text(text, style = GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp), color = fg, maxLines = 1)
+        // Centred even when the label is wider than the button (a half-width button, a large
+        // system font): it shrinks to the space and ends in an ellipsis instead of filling the
+        // button left-aligned, which read as off-centre text.
+        Text(
+            text,
+            style = GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+            color = fg,
+            maxLines = 1,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
     }
 }
 
@@ -677,7 +710,7 @@ fun SongRow(
         modifier
             .fillMaxWidth()
             .pressScale(interaction, 0.98f)
-            .combinedClickable(interaction, ripple(), onClick = rowClick, onLongClick = rowLongClick)
+            .combinedClickable(interaction, glowRipple(), onClick = rowClick, onLongClick = rowLongClick)
             .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(highlight)
@@ -715,7 +748,7 @@ fun SongRow(
             )
             if (subtitle.isNotEmpty()) GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
         }
-        if (LocalShowLikedMark.current) LikedMark(song?.videoId ?: videoId)
+        SongMarks(song?.videoId ?: videoId)
         trailing?.invoke()
     }
 }
@@ -1287,4 +1320,89 @@ fun GlowSlider(
             }
         },
     )
+}
+
+/**
+ * A song's artists as one line where each name opens its own page: "Drake, Future" is two
+ * links, not one that only reaches the first. Long credits still end in an ellipsis.
+ */
+@Composable
+fun ArtistLinks(
+    song: Song,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    before: () -> Unit = {},
+) {
+    val g = LocalGlow.current
+    val artists = remember(song.videoId, song.artist, song.artists) { g.creditedArtists(song) }
+    if (artists.size <= 1) {
+        Text(
+            song.artist,
+            style = style,
+            color = color,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier.clickable { before(); artists.firstOrNull()?.let(g::openArtistRef) ?: g.openArtistOf(song) },
+        )
+        return
+    }
+    val text = androidx.compose.ui.text.buildAnnotatedString {
+        artists.forEachIndexed { i, artist ->
+            if (i > 0) append(if (i == artists.lastIndex) " & " else ", ")
+            withLink(
+                androidx.compose.ui.text.LinkAnnotation.Clickable(
+                    tag = "artist$i",
+                    linkInteractionListener = { before(); g.openArtistRef(artist) },
+                ),
+            ) { append(artist.name) }
+        }
+    }
+    Text(
+        text,
+        style = style,
+        color = color,
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Display text that keeps its size unless a single word is too wide for the line, and then
+ * comes down only as far as that word needs. "PARTYNEXTDOOR" fits on one line instead of
+ * breaking mid-word and pushing everything below it down; "Brent Faiyaz" keeps its full size
+ * and wraps between words as before.
+ */
+@Composable
+fun FitWordsText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 3,
+    minFontSize: androidx.compose.ui.unit.TextUnit = 22.sp,
+) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
+        val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+        val maxPx = constraints.maxWidth
+        val fitted = remember(text, style, maxPx) {
+            val words = text.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            val widest = words.maxOfOrNull { measurer.measure(it, style, maxLines = 1, softWrap = false).size.width } ?: 0
+            if (widest <= 0 || widest <= maxPx || maxPx == androidx.compose.ui.unit.Constraints.Infinity) {
+                style
+            } else {
+                // A hair under the exact ratio, so rounding never leaves the last letter hanging.
+                val ratio = (maxPx.toFloat() / widest) * 0.97f
+                val size = (style.fontSize.value * ratio).coerceAtLeast(minFontSize.value)
+                val scale = size / style.fontSize.value
+                style.copy(
+                    fontSize = size.sp,
+                    lineHeight = if (style.lineHeight.isSp) (style.lineHeight.value * scale).sp else style.lineHeight,
+                    letterSpacing = if (style.letterSpacing.isSp) (style.letterSpacing.value * scale).sp else style.letterSpacing,
+                )
+            }
+        }
+        Text(text, style = fitted, color = color, maxLines = maxLines, modifier = Modifier.fillMaxWidth())
+    }
 }

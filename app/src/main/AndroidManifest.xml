@@ -47,8 +47,19 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!--
+      Android TV: no touchscreen, and the leanback launcher. Both optional, so the
+      same APK still installs on phones; on a TV everything is reached with the
+      remote's D-pad (see TvFocus.kt).
+    -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <application
         android:name=".BitChordApplication"
+        android:banner="@drawable/tv_banner"
         android:allowBackup="true"
         android:appCategory="audio"
         android:usesCleartextTraffic="false"
@@ -110,6 +121,11 @@
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:theme="@style/Theme.BitChord">
+            <!-- The Android TV home screen's app row. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <!--

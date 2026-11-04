@@ -72,7 +72,7 @@ class QueueWindow(
     }
 
     private var canonicalCount = canonicalSize
-    private val seed = shuffleSeed
+    private var seed = shuffleSeed
     private var logicalOrder: IntArray = IntArray(canonicalSize) { it }
     private var inversePositions: IntArray = IntArray(canonicalSize) { it }
     private var logicalCursor: Int = -1
@@ -421,9 +421,12 @@ class QueueWindow(
      * index.  Turning it on keeps cycle-consumed state, so tracks already consumed in this cycle do
      * not reappear in automatic traversal merely because the setting changed.
      */
-    fun setShuffle(enabled: Boolean): QueueWindow {
+    fun setShuffle(enabled: Boolean, reseed: Long? = null): QueueWindow {
         if (enabled == shuffled) return this
         shuffled = enabled
+        // A fresh seed each time shuffle is turned on, when the owner gives one, so turning it
+        // off and on again deals a new order rather than the same one.
+        if (enabled && reseed != null) seed = reseed
         plannedCycles.clear()
         val current = currentIndex ?: run {
             logicalOrder = IntArray(canonicalCount) { it }

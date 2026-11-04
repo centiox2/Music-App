@@ -19,6 +19,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -131,14 +134,23 @@ private fun ReleasePageScreen(page: DetailPage) {
     val isOwned = owned[page.browseId] == true
     val target = DownloadTarget(page.browseId, page.title, page.subtitle, page.thumbnailUrl, playlist = isPlaylist)
 
+    // An album wears its cover's colour as the artist page wears the artist's photo.
+    val albumPalette = if (isAlbum) rememberGlowPalette(page.thumbnailUrl) else null
+    val albumTint by androidx.compose.animation.animateColorAsState(
+        albumPalette?.dominant?.let { artistTint(it, c.isDark) } ?: c.base, tween(600), label = "albumTint",
+    )
+    val onAlbumTint = if (c.isDark || albumTint.luminance() < 0.4f) Color.White else Color(0xFF111111)
+
     androidx.compose.runtime.CompositionLocalProvider(
         LocalSelectionPool provides songs,
         LocalSelectionPlaylist provides page.browseId.takeIf { isOwned },
     ) {
-    GlowScreen(glowUrl = page.thumbnailUrl) {
+    ReleaseBackground(isAlbum, albumTint, page.thumbnailUrl) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
-                if (searching) {
+                if (isAlbum && !searching) {
+                    // The album hero draws its own floating back and search buttons.
+                } else if (searching) {
                     Row(
                         Modifier.statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -153,76 +165,21 @@ private fun ReleasePageScreen(page: DetailPage) {
                 }
                 if (!isAlbum) {
                     PlaylistHeader(page, songs, ordered, order, { order = it }, downloaded, isOwned, signedIn, target, totalMs) { menuOpen = true }
-                } else Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box {
-                        Cover(page.thumbnailUrl, size = 200.dp, shape = RoundedCornerShape(12.dp), px = 720)
-                        if (downloaded) DownloadedBadge(Modifier.align(Alignment.TopEnd).padding(10.dp), size = 28.dp)
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    Text(page.title, style = GlowType.display.copy(fontSize = 28.sp), color = c.text, textAlign = TextAlign.Center, maxLines = 2)
-                    val artist = songs.firstOrNull()?.artists?.firstOrNull()
-                    val subtitleParts = page.subtitle.split(" • ", " · ").map { it.trim() }.filter { it.isNotEmpty() }
-                    if (subtitleParts.isNotEmpty()) {
-                        Text(
-                            subtitleParts.first(),
-                            style = GlowType.bodyRegular.copy(fontSize = 17.sp),
-                            color = c.text.copy(alpha = 0.85f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable(enabled = artist?.browseId != null) { g.openArtist(artist?.browseId, artist?.name ?: "") },
-                        )
-                    }
-                    val meta = (subtitleWithoutCounts(subtitleParts.drop(1).joinToString(" • ")) + listOfNotNull(
-                        songs.size.takeIf { it > 0 }?.let { "$it songs" },
-                        totalMs.takeIf { it > 0 }?.let { formatLongDuration(it) },
-                    )).joinToString(" · ")
-                    if (meta.isNotBlank()) {
-                        Text(meta, style = GlowType.secondary.copy(fontSize = 14.sp), color = c.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        GlassCircle(onClick = {
-                            if (downloaded) {
-                                g.notify("Already downloaded")
-                            } else {
-                                g.actions.download(songs, target)
-                            }
-                        }) {
-                            Icon(if (downloaded) Icons.Rounded.DownloadForOffline else Icons.Rounded.Download, if (downloaded) "Downloaded" else "Download", tint = c.text, modifier = Modifier.size(22.dp))
-                        }
-                        val savedToLibrary = page.library?.saved == true
-                        if (signedIn && page.library != null && !isOwned) {
-                            GlassCircle(onClick = { vm.toggleLibrary(page.browseId) }) {
-                                Icon(
-                                    if (savedToLibrary) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    if (savedToLibrary) "Remove from library" else "Save to library",
-                                    tint = c.text,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                        }
-                        PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 60.dp, iconSize = 30.dp, enabled = songs.isNotEmpty()) {
-                            g.actions.playDetail(page, songs, 0, vm::takePlaybackContext)
-                        }
-                        GlassCircle(onClick = {
-                            if (songs.isNotEmpty()) g.actions.playDetail(page, songs, songs.indices.random(), vm::takePlaybackContext, shuffle = true)
-                        }) { Icon(Icons.Rounded.Shuffle, "Shuffle", tint = c.text, modifier = Modifier.size(22.dp)) }
-                        GlassCircle(onClick = { menuOpen = true }) {
-                            Icon(Icons.Rounded.MoreHoriz, "More", tint = c.text, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                    if (!page.description.isNullOrBlank()) {
-                        Text(
-                            page.description!!,
-                            style = GlowType.secondary.copy(fontSize = 14.sp),
-                            color = c.textSecondary,
-                            maxLines = 3,
-                            modifier = Modifier.padding(top = 16.dp),
-                        )
-                    }
-                    Spacer(Modifier.height(14.dp))
+                } else {
+                    AlbumHero(
+                        page = page,
+                        songs = songs,
+                        totalMs = totalMs,
+                        downloaded = downloaded,
+                        isOwned = isOwned,
+                        signedIn = signedIn,
+                        target = target,
+                        tint = albumTint,
+                        onTint = onAlbumTint,
+                        searching = searching,
+                        onSearch = { searching = true },
+                        onMore = { menuOpen = true },
+                    )
                 }
             }
             when (val state = page.songs) {
@@ -254,9 +211,6 @@ private fun ReleasePageScreen(page: DetailPage) {
                         onClick = { playOrdered(g, page, songs, ordered, order, index) },
                         song = song,
                         trailing = {
-                            if (song.videoId in saved) {
-                                DownloadedMark()
-                            }
                             MoreButton {
                                 g.openSongMenu(
                                     if (page.type == BrowseType.ALBUM) song.copy(albumName = song.albumName ?: page.title, albumId = song.albumId ?: page.browseId) else song,
@@ -383,7 +337,8 @@ private fun ArtistPageScreen(page: DetailPage) {
                     Modifier.fillMaxWidth().overlapAbove(140.dp).padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
+                    // Long single-word names shrink to fit on one line rather than break mid-word.
+                    FitWordsText(
                         page.title.uppercase(),
                         style = TextStyle(fontFamily = ArchivoCondensed, fontWeight = FontWeight.Black, fontSize = 50.sp, lineHeight = 47.sp, letterSpacing = (-0.5).sp, textAlign = TextAlign.Center),
                         color = onTint,
@@ -422,7 +377,7 @@ private fun ArtistPageScreen(page: DetailPage) {
                             .pressScale(interaction, 0.98f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(onTint.copy(alpha = 0.08f))
-                            .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(latest, page.title) }
+                            .clickable(interaction, glowRipple()) { g.openShelfItem(latest, page.title) }
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -539,7 +494,7 @@ private fun ArtistAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun ArtistCard(item: ShelfItem, size: androidx.compose.ui.unit.Dp, onTint: Color, dim: Color, onClick: () -> Unit) {
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    Column(Modifier.width(size).pressScale(interaction, 0.95f).clickable(interaction, null, onClick = onClick)) {
+    Column(Modifier.width(size).pressScale(interaction, 0.95f).clickable(interaction, FocusRing, onClick = onClick)) {
         Cover(item.thumbnailUrl, size = size, shape = RoundedCornerShape(10.dp))
         Spacer(Modifier.height(6.dp))
         Text(item.title, style = GlowType.body.copy(fontSize = 14.sp), color = onTint, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -591,6 +546,7 @@ private fun TopSongPages(songs: List<Song>, page: DetailPage, onTint: Color, dim
                                 Text(song.title, style = GlowType.body.copy(fontSize = 15.sp, fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Medium), color = onTint, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                 Text(song.artist, style = GlowType.secondary.copy(fontSize = 13.sp), color = dim, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
+                            SongMarks(song.videoId)
                             IconTap(Icons.Rounded.MoreHoriz, "More options", tint = onTint.copy(alpha = 0.7f), size = 40.dp, iconSize = 18.dp) { g.openSongMenu(song) }
                         }
                     }
@@ -733,8 +689,12 @@ fun MenuRow(
 
 /** Plays [ordered] from [index]: in the page's own order it's the page's queue, sorted it's that list. */
 private fun playOrdered(g: GlowState, page: DetailPage, songs: List<Song>, ordered: List<Song>, order: SongOrder, index: Int, shuffle: Boolean = false) {
+    if (!shuffle && g.toggleIfCurrent(ordered.getOrNull(index))) return
     if (order == SongOrder.DEFAULT || page.type == BrowseType.ALBUM) {
-        g.actions.playDetail(page, songs, index, g.vm::takePlaybackContext, shuffle = shuffle)
+        // [index] is a position in [ordered]; the page's own queue is [songs], in page order.
+        // (An album sorted another way started the wrong song.)
+        val inPage = ordered.getOrNull(index)?.let { picked -> songs.indexOf(picked) }?.takeIf { it >= 0 } ?: index
+        g.actions.playDetail(page, songs, inPage, g.vm::takePlaybackContext, shuffle = shuffle)
     } else if (shuffle) {
         g.actions.shuffle(ordered, g.source(page.title, PlaybackSourceType.BROWSE, page.browseId))
     } else {
@@ -792,6 +752,137 @@ private fun PlaylistHeader(
         Spacer(Modifier.width(6.dp))
         PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 52.dp, enabled = songs.isNotEmpty()) {
             playOrdered(g, page, songs, ordered, order, 0)
+        }
+    }
+}
+
+/** A playlist keeps the glow page; an album sits on its cover's colour, like an artist page. */
+@Composable
+private fun ReleaseBackground(isAlbum: Boolean, tint: Color, thumbnailUrl: String?, content: @Composable BoxScope.() -> Unit) {
+    if (isAlbum) {
+        Box(Modifier.fillMaxSize().background(tint), content = content)
+    } else {
+        GlowScreen(glowUrl = thumbnailUrl, content = content)
+    }
+}
+
+/**
+ * The top of an album page, built like the artist page's: the cover edge to edge, fading into
+ * a colour taken from it, the title in the artist page's type over the fade, every credited
+ * artist a link of their own, then the round actions.
+ */
+@Composable
+private fun AlbumHero(
+    page: DetailPage,
+    songs: List<Song>,
+    totalMs: Long,
+    downloaded: Boolean,
+    isOwned: Boolean,
+    signedIn: Boolean,
+    target: DownloadTarget,
+    tint: Color,
+    onTint: Color,
+    searching: Boolean,
+    onSearch: () -> Unit,
+    onMore: () -> Unit,
+) {
+    val g = LocalGlow.current
+    val vm = g.vm
+    val dim = onTint.copy(alpha = 0.7f)
+    val subtitleParts = page.subtitle.split(" • ", " · ").map { it.trim() }.filter { it.isNotEmpty() }
+    // The album's artists, each with their page where any track on it names it.
+    val credit = subtitleParts.firstOrNull().orEmpty()
+    val known = songs.flatMap { it.artists }.filter { it.browseId != null }
+    val artists = credit.split(CREDIT_SPLIT).map { it.trim() }.filter { it.isNotEmpty() }.map { name ->
+        com.music.bitchord.data.model.ArtistRef(name, known.firstOrNull { it.name.equals(name, ignoreCase = true) }?.browseId)
+    }
+    val creditSong = Song(videoId = page.browseId, title = page.title, artist = credit, thumbnailUrl = null, artists = artists)
+    val meta = (subtitleWithoutCounts(subtitleParts.drop(1).joinToString(" • ")) + listOfNotNull(
+        songs.size.takeIf { it > 0 }?.let { if (it == 1) "1 song" else "$it songs" },
+        totalMs.takeIf { it > 0 }?.let { formatLongDuration(it) },
+    )).joinToString(" · ")
+
+    Column {
+        if (!searching) {
+            Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+                ArtImage(page.thumbnailUrl, 1080, Modifier.fillMaxSize())
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.55f).background(
+                        Brush.verticalGradient(0f to Color.Transparent, 0.55f to tint.copy(alpha = 0.75f), 1f to tint),
+                    ),
+                )
+                Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                    // Dark enough to read over a white cover (If You're Reading This It's Too Late).
+                    GlassCircle(background = Color.Black.copy(alpha = 0.5f), onClick = { g.pop() }) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    GlassCircle(background = Color.Black.copy(alpha = 0.5f), onClick = onSearch) {
+                        Icon(Icons.Rounded.Search, "Find in album", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                }
+            }
+        }
+        Column(
+            Modifier.fillMaxWidth().then(if (searching) Modifier else Modifier.overlapAbove(96.dp)).padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            FitWordsText(
+                page.title.uppercase(),
+                style = TextStyle(fontFamily = ArchivoCondensed, fontWeight = FontWeight.Black, fontSize = 40.sp, lineHeight = 38.sp, letterSpacing = (-0.4).sp, textAlign = TextAlign.Center),
+                color = onTint,
+                maxLines = 3,
+            )
+            if (credit.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                ArtistLinks(
+                    creditSong,
+                    style = GlowType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
+                    color = onTint.copy(alpha = 0.9f),
+                )
+            }
+            if (meta.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The one mark that the whole album is on the phone.
+                    if (downloaded) {
+                        DownloadedMark(onTint.copy(alpha = 0.85f), size = 15.dp)
+                        Spacer(Modifier.width(5.dp))
+                    }
+                    Text(meta, style = GlowType.secondary.copy(fontSize = 13.sp), color = dim, textAlign = TextAlign.Center, maxLines = 2)
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!downloaded) {
+                    ArtistAction(Icons.Rounded.Download, "Download", onTint, enabled = songs.isNotEmpty()) { g.actions.download(songs, target) }
+                }
+                if (signedIn && page.library != null && !isOwned) {
+                    val saved = page.library?.saved == true
+                    ArtistAction(
+                        if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        if (saved) "Remove from library" else "Save to library",
+                        onTint,
+                    ) { vm.toggleLibrary(page.browseId) }
+                }
+                PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 60.dp, iconSize = 28.dp, enabled = songs.isNotEmpty()) {
+                    if (!g.toggleIfCurrent(songs.firstOrNull())) g.actions.playDetail(page, songs, 0, vm::takePlaybackContext)
+                }
+                ArtistAction(Icons.Rounded.Shuffle, "Shuffle", onTint, enabled = songs.isNotEmpty()) {
+                    if (songs.isNotEmpty()) g.actions.playDetail(page, songs, songs.indices.random(), vm::takePlaybackContext, shuffle = true)
+                }
+                ArtistAction(Icons.Rounded.MoreHoriz, "More", onTint, onClick = onMore)
+            }
+            if (!page.description.isNullOrBlank()) {
+                Text(
+                    page.description!!,
+                    style = GlowType.secondary.copy(fontSize = 14.sp),
+                    color = dim,
+                    maxLines = 3,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

@@ -44,7 +44,7 @@ fun GlowMesh(
     modifier: Modifier = Modifier,
     moving: Boolean = true,
     dark: Boolean = true,
-    loopMillis: Int = 40_000,
+    loopMillis: Int = 80_000,
 ) {
     val spec = tween<Color>(1200)
     val base by animateColorAsState(readable(palette.dominant, dark), spec, label = "meshBase")

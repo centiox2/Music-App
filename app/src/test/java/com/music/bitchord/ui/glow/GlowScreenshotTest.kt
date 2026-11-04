@@ -69,6 +69,8 @@ class GlowScreenshotTest {
     private fun launch(playing: Boolean = false, light: Boolean = false, positionMs: Long = 0L, route: Route? = null, paused: Boolean = false, durationMs: Long = 282_000L) {
         assumeTrue("Set GLOW_SHOTS to render screenshots", System.getenv("GLOW_SHOTS") != null)
         val app = RuntimeEnvironment.getApplication()
+        // Robolectric has no native ImageDecoder, so covers never decoded; BitmapFactory does.
+        coil3.SingletonImageLoader.setUnsafe(coil3.ImageLoader.Builder(app).components { add(coil3.decode.BitmapFactoryDecoder.Factory()) }.build())
         shadowOf(app).declareComponentUnbindable(ComponentName(app, PlaybackService::class.java))
         val cm = app.getSystemService(ConnectivityManager::class.java)
         val caps = ShadowNetworkCapabilities.newInstance()

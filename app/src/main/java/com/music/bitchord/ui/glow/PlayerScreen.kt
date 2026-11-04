@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -96,6 +97,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -149,7 +151,9 @@ fun PlayerScreen() {
     Box(
         Modifier
             .fillMaxSize()
-            .background(c.base)
+            // Neutral under the background, not the app's blue-tinted base: below full glow
+            // strength it shows through, and tinted every cover's colours towards blue.
+            .background(if (c.isDark) Color.Black else Color.White)
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
         PlayerBackdrop(song)
@@ -257,7 +261,9 @@ private fun PlayerBackdrop(song: Song) {
     val cover = rememberGlowPalette(song.thumbnailUrl.takeIf { fromArtwork })
     val palette = when {
         !fromArtwork -> Color(fixed).let { f -> CoverPalette(listOf(f, lerp(f, Color.White, 0.25f)), listOf(0.8f, 0.2f)) }
-        else -> cover ?: ArtworkPalettes.last ?: CoverPalette(listOf(c.base), listOf(1f))
+        // Until the cover's colours are known: the last cover's, or a neutral, never the
+        // app's own blue-tinted base.
+        else -> cover ?: ArtworkPalettes.last ?: CoverPalette(listOf(if (c.isDark) Color(0xFF121212) else Color(0xFFEDEDED)), listOf(1f))
     }
     // Opaque at the default strength, so the colours on screen are the cover's.
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = intensity.coerceIn(0.3f, 1f) }) {
@@ -268,12 +274,16 @@ private fun PlayerBackdrop(song: Song) {
         }
     }
     // Only enough shade to keep the controls readable, mostly at the bottom where they are.
+    // Neutral black (white in light mode): the app's base colour is a dark blue-teal, and at
+    // up to 70% it turned the lower half of every cover's colours blue. On If You're Reading
+    // This It's Too Late (white and black) the bottom came out (65, 73, 74) instead of grey.
+    val shade = if (c.isDark) Color.Black else Color.White
     Box(
         Modifier.fillMaxSize().background(
             androidx.compose.ui.graphics.Brush.verticalGradient(
-                0f to c.base.copy(alpha = 0.12f),
-                0.55f to c.base.copy(alpha = 0.18f),
-                1f to c.base.copy(alpha = if (c.isDark) 0.7f else 0.75f),
+                0f to shade.copy(alpha = 0.12f),
+                0.55f to shade.copy(alpha = 0.18f),
+                1f to shade.copy(alpha = if (c.isDark) 0.7f else 0.75f),
             ),
         ),
     )
@@ -332,8 +342,10 @@ private fun LandscapePlayer(song: Song) {
             .padding(horizontal = 32.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(32.dp),
     ) {
-        Box(Modifier.fillMaxHeight().aspectRatio(1f), contentAlignment = Alignment.Center) {
-            Artwork(song, Modifier.fillMaxSize())
+        // The cover gets at most ~45% of the width, so on a wide, short screen (a TV is 960×540dp)
+        // the controls keep enough room; a full-height square left them squashed into a sliver.
+        Box(Modifier.weight(0.85f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Artwork(song, Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true))
         }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             PlayerHeader(song)
@@ -347,11 +359,11 @@ private fun LandscapePlayer(song: Song) {
                 PlayerPane.QUEUE -> QueuePane(Modifier.weight(1f))
             }
             SeekBar()
-            Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { Controls() }
-                Spacer(Modifier.width(16.dp))
-                Box(Modifier.width(240.dp)) { PaneBar() }
+            Spacer(Modifier.height(12.dp))
+            Controls()
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(Modifier.widthIn(max = 320.dp)) { PaneBar() }
             }
         }
     }
@@ -620,16 +632,12 @@ private fun TitleRow(song: Song, large: Boolean) {
                     .clickable { g.playerOpen = false; g.openAlbumOf(song) }
                     .basicMarquee(iterations = 3, initialDelayMillis = 1500, repeatDelayMillis = 2000),
             )
-            Text(
-                song.artist,
+            // Each credited artist opens their own page.
+            ArtistLinks(
+                song,
                 style = GlowType.bodyRegular.copy(fontSize = if (large) 17.sp else 15.sp),
                 color = c.textSecondary,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.clickable {
-                    g.playerOpen = false
-                    g.openArtistOf(song)
-                },
+                before = { g.playerOpen = false },
             )
         }
         }
@@ -668,6 +676,12 @@ private fun SeekBar() {
             Modifier
                 .fillMaxWidth()
                 .height(24.dp)
+                // Remote: left/right skip back/forward 10 seconds.
+                .dpadAdjust(
+                    enabled = duration > 0,
+                    onDecrease = { g.controller?.let { it.seekTo((it.currentPosition - 10_000L).coerceAtLeast(0L)) } },
+                    onIncrease = { g.controller?.let { it.seekTo((it.currentPosition + 10_000L).coerceAtMost(duration)) } },
+                )
                 .pointerInput(duration) {
                     detectTapGestures { offset ->
                         if (duration > 0) g.controller?.seekTo((offset.x / size.width * duration).toLong())
@@ -718,12 +732,20 @@ private fun Controls() {
     val controller = g.controller
     val shuffle by AppSettings.shuffleEnabled.collectAsStateWithLifecycle()
     val haptic = rememberHaptic()
+    // Remote: the player opens with Play/Pause focused, the button wanted most.
+    val playFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(550)
+        if (inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard) runCatching { playFocus.requestFocus() }
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconTap(Icons.Rounded.Shuffle, "Shuffle", tint = if (shuffle) c.text else c.textSecondary, iconSize = 24.dp, modifier = Modifier.popOnChange(shuffle)) { g.toggleShuffle() }
         IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 56.dp, iconSize = 40.dp) { haptic(); controller?.seekToPrevious() }
         PrimaryCircle(
             if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
             if (player.isPlaying) "Pause" else "Play",
+            modifier = Modifier.focusRequester(playFocus),
             size = 68.dp,
             iconSize = 34.dp,
         ) { haptic(); g.actions.togglePlayPause() }
@@ -992,6 +1014,12 @@ private fun QueuePane(modifier: Modifier) {
                             Box(
                                 Modifier
                                     .size(40.dp)
+                                    // Remote: focus the handle, then up/down move the song within Up next.
+                                    .dpadAdjust(
+                                        vertical = true,
+                                        onDecrease = { if (entry.index < queue.lastIndex) g.actions.moveQueueItem(entry.index, entry.index + 1) },
+                                        onIncrease = { if (entry.index > currentIndex + 1) g.actions.moveQueueItem(entry.index, entry.index - 1) },
+                                    )
                                     .pointerInput(entry.index) {
                                         detectDragGestures(
                                             onDragStart = { draggingIndex = entry.index; dragOffset = 0f },
@@ -1078,6 +1106,7 @@ private fun QueueRow(
                 GlowText(song.title, GlowType.body, maxLines = 1)
                 GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
             }
+            SongMarks(song.videoId)
             if (onRemove != null) IconTap(Icons.Rounded.Close, "Remove from queue", tint = c.textTertiary, size = 40.dp, iconSize = 18.dp, onClick = onRemove)
             handle?.invoke()
         }

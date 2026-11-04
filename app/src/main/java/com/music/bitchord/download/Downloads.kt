@@ -305,6 +305,19 @@ object Downloads {
         deleted
     }
 
+    /**
+     * Delete every downloaded file, stop whatever is still downloading and drop every
+     * release record. Returns how many files were deleted.
+     */
+    suspend fun deleteAll(context: Context): Int = withContext(Dispatchers.IO) {
+        val inFlight = synchronized(lock) { (pending.keys + running.keys).toList() }
+        withContext(Dispatchers.Main) { inFlight.forEach(::cancel) }
+        var deleted = 0
+        _saved.value.keys.toList().forEach { videoId -> if (delete(context, videoId)) deleted++ }
+        _collections.value.keys.toList().forEach(::forgetCollection)
+        deleted
+    }
+
     private fun forget(videoId: String) {
         record(saved = { it - videoId }, meta = { it - videoId })
     }

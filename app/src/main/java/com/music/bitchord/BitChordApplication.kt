@@ -44,6 +44,23 @@ import kotlin.concurrent.thread
 class BitChordApplication : Application(), SingletonImageLoader.Factory {
 
     @OptIn(UnstableApi::class)
+    /**
+     * Android asking for memory back. Pictures are the bulk of what the app holds and are cheap to
+     * fetch again from disk, so the in-memory ones go first: all of them when the app is in the
+     * background or memory is critical, half when it's merely running low. On a 1 GB TV this is
+     * what keeps the music playing instead of the process being killed.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        val cache = runCatching { SingletonImageLoader.get(this).memoryCache }.getOrNull() ?: return
+        @Suppress("DEPRECATION")
+        when {
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> cache.clear()
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> cache.trimToSize(cache.size / 2)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // First, so a crash anywhere below is caught and the log covers the whole launch.
@@ -109,8 +126,20 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
                 ?.let { Innertube.selectChannel(it.pageId, it.dataSyncId, it.authUser) }
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
+        com.music.bitchord.data.LowRam.init(this)
         AppSettings.init(this, authStore)
+        // The settings that most change how playback behaves, once per launch.
+        runCatching {
+            com.music.bitchord.data.AppLog.state(
+                "settings: automix=${AppSettings.smartFadeEnabled.value} " +
+                    "analysis=${AppSettings.automixPerformanceMode.value} " +
+                    "output=${AppSettings.outputPcmMode.value} " +
+                    "quality=${AppSettings.effectiveAudioQuality} " +
+                    "autoplay=${AppSettings.autoplay.value}",
+            )
+        }
         watchNetworkChanges()
+        com.music.bitchord.data.Connectivity.install(this)
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.music.bitchord.playback.audio.LosslessOutput.init(this)
@@ -246,7 +275,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.20)
+                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.08 else 0.20)
                     .build()
             }
             .diskCache {

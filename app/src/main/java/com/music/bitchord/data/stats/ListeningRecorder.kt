@@ -155,11 +155,19 @@ object ListeningRecorder {
         // source-module track both carry ids this endpoint has never heard of,
         // and asking would be a failed request per play, forever.
         if (song.localUri != null || song.videoId.length != YOUTUBE_ID_LENGTH) return song
+        // A lookup that failed (offline, typically) is asked again after a pause, so tracks
+        // played offline still reach the album chart once there is a connection, without a
+        // failed request on every tick in the meantime.
+        val now = System.currentTimeMillis()
+        val failed = failedAt[song.videoId]
+        if (failed != null && now - failed >= RETRY_AFTER_MS) {
+            failedAt.remove(song.videoId)
+            asked.remove(song.videoId)
+        }
         if (asked.add(song.videoId)) {
             scope.launch {
-                YtMusicRepository.trackLinks(song.videoId).getOrNull()?.let {
-                    extras[song.videoId] = it
-                }
+                val found = YtMusicRepository.trackLinks(song.videoId).getOrNull()
+                if (found != null) extras[song.videoId] = found else failedAt[song.videoId] = System.currentTimeMillis()
             }
         }
         return song
@@ -173,6 +181,12 @@ object ListeningRecorder {
      * full, while the unbounded gap across a pause is not.
      */
     private const val MAX_STEP_MS = 8_000L
+
+    /** When a metadata lookup failed, by track; see [enriched]. */
+    private val failedAt = ConcurrentHashMap<String, Long>()
+
+    /** How long a failed lookup waits before it is tried again. */
+    private const val RETRY_AFTER_MS = 5 * 60_000L
 
     /** Under half a minute is not a listen, however it ended. */
     private const val PLAY_FLOOR_MS = 30_000L

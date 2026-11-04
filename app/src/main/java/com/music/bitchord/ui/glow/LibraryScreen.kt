@@ -4,7 +4,6 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,10 +28,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import com.music.bitchord.download.DownloadTarget
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.BookmarkRemove
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.History
@@ -61,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.bitchord.data.PlayHistory
@@ -99,8 +110,9 @@ fun LibraryScreen() {
         vm.ensureLibrary()
         vm.onLibraryShown()
         // The full liked list, read once in the background, so its count is right before Liked songs is opened.
-        if (LikedSongsCache.songs.value == null) {
+        if (!LikedSongsCache.refreshedThisSession) {
             YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
+                LikedSongsCache.refreshedThisSession = true
                 LikedSongsCache.songs.value = it
                 LikedSongsCache.complete.value = true
             }
@@ -112,6 +124,10 @@ fun LibraryScreen() {
     var songSort by rememberSaveable { mutableStateOf(SongSort.TITLE) }
     // Read only while the Downloads tab is open.
     val downloaded = if (tab == 4) rememberDownloadedSongs() else DownloadedSongs(emptyList(), emptyMap())
+    var playlistFilter by rememberSaveable { mutableStateOf(0) }
+    var itemMenu by remember { mutableStateOf<Pair<ShelfItem, LibraryItemKind>?>(null) }
+    val playlistsView = rememberPlaylistsView(page?.shelves.orEmpty(), playlistFilter)
+    val playlistGrid by GlowPrefs.playlistGrid.collectAsStateWithLifecycle()
     val librarySongs = page?.librarySongs.orEmpty()
     // Sorted once per change, not on every recomposition of the page.
     val sortedLibrarySongs = remember(librarySongs, songSort) {
@@ -132,6 +148,9 @@ fun LibraryScreen() {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding()) {
             item {
                 PageHeader("Library") {
+                    GlassCircle(onClick = { g.push(Route.Statistics) }) {
+                        Icon(Icons.Rounded.BarChart, "Statistics", tint = c.text, modifier = Modifier.size(21.dp))
+                    }
                     GlassCircle(onClick = { g.push(Route.History) }) {
                         Icon(Icons.Rounded.History, "History", tint = c.text, modifier = Modifier.size(21.dp))
                     }
@@ -159,15 +178,24 @@ fun LibraryScreen() {
                     }
                 }
                 is UiState.Success -> when (tab) {
-                    0 -> playlistsTab(g, state.data.shelves, likedAll?.size ?: state.data.likedSongs.size, likedExact = likedAll != null)
+                    0 -> playlistsTab(
+                        g,
+                        playlistsView,
+                        likedAll?.size ?: state.data.likedSongs.size,
+                        likedExact = likedAll != null,
+                        filter = playlistFilter,
+                        grid = playlistGrid,
+                        onFilter = { playlistFilter = it },
+                        onMenu = { itemMenu = it to LibraryItemKind.PLAYLIST },
+                    )
                     1 -> songsTab(g, sortedLibrarySongs, songSort) { songSort = it }
-                    2 -> albumsTab(g, state.data.shelves.firstOrNull { it.title == "Albums" }?.items.orEmpty())
+                    2 -> albumsTab(g, state.data.shelves.firstOrNull { it.title == "Albums" }?.items.orEmpty()) { itemMenu = it to LibraryItemKind.ALBUM }
                     else -> artistsTab(
                         g,
                         state.data.shelves.filter { it.title == "Artists" || it.title == "Subscriptions" }
                             .flatMap { it.items }
                             .distinctBy { it.browseId ?: it.title },
-                    )
+                    ) { itemMenu = it to LibraryItemKind.ARTIST }
                 }
             }
             if (page == null && library !is UiState.Loading && library !is UiState.Error) {
@@ -176,6 +204,7 @@ fun LibraryScreen() {
         }
         }
     }
+    itemMenu?.let { (item, kind) -> CollectionMenuSheet(item, kind) { itemMenu = null } }
 }
 
 @Composable
@@ -201,6 +230,10 @@ private fun SignedOutLibrary() {
     }
 }
 
+/**
+ * Liked songs and Downloads, side by side at the top of Playlists: an icon tile above the name
+ * and count, so neither name is ever cut short.
+ */
 @Composable
 private fun CollectionCard(
     title: String,
@@ -211,22 +244,23 @@ private fun CollectionCard(
     onClick: () -> Unit,
 ) {
     val c = Glow.colors
-    Row(
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Column(
         modifier
+            .pressScale(interaction, 0.97f)
             .clip(RoundedCornerShape(14.dp))
             .background(c.glass)
-            .clickable(onClick = onClick)
+            .clickable(interaction, glowRipple(), onClick = onClick)
             .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(if (accent) c.miniPlayer else c.primary),
+            Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(if (accent) c.miniPlayer else c.primary),
             contentAlignment = Alignment.Center,
         ) { Icon(icon, null, tint = if (accent) c.text else c.onPrimary, modifier = Modifier.size(20.dp)) }
-        Spacer(Modifier.width(12.dp))
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             GlowText(title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-            GlowText(subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+            GlowText(subtitle, GlowType.secondary.copy(fontSize = 12.sp), color = c.textSecondary, maxLines = 1)
         }
     }
 }
@@ -238,23 +272,27 @@ private enum class PlaylistSort(val label: String) {
     DOWNLOADED("Downloaded first"),
 }
 
-private val PLAYLIST_FILTERS = listOf("All", "Pinned", "Downloaded")
+private val PLAYLIST_FILTERS = listOf("All", "Pinned", "Offline")
 
-/**
- * The Playlists tab. Its sort and layout are kept in [GlowPrefs], not in state inside a list
- * item, so a tap on either always lands and the choice lasts. Pinned playlists come first,
- * whatever the order; a long-press pins or unpins one.
- */
-private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, likedCount: Int, likedExact: Boolean = false) {
-    item(key = "playlists") {
-        val saved by Downloads.saved.collectAsStateWithLifecycle()
-        val collections by Downloads.collections.collectAsStateWithLifecycle()
-        val sortIndex by GlowPrefs.playlistSort.collectAsStateWithLifecycle()
-        val grid by GlowPrefs.playlistGrid.collectAsStateWithLifecycle()
-        val pinned by GlowPrefs.pinnedPlaylists.collectAsStateWithLifecycle()
-        var filter by rememberSaveable { mutableStateOf(0) }
+/** What the Playlists tab shows, worked out once per change at the top of the page. */
+private class PlaylistsView(
+    val all: List<ShelfItem>,
+    val pinned: List<ShelfItem>,
+    val rest: List<ShelfItem>,
+    val pinnedIds: List<String>,
+    val downloaded: (ShelfItem) -> Boolean,
+    val covers: Map<String, String>,
+)
+
+@Composable
+private fun rememberPlaylistsView(shelves: List<HomeShelf>, filter: Int): PlaylistsView {
+    val saved by Downloads.saved.collectAsStateWithLifecycle()
+    val collections by Downloads.collections.collectAsStateWithLifecycle()
+    val sortIndex by GlowPrefs.playlistSort.collectAsStateWithLifecycle()
+    val pinnedIds by GlowPrefs.pinnedPlaylists.collectAsStateWithLifecycle()
+    val covers by com.music.bitchord.data.PlaylistCovers.local.collectAsStateWithLifecycle()
+    return remember(shelves, filter, saved, collections, sortIndex, pinnedIds, covers) {
         val sort = PlaylistSort.entries.getOrElse(sortIndex) { PlaylistSort.RECENT }
-        val c = Glow.colors
         val playlists = shelves.firstOrNull { it.title == YtMusicRepository.PLAYLISTS_SHELF }?.items.orEmpty()
             .filterNot { it.browseId == YtMusicRepository.LIKED_MUSIC }
             .distinctBy { it.browseId ?: it.title }
@@ -264,91 +302,331 @@ private fun LazyListScope.playlistsTab(g: GlowState, shelves: List<HomeShelf>, l
             PlaylistSort.AZ -> playlists.sortedBy { it.title.lowercase() }
             PlaylistSort.ZA -> playlists.sortedByDescending { it.title.lowercase() }
             PlaylistSort.DOWNLOADED -> playlists.sortedByDescending(isDownloaded)
-        }.sortedBy { item -> pinned.indexOf(item.browseId).let { if (it < 0) Int.MAX_VALUE else it } }
+        }
         val shown = when (filter) {
-            1 -> ordered.filter { it.browseId in pinned }
+            1 -> ordered.filter { it.browseId in pinnedIds }
             2 -> ordered.filter(isDownloaded)
             else -> ordered
         }
-        val togglePin = { item: ShelfItem ->
-            item.browseId?.let { id ->
-                val was = id in pinned
-                GlowPrefs.togglePinned(id)
-                g.notify(if (was) "Unpinned ${item.title}" else "Pinned ${item.title}")
-            }
-            Unit
-        }
+        val pinned = shown.filter { it.browseId in pinnedIds }
+            .sortedBy { item -> pinnedIds.indexOf(item.browseId) }
+        PlaylistsView(
+            all = playlists,
+            pinned = pinned,
+            rest = shown.filterNot { it.browseId in pinnedIds },
+            pinnedIds = pinnedIds,
+            downloaded = isDownloaded,
+            covers = covers,
+        )
+    }
+}
+
+/**
+ * The Playlists tab, after the "Refined list" design: Liked songs and Downloads cards, one
+ * toolbar (filter, sort, new playlist, grid/list), then pinned playlists and the rest, each
+ * group under its own heading. Pinning is done from a playlist's ⋯ menu; there is no
+ * long-press. Sort and layout are kept in [GlowPrefs], so a choice lasts.
+ */
+private fun LazyListScope.playlistsTab(
+    g: GlowState,
+    view: PlaylistsView,
+    likedCount: Int,
+    likedExact: Boolean,
+    filter: Int,
+    grid: Boolean,
+    onFilter: (Int) -> Unit,
+    onMenu: (ShelfItem) -> Unit,
+) {
+    item(key = "playlists-top") {
+        val saved by Downloads.saved.collectAsStateWithLifecycle()
+        val sortIndex by GlowPrefs.playlistSort.collectAsStateWithLifecycle()
+        val sort = PlaylistSort.entries.getOrElse(sortIndex) { PlaylistSort.RECENT }
         Column {
-            Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                SortMenu(PlaylistSort.entries, sort, label = { it.label }) { GlowPrefs.setPlaylistSort(it.ordinal) }
-                Spacer(Modifier.weight(1f))
-                IconTap(Icons.Rounded.Add, "New playlist") { g.newPlaylistOpen = true }
-                IconTap(
-                    if (grid) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView,
-                    if (grid) "Show as a list" else "Show as a grid",
-                ) { GlowPrefs.setPlaylistGrid(!grid) }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CollectionCard("Liked songs", if (likedCount > 0) (if (likedExact) "$likedCount songs" else "$likedCount+ songs") else "Songs you like", Icons.Rounded.Favorite, Modifier.weight(1f)) {
-                    g.push(Route.Liked)
-                }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CollectionCard(
+                    "Liked songs",
+                    if (likedCount > 0) (if (likedExact) "$likedCount songs" else "$likedCount+ songs") else "Songs you like",
+                    Icons.Rounded.Favorite,
+                    Modifier.weight(1f),
+                ) { g.push(Route.Liked) }
                 CollectionCard("Downloads", "${saved.size} songs", Icons.Rounded.Download, Modifier.weight(1f), accent = true) {
                     g.push(Route.Downloads)
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            if (playlists.isNotEmpty()) {
-                ChipRow(PLAYLIST_FILTERS, filter) { filter = it }
-                Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.padding(start = 20.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                CompactSegmented(PLAYLIST_FILTERS, filter, onFilter)
+                Spacer(Modifier.weight(1f))
+                SortMenu(PlaylistSort.entries, sort, label = { it.label }, iconOnly = true) { GlowPrefs.setPlaylistSort(it.ordinal) }
+                IconTap(Icons.Rounded.Add, "New playlist", size = 40.dp, iconSize = 22.dp) { g.newPlaylistOpen = true }
+                IconTap(
+                    if (grid) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView,
+                    if (grid) "Show as a list" else "Show as a grid",
+                    size = 40.dp,
+                    iconSize = 20.dp,
+                ) { GlowPrefs.setPlaylistGrid(!grid) }
             }
-            if (shown.isEmpty()) {
+            if (view.pinned.isEmpty() && view.rest.isEmpty()) {
                 Text(
                     when (filter) {
-                        1 -> "Pin a playlist with a long-press, or from its ⋯ menu, to keep it at the top."
+                        1 -> "Pin a playlist from its ⋯ menu to keep it at the top."
                         2 -> "Playlists downloaded in full show up here."
                         else -> "Playlists you make or save show up here."
                     },
                     style = GlowType.secondary,
-                    color = c.textSecondary,
+                    color = Glow.colors.textSecondary,
                     modifier = Modifier.padding(20.dp),
                 )
             }
-            if (grid) {
-                shown.chunked(2).forEach { pair ->
-                    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        pair.forEach { item ->
-                            Column(
-                                Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).combinedClickable(
-                                    onClick = { g.openShelfItem(item, "Library") },
-                                    onLongClick = { togglePin(item) },
-                                ),
-                            ) {
-                                SquareCover(item.thumbnailUrl, downloaded = isDownloaded(item))
-                                Spacer(Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (item.browseId in pinned) PinMark()
-                                    GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                                }
-                                GlowText(item.subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
-                            }
-                        }
-                        if (pair.size == 1) Spacer(Modifier.weight(1f))
-                    }
+        }
+    }
+    if (view.pinned.isNotEmpty()) {
+        item(key = "pinned-head") { GroupHeading("Pinned", pin = true, top = 16.dp) }
+        playlistGroup(g, "pin", view.pinned, view, grid, onMenu)
+    }
+    if (view.rest.isNotEmpty()) {
+        item(key = "rest-head") {
+            GroupHeading(
+                when (filter) {
+                    2 -> "Offline · ${view.rest.size + view.pinned.size}"
+                    else -> "All playlists · ${view.all.size}"
+                },
+                top = if (view.pinned.isNotEmpty()) 14.dp else 16.dp,
+            )
+        }
+        playlistGroup(g, "all", view.rest, view, grid, onMenu)
+    }
+}
+
+/** One group of playlists, as rows or as a two-column grid; one lazy item per row. */
+private fun LazyListScope.playlistGroup(g: GlowState, prefix: String, items: List<ShelfItem>, view: PlaylistsView, grid: Boolean, onMenu: (ShelfItem) -> Unit) {
+    if (grid) {
+        items.chunked(2).forEachIndexed { i, pair ->
+            item(key = "$prefix-g$i-${pair.first().browseId}") {
+                Row(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    pair.forEach { item -> PlaylistTile(g, item, view, Modifier.weight(1f)) { onMenu(item) } }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
-            } else {
-                shown.forEach { item ->
-                    SongRow(
-                        item.title,
-                        listOf("Playlist", item.subtitle).filter { it.isNotBlank() }.joinToString(" · "),
-                        item.thumbnailUrl,
-                        coverSize = 52.dp,
-                        onClick = { g.openShelfItem(item, "Library") },
-                        onLongClick = { togglePin(item) },
-                        downloaded = isDownloaded(item),
-                        trailing = if (item.browseId in pinned) ({ PinMark(); Spacer(Modifier.width(10.dp)) }) else null,
-                    )
+            }
+        }
+    } else {
+        itemsIndexed(items, key = { i, item -> "$prefix-$i-${item.browseId ?: item.title}" }) { _, item ->
+            PlaylistRow(g, item, view) { onMenu(item) }
+        }
+    }
+}
+
+/** A small caps heading over a group: "PINNED", "ALL PLAYLISTS · 24". */
+@Composable
+private fun GroupHeading(text: String, pin: Boolean = false, top: androidx.compose.ui.unit.Dp) {
+    val c = Glow.colors
+    Row(
+        Modifier.padding(start = 20.dp, end = 20.dp, top = top, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (pin) {
+            Icon(Icons.Rounded.PushPin, null, tint = c.textSecondary, modifier = Modifier.size(13.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            text.uppercase(),
+            style = GlowType.section.copy(fontSize = 12.sp, letterSpacing = 0.06.em),
+            color = c.textSecondary,
+            maxLines = 1,
+        )
+    }
+}
+
+/** A playlist row: cover, name, "Playlist · 44 songs" (with a mark when it's offline), ⋯. */
+@Composable
+private fun PlaylistRow(g: GlowState, item: ShelfItem, view: PlaylistsView, onMenu: () -> Unit) {
+    val c = Glow.colors
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .pressScale(interaction, 0.98f)
+            .clickable(interaction, glowRipple()) { g.openShelfItem(item, "Library") }
+            .padding(start = 20.dp, end = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Cover(com.music.bitchord.data.PlaylistCovers.coverFor(item, view.covers), size = 52.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            GlowText(item.title, GlowType.body, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (view.downloaded(item)) {
+                    DownloadedMark(size = 14.dp)
+                    Spacer(Modifier.width(5.dp))
                 }
+                GlowText(
+                    listOf("Playlist", item.subtitle).filter { it.isNotBlank() }.joinToString(" · "),
+                    GlowType.secondary,
+                    color = c.textSecondary,
+                    maxLines = 1,
+                )
+            }
+        }
+        IconTap(Icons.Rounded.MoreHoriz, "More options", tint = c.textSecondary, size = 40.dp, iconSize = 20.dp, onClick = onMenu)
+    }
+}
+
+/** The grid form of [PlaylistRow]. */
+@Composable
+private fun PlaylistTile(g: GlowState, item: ShelfItem, view: PlaylistsView, modifier: Modifier, onMenu: () -> Unit) {
+    val c = Glow.colors
+    Column(modifier.clip(RoundedCornerShape(10.dp)).clickable { g.openShelfItem(item, "Library") }) {
+        SquareCover(com.music.bitchord.data.PlaylistCovers.coverFor(item, view.covers), radius = 10.dp, downloaded = view.downloaded(item))
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (item.browseId in view.pinnedIds) PinMark()
+                    GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                }
+                GlowText(item.subtitle, GlowType.secondary, color = c.textSecondary, maxLines = 1)
+            }
+            IconTap(Icons.Rounded.MoreHoriz, "More options", tint = c.textSecondary, size = 36.dp, iconSize = 20.dp, onClick = onMenu)
+        }
+    }
+}
+
+/** The small segmented filter in the Library toolbar: All · Pinned · Offline. */
+@Composable
+private fun CompactSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val c = Glow.colors
+    Row(
+        Modifier.height(36.dp).clip(RoundedCornerShape(10.dp)).background(c.glass).padding(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        options.forEachIndexed { i, label ->
+            val on = i == selected
+            val bg by androidx.compose.animation.animateColorAsState(if (on) c.primary else Color.Transparent, label = "segment")
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bg)
+                    .clickable { onSelect(i) }
+                    .padding(horizontal = if (on) 12.dp else 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    style = GlowType.label.copy(fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
+                    color = if (on) c.onPrimary else c.text.copy(alpha = 0.85f),
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** What a Library ⋯ menu was opened on. */
+private enum class LibraryItemKind { PLAYLIST, ALBUM, ARTIST }
+
+/**
+ * A Library item's ⋯ menu, with what its own page offers so nothing needs opening first:
+ * play, shuffle, play next, add to queue, save to a playlist, download or remove the download,
+ * pin (playlists), share, remove from the library, and edit or delete for the user's own
+ * playlists. The songs are read when an action needs them (offline: the downloaded ones).
+ */
+@Composable
+private fun CollectionMenuSheet(item: ShelfItem, kind: LibraryItemKind, onDismiss: () -> Unit) {
+    val g = LocalGlow.current
+    val c = Glow.colors
+    val pinnedIds by GlowPrefs.pinnedPlaylists.collectAsStateWithLifecycle()
+    val covers by com.music.bitchord.data.PlaylistCovers.local.collectAsStateWithLifecycle()
+    val saved by Downloads.saved.collectAsStateWithLifecycle()
+    val collections by Downloads.collections.collectAsStateWithLifecycle()
+    val id = item.browseId
+    val owned = if (kind == LibraryItemKind.PLAYLIST) g.vm.editablePlaylist(id) else null
+    val downloaded = isFullyDownloaded(id, collections, saved)
+    val label = when (kind) {
+        LibraryItemKind.PLAYLIST -> "Playlist"
+        LibraryItemKind.ALBUM -> "Album"
+        LibraryItemKind.ARTIST -> "Artist"
+    }
+    GlowSheet(onDismiss) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Cover(
+                com.music.bitchord.data.PlaylistCovers.coverFor(item, covers),
+                size = 52.dp,
+                shape = if (kind == LibraryItemKind.ARTIST) CircleShape else RoundedCornerShape(8.dp),
+            )
+            Spacer(Modifier.width(14.dp))
+            Column {
+                GlowText(item.title, GlowType.titleSmall, maxLines = 1)
+                GlowText(listOf(label, item.subtitle).filter { it.isNotBlank() }.distinct().joinToString(" · "), GlowType.secondary, color = c.textSecondary, maxLines = 1)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        if (id == null) return@GlowSheet
+        if (kind == LibraryItemKind.ARTIST) {
+            MenuRow(Icons.Rounded.Person, "Open artist") { onDismiss(); g.openArtist(id, item.title) }
+            MenuRow(Icons.Rounded.IosShare, "Share") { g.shareUrl(item.title, "https://music.youtube.com/channel/$id"); onDismiss() }
+            MenuRow(Icons.Rounded.PersonRemove, "Unfollow", danger = true) {
+                onDismiss()
+                g.vm.unfollowArtist(id) { ok -> g.notify(if (ok) "Unfollowed ${item.title}" else "Couldn't unfollow ${item.title}") }
+            }
+            return@GlowSheet
+        }
+        MenuRow(Icons.Rounded.PlayArrow, "Play") { onDismiss(); g.playBrowse(id, item.title) }
+        MenuRow(Icons.Rounded.Shuffle, "Shuffle play") { onDismiss(); g.playBrowse(id, item.title, shuffle = true) }
+        MenuRow(Icons.Rounded.SkipNext, "Play next") {
+            onDismiss()
+            g.withSongsOf(id, item.title) { g.actions.queueSongs(it, next = true); g.notify("${item.title} plays next") }
+        }
+        MenuRow(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") {
+            onDismiss()
+            g.withSongsOf(id, item.title) { g.actions.queueSongs(it, next = false); g.notify("Added ${item.title} to the queue") }
+        }
+        MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Save to playlist") {
+            onDismiss()
+            g.withSongsOf(id, item.title) { g.saveToPlaylist = it }
+        }
+        if (downloaded) {
+            MenuRow(Icons.Rounded.Delete, "Remove download") {
+                onDismiss()
+                g.scope.launch {
+                    val removed = Downloads.deleteCollection(g.context, id) ||
+                        Downloads.deleteCollection(g.context, id.removePrefix("VL")) ||
+                        Downloads.deleteCollection(g.context, "VL$id")
+                    g.notify(if (removed) "Removed the download of ${item.title}" else "Nothing to remove")
+                }
+            }
+        } else {
+            MenuRow(Icons.Rounded.Download, "Download") {
+                onDismiss()
+                g.withSongsOf(id, item.title) { songs ->
+                    g.actions.download(songs, DownloadTarget(id, item.title, item.subtitle, item.thumbnailUrl, playlist = kind == LibraryItemKind.PLAYLIST))
+                }
+            }
+        }
+        if (kind == LibraryItemKind.PLAYLIST) {
+            val isPinned = id in pinnedIds
+            MenuRow(Icons.Rounded.PushPin, if (isPinned) "Unpin from library" else "Pin to library") {
+                GlowPrefs.togglePinned(id)
+                g.notify(if (isPinned) "Unpinned ${item.title}" else "Pinned ${item.title}")
+                onDismiss()
+            }
+        }
+        MenuRow(Icons.Rounded.IosShare, "Share") {
+            g.shareUrl(item.title, "https://music.youtube.com/" + if (id.startsWith("VL")) "playlist?list=${id.removePrefix("VL")}" else "browse/$id")
+            onDismiss()
+        }
+        if (owned != null) {
+            MenuRow(Icons.Rounded.Edit, "Edit playlist") { g.push(Route.EditPlaylist(id)); onDismiss() }
+            MenuRow(Icons.Rounded.Delete, "Delete playlist", danger = true) {
+                g.vm.deletePlaylist(owned)
+                onDismiss()
+            }
+        } else if (kind == LibraryItemKind.PLAYLIST) {
+            MenuRow(Icons.Rounded.BookmarkRemove, "Remove from library", danger = true) {
+                onDismiss()
+                g.vm.removeFromLibrary(id) { ok -> g.notify(if (ok) "Removed ${item.title} from your library" else "Couldn't remove ${item.title}") }
             }
         }
     }
@@ -408,7 +686,7 @@ private fun LazyListScope.songsTab(g: GlowState, sorted: List<Song>, sort: SongS
     }
 }
 
-private fun LazyListScope.albumsTab(g: GlowState, albums: List<ShelfItem>) {
+private fun LazyListScope.albumsTab(g: GlowState, albums: List<ShelfItem>, onMenu: (ShelfItem) -> Unit) {
     item {
         Text(
             "${albums.size} albums",
@@ -422,17 +700,24 @@ private fun LazyListScope.albumsTab(g: GlowState, albums: List<ShelfItem>) {
     }
     albums.chunked(2).forEachIndexed { i, pair ->
         item(key = "al$i") {
+            val saved by Downloads.saved.collectAsStateWithLifecycle()
+            val collections by Downloads.collections.collectAsStateWithLifecycle()
             Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 pair.forEach { item ->
                     Column(
-                        Modifier.weight(1f).clickable {
+                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable {
                             item.browseId?.let { g.openDetail(it, item.title, item.subtitle, item.thumbnailUrl, BrowseType.ALBUM) }
                         },
                     ) {
-                        SquareCover(item.thumbnailUrl)
+                        SquareCover(item.thumbnailUrl, radius = 10.dp, downloaded = isFullyDownloaded(item.browseId, collections, saved))
                         Spacer(Modifier.height(8.dp))
-                        GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                        GlowText(item.subtitle, GlowType.secondary, color = Glow.colors.textSecondary, maxLines = 1)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                GlowText(item.title, GlowType.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                                GlowText(item.subtitle, GlowType.secondary, color = Glow.colors.textSecondary, maxLines = 1)
+                            }
+                            IconTap(Icons.Rounded.MoreHoriz, "More options", tint = Glow.colors.textSecondary, size = 36.dp, iconSize = 20.dp) { onMenu(item) }
+                        }
                     }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -441,7 +726,7 @@ private fun LazyListScope.albumsTab(g: GlowState, albums: List<ShelfItem>) {
     }
 }
 
-private fun LazyListScope.artistsTab(g: GlowState, artists: List<ShelfItem>) {
+private fun LazyListScope.artistsTab(g: GlowState, artists: List<ShelfItem>, onMenu: (ShelfItem) -> Unit) {
     item {
         Text(
             "${artists.size} artists · following",
@@ -461,7 +746,7 @@ private fun LazyListScope.artistsTab(g: GlowState, artists: List<ShelfItem>) {
             coverSize = 52.dp,
             circleCover = true,
             onClick = { g.openArtist(item.browseId, item.title) },
-            trailing = { ChevronRight(); Spacer(Modifier.width(8.dp)) },
+            trailing = { MoreButton { onMenu(item) } },
         )
     }
 }
@@ -483,6 +768,7 @@ fun LikedSongsScreen() {
         // Refreshed each visit, but what was read last time shows meanwhile.
         YtMusicRepository.allSongs(YtMusicRepository.LIKED_MUSIC).onSuccess {
             LikedSongsCache.songs.value = it
+            LikedSongsCache.refreshedThisSession = true
             LikedSongsCache.complete.value = true
         }
     }
@@ -491,7 +777,10 @@ fun LikedSongsScreen() {
     var order by rememberSaveable { mutableStateOf(SongOrder.DEFAULT) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf("") }
-    val sorted = remember(songs, order, filter) { order.apply(songs).matching(filter) }
+    // The whole list in the chosen order is what plays; the search only narrows what is shown,
+    // so picking a song found by searching queues all of Liked songs from that song.
+    val ordered = remember(songs, order) { order.apply(songs) }
+    val sorted = remember(ordered, filter) { ordered.matching(filter) }
     val totalMs = songs.sumOf { it.durationMillis() }
     val allDownloaded = songs.isNotEmpty() && songs.all { it.videoId in saved }
 
@@ -535,11 +824,11 @@ fun LikedSongsScreen() {
                         IconTap(Icons.Rounded.Download, "Download all") { g.actions.download(songs) }
                     }
                     IconTap(Icons.Rounded.Shuffle, "Shuffle") {
-                        g.actions.shuffle(sorted, g.source("Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC))
+                        g.actions.shuffle(ordered, g.source("Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC))
                     }
                     Spacer(Modifier.width(8.dp))
-                    PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 52.dp, enabled = sorted.isNotEmpty()) {
-                        g.playList(sorted, 0, "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC)
+                    PrimaryCircle(Icons.Rounded.PlayArrow, "Play", size = 52.dp, enabled = ordered.isNotEmpty()) {
+                        g.playList(ordered, 0, "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC)
                     }
                 }
             }
@@ -551,7 +840,7 @@ fun LikedSongsScreen() {
             itemsIndexed(sorted, key = { i, s -> "$i-${s.videoId}" }) { i, song ->
                 TrackRow(
                     song,
-                    onClick = { g.playList(sorted, i, "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC) },
+                    onClick = { g.playList(ordered, ordered.indexOf(song).coerceAtLeast(0), "Liked songs", PlaybackSourceType.BROWSE, YtMusicRepository.LIKED_MUSIC) },
                     onMore = { g.openSongMenu(song) },
                     active = g.player.song?.videoId == song.videoId,
                 )
@@ -648,16 +937,49 @@ private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean, downlo
 
         Column {
             // Storage summary.
+            var confirmDeleteAll by remember { mutableStateOf(false) }
             Column(
                 Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.glass).padding(14.dp),
             ) {
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${songs.size} songs · ${totalBytes.formatBytes()}", style = GlowType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, modifier = Modifier.weight(1f))
                     Text("${free.formatBytes()} free", style = GlowType.secondary, color = c.textSecondary)
                 }
                 Spacer(Modifier.height(12.dp))
                 val share = if (free + totalBytes > 0) totalBytes.toFloat() / (free + totalBytes) else 0f
                 ThinProgress(share.coerceAtLeast(0.01f), height = 6.dp)
+                Spacer(Modifier.height(12.dp))
+                PillButton(
+                    "Delete all downloads",
+                    Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.Delete,
+                    height = 44.dp,
+                    danger = true,
+                ) { confirmDeleteAll = true }
+            }
+            if (confirmDeleteAll) {
+                GlowDialog({ confirmDeleteAll = false }) {
+                    Text("Delete all downloads?", style = GlowType.title, color = c.text)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "${songs.size} songs (${totalBytes.formatBytes()}) will be removed from this phone" +
+                            (if (pending.isNotEmpty()) ", and ${pending.size} downloads in progress will stop" else "") +
+                            ". You won't be able to play them offline until you download them again. This can't be undone.",
+                        style = GlowType.bodyRegular,
+                        color = c.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    PillButton("Delete all", Modifier.fillMaxWidth(), height = 48.dp, danger = true) {
+                        confirmDeleteAll = false
+                        scope.launch {
+                            val removed = Downloads.deleteAll(g.context)
+                            g.notify(if (removed == 1) "Deleted 1 download" else "Deleted $removed downloads")
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    PillButton("Cancel", Modifier.fillMaxWidth(), primary = false, height = 48.dp) { confirmDeleteAll = false }
+                }
             }
             if (pending.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))
@@ -698,11 +1020,14 @@ private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean, downlo
     }
     itemsIndexed(songs, key = { i, song -> "dl-$i-${song.videoId}" }) { i, song ->
         val c = Glow.colors
+        // Every row here is a download, so only the liked mark is worth showing.
+        androidx.compose.runtime.CompositionLocalProvider(LocalShowDownloadedMark provides false) {
         SongRow(
             song.title,
             song.artist + (sizes[song.videoId]?.takeIf { it > 0 }?.let { " · ${it.formatBytes()}" } ?: ""),
             song.thumbnailUrl,
             active = g.player.song?.videoId == song.videoId,
+            videoId = song.videoId,
             onClick = { g.playList(songs, i, "Downloads", PlaybackSourceType.QUEUE) },
             trailing = {
                 IconTap(Icons.Rounded.Delete, "Delete download", tint = c.textSecondary) {
@@ -710,6 +1035,7 @@ private fun LazyListScope.downloadsContent(g: GlowState, inline: Boolean, downlo
                 }
             },
         )
+        }
     }
 }
 

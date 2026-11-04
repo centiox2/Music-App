@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -78,7 +79,12 @@ fun LiquidArtwork(
     var current by remember { mutableStateOf<ImageBitmap?>(LiquidCovers.get(url)) }
     var previous by remember { mutableStateOf<ImageBitmap?>(null) }
     val fade = remember { Animatable(1f) }
-    LaunchedEffect(url) {
+    val latestUrl by rememberUpdatedState(url)
+    // Keyed on the artwork, not its address: the same cover arriving under another size or
+    // thumbnail variant (hqdefault → maxresdefault, =w544 → =w1200) used to restart the 1.4s
+    // cross-fade between two near-identical pictures, which read as the background flickering.
+    LaunchedEffect(LiquidCovers.identity(url)) {
+        val url = latestUrl
         // A song change during the last cross-fade cancelled it half way; finish it first,
         // or the cover before stayed drawn under the new one for good.
         if (previous != null || fade.value < 1f) {
@@ -111,9 +117,11 @@ fun LiquidArtwork(
         while (isActive) {
             // Sleep between ticks rather than wake on every frame: on a 120Hz screen that
             // was 120 wake-ups a second to draw 30.
-            delay(30)
+            // A 1 GB TV box redraws half as often; the motion is just as slow, only less smooth.
+            delay(if (com.music.bitchord.data.LowRam.active) 66 else 30)
             withFrameMillis { now ->
-                ticks += (now - last).coerceAtMost(100) / 33.333f
+                // Half the original's speed: the drift should be felt more than watched.
+                ticks += (now - last).coerceAtMost(150) / 33.333f * MOTION_SPEED
                 LiquidCovers.ticks = ticks
                 last = now
             }
@@ -260,9 +268,22 @@ internal object LiquidCovers {
 
     @Synchronized fun get(url: String?): ImageBitmap? = url?.let { cache[key(it)] }
 
+    /** Which picture [url] is, whatever size or variant of it the address asks for. */
+    fun identity(url: String?): String? = url?.let { YT_VIDEO.find(it)?.groupValues?.get(1)?.let { id -> "yt:$id" } ?: key(it) }
+
+    private val YT_VIDEO = Regex("""i\d?\.ytimg\.com/vi(?:_webp)?/([A-Za-z0-9_-]{6,})/""")
+
     @Synchronized fun put(url: String, image: ImageBitmap) {
         cache[key(url)] = image
     }
 
-    private fun key(url: String) = url.substringBefore("=w").substringBefore("=s").substringBefore("?")
+    private fun key(url: String) = identityOfSized(url)
+
+    private fun identityOfSized(url: String): String =
+        YT_VIDEO.find(url)?.groupValues?.get(1)?.let { "yt:$it" }
+            ?: url.substringBefore("=w").substringBefore("=s").substringBefore("?")
 }
+
+
+/** How fast the liquid background drifts, relative to the original (1 = original speed). */
+private const val MOTION_SPEED = 0.5f

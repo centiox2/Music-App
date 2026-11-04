@@ -16,7 +16,7 @@ test and ship it, what the owner cares about, and what is still open.
 | | |
 |---|---|
 | Repository | `centiox2/Music-App` (GitHub) |
-| Working branch | `claude/elegant-clarke-w6bo53`. All work so far is here; no pull request has been opened |
+| Working branch | `claude/serene-ptolemy-yoa9t4` (continues `claude/elegant-clarke-w6bo53`). No pull request has been opened |
 | App name / icon | **Sonder** (renamed from "Cover Glow"); icon in `app/src/main/res/mipmap-*` |
 | Application id | `com.coverglow.music` (prod), `com.coverglow.music.dev` (dev flavour) |
 | Version | `1.8.1` (`build.gradle.kts`: `bitchordVersionName`, code 28); the phone shows `1.8.1-beta1` |
@@ -266,8 +266,16 @@ gap markers.
   page's own queue context.
 - Library → Playlists: sort menu (recent, A–Z, Z–A, downloaded first), grid/list, filters (All,
   Pinned, Downloaded). Sort and layout live in `GlowPrefs`, not state inside a lazy item.
-  **Pinning:** long-press a playlist, or "Pin to library" in its ⋯ menu; pinned ones stay on top
-  (`GlowPrefs.pinnedPlaylists`).
+  **Pinning:** only from a playlist's ⋯ menu (Library row or the playlist page); long-press does
+  nothing. Pinned ones show in their own PINNED group (`GlowPrefs.pinnedPlaylists`).
+- Library → Playlists follows the "Refined list" design (`playlistsTab` in `LibraryScreen.kt`):
+  cards, one toolbar (All · Pinned · Offline, ↓↑ sort, +, grid), PINNED / ALL PLAYLISTS groups,
+  64dp rows with a ⋯ menu (`PlaylistMenuSheet`).
+- Playlist covers are kept in `files/playlist_covers` (`data/PlaylistCovers.kt`) and refreshed
+  only in `MainViewModel.fetchLibrary` (a library read from YouTube) when a cover URL changed.
+- The full Liked songs list is saved to `files/liked_songs.json` (`LikedSongsCache.init`), so
+  offline shows all of it, not the library's first 100.
+- Downloads page: "Delete all downloads" with a confirmation (`Downloads.deleteAll`).
 - Song rows show a small heart for liked songs (`LikedMark` in `SongRow`), except on Liked songs
   (`LocalShowLikedMark`). `likeStatuses` now includes the full liked list, not only its first page.
 - Multi-select by long-press, with a bottom selection bar (add to playlist, remove from your
@@ -373,7 +381,11 @@ gap markers.
 
 Kotlin may print `e: … metadata version` lines during the release build; they are non-fatal.
 
-**Signing.** The APK the owner installs is signed with a self-made key that lived in the session's
+**Signing (update).** The owner kept the key: `coverglow2.jks`, alias `coverglow`, certificate
+SHA-256 `07:14:CC:5C:…:94:0B`. Ask them to upload it with its password file; never commit either.
+Sign with `apksigner sign --ks coverglow2.jks --ks-key-alias coverglow --ks-pass file:password.txt`.
+
+**Signing (original note).** The APK the owner installs is signed with a self-made key that lived in the session's
 scratch folder: `signing/coverglow.jks`, with the password in `signing/password.txt`. **That folder
 is temporary and won't survive the container.** If the key is lost, a new key means the owner must
 uninstall the old app before installing (Android rejects updates signed with a different key), and
@@ -389,6 +401,27 @@ $BT/apksigner verify Sonder-arm64-v8a.apk
 The owner's phone is arm64; send `Sonder-arm64-v8a.apk`.
 
 ---
+
+### Setting up an SDK in a fresh cloud session
+No SDK is preinstalled. What worked:
+```bash
+# command-line tools from dl.google.com into /opt/android-sdk/cmdline-tools/latest, then:
+sdkmanager --sdk_root=/opt/android-sdk "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
+# AGP 8.10 looks for "android-37" and can't read the newer package.xml: copy the folder to
+# platforms/android-37, set AndroidVersion.ApiLevel=37 in its source.properties, delete its package.xml.
+echo "sdk.dir=/opt/android-sdk" > local.properties
+```
+For the release build (native code) also install `"ndk;27.0.12077973" "cmake;3.22.1"`.
+
+Maven Central answers 429 from these machines. A Gradle init script in `~/.gradle/init.d/` that
+puts `https://maven-central.storage-download.googleapis.com/maven2/` first in the settings,
+plugin and buildscript repositories fixes it for good (not committed; container-only).
+Without it: build with `--max-workers=1`, retry, and fetch large jars
+(Robolectric's `android-all-instrumented`) from `maven-central.storage-download.googleapis.com`
+into `~/.m2/repository`, then run tests with `-Drobolectric.offline=true`.
+
+`ReviewScreenshotTest` (opt-in, `REVIEW_SHOTS=/dir`, optionally `VIVI_BACKUP=/path`) renders
+Library, Statistics, Backup and Downloads, and checks a ViVi import adds exactly its plays once.
 
 ## 7. Tests
 
@@ -475,7 +508,6 @@ GLOW_SHOTS=/some/dir ./gradlew :app:testDevDebugUnitTest --tests '*GlowScreensho
 
 **Feature backlog** (the engine already supports these; each mostly needs UI). The owner was
 offered this list and hasn't chosen yet:
-- Listening stats / "Wrapped" (`data/stats/ListeningStats`, `ArtistFacts`)
 - Animated covers, "Canvas" (`data/canvas/*`: Spotify, Apple, Tidal), animated artist art
 - Discord status (`data/discord`, `presence`)
 - On-device music library (`LocalMediaRepository`)
@@ -504,6 +536,82 @@ was in progress; they rebuilt many of the same screens. The owner chose this ver
 `bf6007b` is a merge with strategy `ours`, so those commits are in the history but none of their
 changes are. Their build stored `pinned_playlists` as a string set; `GlowPrefs.readPinned` reads
 either form (that mismatch crashed the app at launch until `6dc1972`).
+
+### 5.12 Statistics, backup, shuffle, search (round on `claude/serene-ptolemy-yoa9t4`)
+- **Statistics** (`StatisticsScreen.kt`, `Route.Statistics`, `Route.StatsList`): Overview and
+  Detailed after the owner's designs; data from `data/stats/StatsReport.kt`, which reads
+  BitChord's `ListeningStats` buckets. Plays per hour (`StoredBucket.hourPlays`) are counted
+  from this round on; older months show time per hour instead.
+- **Backup** (`data/SonderBackup.kt`, Settings → Backup & restore): settings, statistics,
+  history, edited lyrics. Restores older Sonder settings files and BitChord backups.
+- **Shuffle:** `QueueWindow` used a fixed seed, so album/playlist shuffle repeated the same
+  order. `startBoundedContext` and the shuffle toggle now pass a fresh seed.
+- **Search:** editing the text on the results page returns to the suggestions view
+  (`editing` in `SearchScreen`).
+- **BitChord:** our engine is BitChord's 2026-10-15 tree; ten upstream fixes up to v1.9 were
+  ported (see that commit). v1.9's big features (bit-perfect USB, loop mix, podcasts, video,
+  download/audio-quality refactors) were not: they need native code, Gradle and resource changes
+  and upstream UI. Upstream clone: `github.com/kushagrasinghx/BitChord`, compare from `fea57eba`.
+- **ViVi Music import** (`data/stats/ViViImport.kt`): reads `song.db` from a ViVi/Metrolist
+  `.backup` zip, plays only (never its settings, which hold a YouTube cookie). Event times are
+  local clock time stored as UTC. Merged with `ListeningStats.mergeAll(ADD)`; the newest imported
+  play is kept in `files/listening_imports.json` (and in Sonder backups) so a re-import adds
+  nothing. All restores now merge (`MergeMode.MAX` for our own backups) instead of replacing.
+- **Automix from BitChord v1.9:** CrossfadeController, TrackAnalyzer, TransitionPlanner/Policy,
+  LoopMix (Kotlin + `native/loopmix`, Signalsmith Stretch, `bitchord_loopmix` in CMake), the new
+  Beat This! model (`beat_this_final0_q8.onnx`; the int8 one was retired upstream as broken) and
+  the loop-mix splice in `PrecisionAudioSink`. The bit-perfect check in the controller was
+  dropped (no bit-perfect output here). `AppSettings.smartMixView/automixDetail` are published
+  but no Sonder screen shows them yet. If `libbitchord_loopmix.so` fails to load, Automix falls
+  back to its blends.
+- **Not compiled:** this round was committed without a build (no Android SDK in the session,
+  and the owner asked for no build). Build and run the tests before shipping.
+
+### 5.13 Round 1.9.1 (owner's bug list)
+- **Queue:** played user-queued songs stay (Earlier); `consumePlayedUserQueue` is no longer
+  called. Search inside Liked songs/playlists queues the full list. `GlowState.toggleIfCurrent`
+  makes tapping the playing song pause/resume (in `playList`, `playSingle`, `playOrdered`).
+- **Marks:** `SongMarks` (liked heart + `DownloadedMark`) is drawn by every `SongRow`, Home song
+  cards, queue rows and artist top songs; `LocalShowDownloadedMark` turns the arrow off on
+  Downloads. A fully downloaded collection shows only its cover badge.
+- **Artists:** `GlowState.creditedArtists` / `openArtistRef`, `ArtistLinks` (one link per
+  artist) in the player and album page, one "Go to …" per artist in the song menu.
+  `FitWordsText` shrinks a display title only as much as its longest word needs.
+- **Album page:** `AlbumHero` (cover full bleed, tint from it, Archivo title, actions) on
+  `ReleaseBackground`; playlists keep the glow page.
+- **Library ⋯:** `CollectionMenuSheet` for playlists, albums and artists (play next, queue,
+  save to playlist, download/remove, pin, share, remove from library, unfollow);
+  `GlowState.withSongsOf` reads a collection's songs (offline: downloaded ones).
+- **Automix:** analysis requests reach one track further ahead (`requestAnalysisAround`); the
+  owner's log showed 35 of 77 transitions planned with the incoming track still unanalysed
+  (analysis took ~2-3 min per track on the phone with BALANCED = 2 threads).
+- **Liquid background:** the readability shade and the player's underlay are neutral
+  black/white, not the app's blue-teal base; artwork identity keys the cross-fade
+  (`LiquidCovers.identity`) so size variants of one cover don't re-fade.
+- **Logs:** three sessions (`older-session.log`), `AppLog.state` lines (network, foreground,
+  memory, settings), route ids in navigation lines. `Connectivity` is the app-wide online state;
+  `OfflinePill` shows above the mini player off Home. `CoilBitmapLoader` gives the notification
+  cached artwork offline.
+- **Test environment:** YouTube gives this cloud server no album data and cut-down artist pages;
+  `ReviewScreenshotTest.realAlbumPage` injects a page instead.
+
+### 5.14 Android TV (32-bit) and D-pad
+
+- 32-bit: `armeabi-v7a` was already in the ABI splits and every native library (ffmpeg, ONNX
+  Runtime, QuickJS, loopmix/analysis/dsd/dst) builds for it; the TV box takes
+  `Sonder-<ver>-armeabi-v7a.apk` (or the universal one).
+- Manifest: `LEANBACK_LAUNCHER` filter on MainActivity, `android:banner` (`drawable-xhdpi/tv_banner.png`),
+  touchscreen/leanback/microphone/bluetooth `uses-feature` all `required="false"`.
+- `ui/glow/TvFocus.kt`: `glowRipple()` (ripple + focus ring) is the app-wide `LocalIndication`
+  and replaces every explicit `ripple()`; `FocusRing` replaces `indication = null`, so every
+  clickable shows where the remote is. `Modifier.dpadAdjust` makes the seek bar (±10 s),
+  volume bar (±5 %), EQ faders (±0.5 dB) and the playlist editor's drag handles (up/down move)
+  work with arrows. `Modifier.focusBlocked` keeps focus out of pages/rail/mini player while the
+  player, devices sheet or sign-in is on top; GlowApp clears focus when an overlay opens/closes
+  or the page changes, so the next arrow starts on the new screen.
+- Test: `TvDpadTest` drives the real UI at 960×540dp TV qualifiers with key events only.
+- CI: `.github/workflows/build-apk.yml` builds all APKs on GitHub (signed when the
+  `KEYSTORE_BASE64`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` secrets exist).
 
 ## 10. Project history (one commit per round, newest last)
 

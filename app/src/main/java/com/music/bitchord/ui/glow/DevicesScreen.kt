@@ -523,6 +523,10 @@ private fun VolumeBar(value: Float, label: String, modifier: Modifier = Modifier
                 .height(height)
                 .clip(RoundedCornerShape(18.dp))
                 .background(c.glass)
+                .dpadAdjust(
+                    onDecrease = { onChange((value - 0.05f).coerceIn(0f, 1f)) },
+                    onIncrease = { onChange((value + 0.05f).coerceIn(0f, 1f)) },
+                )
                 .pointerInput(Unit) {
                     detectTapGestures { offset -> onChange((offset.x / size.width).coerceIn(0f, 1f)) }
                 }

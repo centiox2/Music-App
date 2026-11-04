@@ -35,6 +35,7 @@ object AppLog {
     private fun dir(context: Context) = File(context.filesDir, "logs").apply { mkdirs() }
     private fun sessionFile(context: Context) = File(dir(context), "session.log")
     private fun previousFile(context: Context) = File(dir(context), "previous-session.log")
+    private fun olderFile(context: Context) = File(dir(context), "older-session.log")
     private fun crashDir(context: Context) = File(dir(context), "crashes").apply { mkdirs() }
 
     private var recorder: java.lang.Process? = null
@@ -54,6 +55,33 @@ object AppLog {
             "Started ${BuildConfig.VERSION_NAME} on ${Build.MANUFACTURER} ${Build.MODEL}, " +
                 "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
         )
+        logMemory(app)
+        // Foreground and background, so a log shows when the screen was in use. Two lines per
+        // switch, nothing in between.
+        runCatching {
+            androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(
+                androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    when (event) {
+                        androidx.lifecycle.Lifecycle.Event.ON_START -> state("app in foreground")
+                        androidx.lifecycle.Lifecycle.Event.ON_STOP -> state("app in background")
+                        else -> Unit
+                    }
+                },
+            )
+        }
+    }
+
+    /** Memory the system gives the app, once at start: low-memory phones explain a lot. */
+    private fun logMemory(context: Context) {
+        runCatching {
+            val am = context.getSystemService(android.app.ActivityManager::class.java)
+            val info = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            state(
+                "memory class ${am.memoryClass}MB (large ${am.largeMemoryClass}MB), " +
+                    "device ${info.totalMem / (1024 * 1024)}MB, ${info.availMem / (1024 * 1024)}MB free, " +
+                    "low=${info.lowMemory}, cores=${Runtime.getRuntime().availableProcessors()}",
+            )
+        }
     }
 
     /** One line in the log for something the listener did. */
@@ -61,10 +89,22 @@ object AppLog {
         Log.i(TAG, what)
     }
 
-    // The last session's files become "previous", so this run starts a log of its own.
+    /**
+     * One line for the state of the app itself (network, foreground, settings), so a log
+     * explains the conditions behind what follows it. Called on changes only, never per frame.
+     */
+    fun state(what: String) {
+        Log.i(TAG, "state: $what")
+    }
+
+    // Three sessions are kept: the session before last becomes "older", the last one becomes
+    // "previous", so this run starts a log of its own.
     private fun keepPreviousSession(context: Context) {
         val logs = dir(context)
-        logs.listFiles { f -> f.name.startsWith("previous-session.log") }?.forEach { it.delete() }
+        logs.listFiles { f -> f.name.startsWith("older-session.log") }?.forEach { it.delete() }
+        logs.listFiles { f -> f.name.startsWith("previous-session.log") }?.forEach { f ->
+            f.renameTo(File(logs, f.name.replaceFirst("previous-session.log", "older-session.log")))
+        }
         logs.listFiles { f -> f.name.startsWith("session.log") }?.forEach { f ->
             f.renameTo(File(logs, f.name.replaceFirst("session.log", "previous-session.log")))
         }
@@ -128,6 +168,7 @@ object AppLog {
     fun entries(context: Context): List<Entry> = buildList {
         add(Entry("This session", sessionFile(context)))
         if (previousFile(context).exists()) add(Entry("Last session", previousFile(context)))
+        if (olderFile(context).exists()) add(Entry("Session before last", olderFile(context)))
         crashDir(context).listFiles()?.sortedByDescending { it.name }?.forEach { add(Entry(crashTitle(it), it)) }
     }
 
@@ -161,6 +202,7 @@ object AppLog {
         val name = when {
             entry.file.parentFile == crashDir(context) -> entry.file.name
             entry.title == "Last session" -> "sonder-last-session.log"
+            entry.title == "Session before last" -> "sonder-older-session.log"
             else -> "sonder-session.log"
         }
         val out = File(shared, name)
@@ -178,9 +220,9 @@ object AppLog {
         context.startActivity(Intent.createChooser(send, "Share log").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    /** Deletes the crash reports and the last session's log; this session's keeps going. */
+    /** Deletes the crash reports and the earlier sessions' logs; this session's keeps going. */
     fun clear(context: Context) {
         crashDir(context).listFiles()?.forEach { it.delete() }
-        dir(context).listFiles { f -> f.name.startsWith("previous-session.log") }?.forEach { it.delete() }
+        dir(context).listFiles { f -> f.name.startsWith("previous-session.log") || f.name.startsWith("older-session.log") }?.forEach { it.delete() }
     }
 }

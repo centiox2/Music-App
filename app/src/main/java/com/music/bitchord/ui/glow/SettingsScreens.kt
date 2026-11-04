@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Translate
@@ -212,6 +213,9 @@ fun SettingsScreen() {
         SettingEntry("Privacy", "Privacy & data") {
             SettingRow("History", icon = Icons.Rounded.History, subtitle = "Pause or clear listening and search history", chevron = true) { g.push(Route.SettingsPrivacy) }
         },
+        SettingEntry("Listening statistics", "Privacy & data") {
+            SettingRow("Listening statistics", icon = Icons.Rounded.BarChart, subtitle = "Kept on this phone only", chevron = true) { g.push(Route.Statistics) }
+        },
         SettingEntry("Backup & restore", "Privacy & data") {
             SettingRow("Backup & restore", icon = Icons.Rounded.Backup, chevron = true) { g.push(Route.SettingsBackup) }
         },
@@ -288,7 +292,8 @@ fun SettingsScreen() {
             Spacer(Modifier.height(10.dp))
             MenuRow(Icons.Rounded.SwitchAccount, "Switch channel") {
                 accountMenu = false
-                g.switchChannelOpen = true
+                g.channelPickerAfterSignIn = false
+                g.channelPickerOpen = true
             }
             MenuRow(Icons.Rounded.Refresh, "Add another account") {
                 accountMenu = false
@@ -882,6 +887,12 @@ private fun BandSlider(db: Float, hz: Float, enabled: Boolean, modifier: Modifie
             Modifier
                 .weight(1f)
                 .width(36.dp)
+                .dpadAdjust(
+                    enabled = enabled,
+                    vertical = true,
+                    onDecrease = { onChange((db - 0.5f).coerceIn(-range, range)) },
+                    onIncrease = { onChange((db + 0.5f).coerceIn(-range, range)) },
+                )
                 .pointerInput(enabled) {
                     if (!enabled) return@pointerInput
                     detectVerticalDragGestures { change, _ ->
