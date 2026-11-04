@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
@@ -170,6 +171,26 @@ private fun WebSignIn(mode: WebSessionMode, onClose: () -> Unit, onDone: () -> U
     var captureRequest by remember { mutableIntStateOf(0) }
     var pageReady by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
+    // A TV remote can't get out of the YouTube page once its search field has focus, so "Use this"
+    // was unreachable. With a remote, the session is taken by itself as soon as YouTube Music has
+    // loaded signed in; the channel is then chosen in the app's own list (ChannelPicker.kt).
+    val remote = androidx.compose.ui.platform.LocalInputModeManager.current.inputMode ==
+        androidx.compose.ui.input.InputMode.Keyboard
+    val useThisFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(pageReady, remote) {
+        if (!pageReady || !remote || confirming) return@LaunchedEffect
+        if (mode == WebSessionMode.SIGN_IN) {
+            kotlinx.coroutines.delay(1200)
+            if (pageReady && !confirming) {
+                confirming = true
+                captureRequest++
+            }
+        } else {
+            // Picking a channel on the page: put the remote on "Use this" once it's there.
+            kotlinx.coroutines.delay(600)
+            runCatching { useThisFocus.requestFocus() }
+        }
+    }
     Column(Modifier.fillMaxSize().background(c.base).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconTap(Icons.Rounded.Close, "Close", onClick = onClose)
@@ -180,11 +201,21 @@ private fun WebSignIn(mode: WebSessionMode, onClose: () -> Unit, onDone: () -> U
                     color = c.text,
                 )
                 if (pageReady) {
-                    Text("Pick the channel to use, then confirm.", style = GlowType.secondary, color = c.textSecondary, maxLines = 2)
+                    Text(
+                        if (remote && mode == WebSessionMode.SIGN_IN) "Signed in. Finishing up…" else "Pick the channel to use, then confirm.",
+                        style = GlowType.secondary,
+                        color = c.textSecondary,
+                        maxLines = 2,
+                    )
                 }
             }
             if (pageReady) {
-                PillButton(if (confirming) "Checking…" else "Use this", height = 40.dp, enabled = !confirming) {
+                PillButton(
+                    if (confirming) "Checking…" else "Use this",
+                    Modifier.focusRequester(useThisFocus),
+                    height = 40.dp,
+                    enabled = !confirming,
+                ) {
                     confirming = true
                     captureRequest++
                 }
