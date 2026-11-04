@@ -18,6 +18,9 @@ on:
   push:
     branches: ["claude/**"]
 
+permissions:
+  contents: write   # to publish the TV APK as a release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -84,3 +87,25 @@ jobs:
           name: sonder-apks
           path: out/*.apk
           if-no-files-found: error
+
+      # Just the TV (32-bit) APK, on its own and as a plain .apk, at a link that never changes:
+      # https://github.com/centiox2/Music-App/releases/download/tv-latest/Sonder-TV.apk
+      - name: TV APK on its own
+        run: cp out/*-armeabi-v7a.apk Sonder-TV.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sonder-tv-apk
+          path: Sonder-TV.apk
+
+      - name: Publish the TV APK (release "tv-latest")
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES="Latest TV build (32-bit, armeabi-v7a) from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}."
+          if gh release view tv-latest > /dev/null 2>&1; then
+            gh release upload tv-latest Sonder-TV.apk --clobber
+            gh release edit tv-latest --notes "$NOTES"
+          else
+            gh release create tv-latest Sonder-TV.apk --title "Sonder for TV (latest)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+          fi
