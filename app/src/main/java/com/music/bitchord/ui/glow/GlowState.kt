@@ -115,6 +115,10 @@ class GlowState(
     var signInOpen by mutableStateOf(false)
     var switchChannelOpen by mutableStateOf(false)
 
+    /** The in-app channel list (ChannelPicker.kt); [channelPickerAfterSignIn] when it follows a sign-in. */
+    var channelPickerOpen by mutableStateOf(false)
+    var channelPickerAfterSignIn = false
+
     var songMenu by mutableStateOf<Song?>(null)
     var songMenuFromPlayer by mutableStateOf(false)
     var saveToPlaylist by mutableStateOf<List<Song>?>(null)

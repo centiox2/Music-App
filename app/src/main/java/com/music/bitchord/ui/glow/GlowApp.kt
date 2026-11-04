@@ -519,6 +519,9 @@ private fun GlowRoot(state: GlowState) {
     if (state.lyricsSearchOpen) LyricsSearch(onDismiss = { state.lyricsSearchOpen = false })
     if (state.lyricsEditorOpen) LyricsEditor(onDismiss = { state.lyricsEditorOpen = false })
     state.songDetails?.let { song -> SongDetailsSheet(song, onDismiss = { state.songDetails = null }) }
+    if (state.channelPickerOpen && signedIn) {
+        ChannelPickerSheet(state.channelPickerAfterSignIn, onDismiss = { state.channelPickerOpen = false })
+    }
 }
 
 @Composable

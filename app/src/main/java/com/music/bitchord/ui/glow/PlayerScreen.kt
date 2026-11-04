@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -96,6 +97,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -251,7 +253,8 @@ private fun PlayerBackdrop(song: Song) {
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
     val intensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
-    val reduce = rememberReduceMotion()
+    // A low-memory device (a 1 GB TV box) keeps the background still: same colours, no animation.
+    val reduce = rememberReduceMotion() || com.music.bitchord.data.LowRam.active
     if (!liquid) {
         CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
         return
@@ -340,8 +343,10 @@ private fun LandscapePlayer(song: Song) {
             .padding(horizontal = 32.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(32.dp),
     ) {
-        Box(Modifier.fillMaxHeight().aspectRatio(1f), contentAlignment = Alignment.Center) {
-            Artwork(song, Modifier.fillMaxSize())
+        // The cover gets at most ~45% of the width, so on a wide, short screen (a TV is 960×540dp)
+        // the controls keep enough room; a full-height square left them squashed into a sliver.
+        Box(Modifier.weight(0.85f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Artwork(song, Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true))
         }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             PlayerHeader(song)
@@ -355,11 +360,11 @@ private fun LandscapePlayer(song: Song) {
                 PlayerPane.QUEUE -> QueuePane(Modifier.weight(1f))
             }
             SeekBar()
-            Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { Controls() }
-                Spacer(Modifier.width(16.dp))
-                Box(Modifier.width(240.dp)) { PaneBar() }
+            Spacer(Modifier.height(12.dp))
+            Controls()
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(Modifier.widthIn(max = 320.dp)) { PaneBar() }
             }
         }
     }
@@ -728,12 +733,20 @@ private fun Controls() {
     val controller = g.controller
     val shuffle by AppSettings.shuffleEnabled.collectAsStateWithLifecycle()
     val haptic = rememberHaptic()
+    // Remote: the player opens with Play/Pause focused, the button wanted most.
+    val playFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(550)
+        if (inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard) runCatching { playFocus.requestFocus() }
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconTap(Icons.Rounded.Shuffle, "Shuffle", tint = if (shuffle) c.text else c.textSecondary, iconSize = 24.dp, modifier = Modifier.popOnChange(shuffle)) { g.toggleShuffle() }
         IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 56.dp, iconSize = 40.dp) { haptic(); controller?.seekToPrevious() }
         PrimaryCircle(
             if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
             if (player.isPlaying) "Pause" else "Play",
+            modifier = Modifier.focusRequester(playFocus),
             size = 68.dp,
             iconSize = 34.dp,
         ) { haptic(); g.actions.togglePlayPause() }

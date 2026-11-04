@@ -203,7 +203,12 @@ private fun WebSignIn(mode: WebSessionMode, onClose: () -> Unit, onDone: () -> U
                 vm.onWebSession(session, mode) { accepted ->
                     confirming = false
                     if (accepted) {
-                        if (mode == WebSessionMode.SIGN_IN) g.selectTab(2)
+                        if (mode == WebSessionMode.SIGN_IN) {
+                            g.selectTab(2)
+                            // One Google account can hold several channels: ask which, in the app.
+                            g.channelPickerAfterSignIn = true
+                            g.channelPickerOpen = true
+                        }
                         onDone()
                     } else {
                         onFailed("YouTube Music didn't accept the session.")

@@ -834,7 +834,9 @@ object AppSettings {
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
         automixPerformanceMode.value = runCatching {
             AutomixPerformanceMode.valueOf(
-                prefs.getString(KEY_AUTOMIX_PERFORMANCE_MODE, null) ?: AutomixPerformanceMode.BALANCED.name,
+                prefs.getString(KEY_AUTOMIX_PERFORMANCE_MODE, null)
+                    // Short of memory (a 1 GB TV box): one analysis thread unless chosen otherwise.
+                    ?: (if (com.music.bitchord.data.LowRam.active) AutomixPerformanceMode.EFFICIENT else AutomixPerformanceMode.BALANCED).name,
             )
         }.getOrDefault(AutomixPerformanceMode.BALANCED)
         skipSilence.value = prefs.getBoolean(KEY_SKIP_SILENCE, false)
