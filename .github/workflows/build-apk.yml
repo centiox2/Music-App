@@ -72,7 +72,7 @@ jobs:
       - name: Name the APKs
         run: |
           mkdir out
-          VERSION=$(grep -oP 'bitchordVersionName.*?"\K[^"]+' build.gradle.kts | head -1)
+          VERSION=$(grep -oP 'bitchordVersionName"\] = "\K[^"]+' build.gradle.kts | head -1)
           for f in app/build/outputs/apk/prod/release/*.apk; do
             abi=$(basename "$f" | sed -E 's/app-prod-(.*)-release(-unsigned)?\.apk/\1/')
             cp "$f" "out/Sonder-${VERSION}-${abi}.apk"
