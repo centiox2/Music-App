@@ -250,7 +250,7 @@ private fun CollectionCard(
             .pressScale(interaction, 0.97f)
             .clip(RoundedCornerShape(14.dp))
             .background(c.glass)
-            .clickable(interaction, androidx.compose.material3.ripple(), onClick = onClick)
+            .clickable(interaction, glowRipple(), onClick = onClick)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -448,7 +448,7 @@ private fun PlaylistRow(g: GlowState, item: ShelfItem, view: PlaylistsView, onMe
             .fillMaxWidth()
             .height(64.dp)
             .pressScale(interaction, 0.98f)
-            .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(item, "Library") }
+            .clickable(interaction, glowRipple()) { g.openShelfItem(item, "Library") }
             .padding(start = 20.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

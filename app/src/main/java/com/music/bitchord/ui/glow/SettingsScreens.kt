@@ -886,6 +886,12 @@ private fun BandSlider(db: Float, hz: Float, enabled: Boolean, modifier: Modifie
             Modifier
                 .weight(1f)
                 .width(36.dp)
+                .dpadAdjust(
+                    enabled = enabled,
+                    vertical = true,
+                    onDecrease = { onChange((db - 0.5f).coerceIn(-range, range)) },
+                    onIncrease = { onChange((db + 0.5f).coerceIn(-range, range)) },
+                )
                 .pointerInput(enabled) {
                     if (!enabled) return@pointerInput
                     detectVerticalDragGestures { change, _ ->

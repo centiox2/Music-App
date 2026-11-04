@@ -240,7 +240,7 @@ private fun MoodTile(mood: MoodGenre, index: Int, modifier: Modifier = Modifier,
             .pressScale(interaction, 0.95f)
             .clip(RoundedCornerShape(12.dp))
             .background(base.copy(alpha = 1f).darken(0.55f))
-            .clickable(interaction, androidx.compose.material3.ripple(), onClick = onClick),
+            .clickable(interaction, glowRipple(), onClick = onClick),
     ) {
         Box(
             Modifier

@@ -127,7 +127,14 @@ fun EditPlaylistScreen(route: Route.EditPlaylist) {
                             GlowText(song.artist, GlowType.secondary, color = c.textSecondary, maxLines = 1)
                         }
                         Box(
-                            Modifier.size(44.dp).pointerInput(index) {
+                            Modifier.size(44.dp)
+                                // Remote: focus the handle, then up/down move the song.
+                                .dpadAdjust(
+                                    vertical = true,
+                                    onDecrease = { if (index < songs.lastIndex) songs.add(index + 1, songs.removeAt(index)) },
+                                    onIncrease = { if (index > 0) songs.add(index - 1, songs.removeAt(index)) },
+                                )
+                                .pointerInput(index) {
                                 detectDragGestures(
                                     onDragStart = { dragging = index; dragOffset = 0f },
                                     onDragEnd = {

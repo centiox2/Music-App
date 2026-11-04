@@ -672,6 +672,12 @@ private fun SeekBar() {
             Modifier
                 .fillMaxWidth()
                 .height(24.dp)
+                // Remote: left/right skip back/forward 10 seconds.
+                .dpadAdjust(
+                    enabled = duration > 0,
+                    onDecrease = { g.controller?.let { it.seekTo((it.currentPosition - 10_000L).coerceAtLeast(0L)) } },
+                    onIncrease = { g.controller?.let { it.seekTo((it.currentPosition + 10_000L).coerceAtMost(duration)) } },
+                )
                 .pointerInput(duration) {
                     detectTapGestures { offset ->
                         if (duration > 0) g.controller?.seekTo((offset.x / size.width * duration).toLong())

@@ -241,7 +241,7 @@ private fun FeaturedCard(shelfTitle: String, item: ShelfItem) {
             .pressScale(interaction, 0.97f)
             .clip(RoundedCornerShape(14.dp))
             .background(Glow.colors.glassStrong)
-            .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(item, shelfTitle) },
+            .clickable(interaction, glowRipple()) { g.openShelfItem(item, shelfTitle) },
     ) {
         ArtImage(item.thumbnailUrl, 720, Modifier.fillMaxSize())
         Box(
@@ -318,7 +318,7 @@ fun ShelfCard(
         Modifier
             .width(size)
             .pressScale(interaction, 0.95f)
-            .combinedClickable(interaction, null, onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(interaction, FocusRing, onClick = onClick, onLongClick = onLongClick),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Cover(item.thumbnailUrl, size = size, shape = if (circle) CircleShape else RoundedCornerShape(12.dp), px = 544)

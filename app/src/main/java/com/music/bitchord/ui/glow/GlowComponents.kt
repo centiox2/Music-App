@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.material3.ripple
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -101,7 +100,7 @@ import com.music.bitchord.ui.player.rememberArtworkColors
 fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier =
     clickable(
         interactionSource = remember { MutableInteractionSource() },
-        indication = null,
+        indication = FocusRing,
         enabled = enabled,
         onClick = onClick,
     )
@@ -416,7 +415,7 @@ fun IconTap(
             .size(size)
             .pressScale(interaction, 0.86f)
             .clip(CircleShape)
-            .clickable(interaction, ripple(bounded = true), enabled = enabled, onClick = onClick),
+            .clickable(interaction, glowRipple(bounded = true), enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription, tint = animatedTint, modifier = Modifier.size(iconSize))
@@ -439,7 +438,7 @@ fun GlassCircle(
             .pressScale(interaction, 0.9f)
             .clip(CircleShape)
             .background(background)
-            .clickable(interaction, ripple(), onClick = onClick),
+            .clickable(interaction, glowRipple(), onClick = onClick),
         contentAlignment = Alignment.Center,
         content = content,
     )
@@ -464,7 +463,7 @@ fun PrimaryCircle(
             .pressScale(interaction, 0.88f)
             .clip(CircleShape)
             .background(if (enabled) c.primary else c.primary.copy(alpha = 0.45f))
-            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
+            .clickable(interaction, glowRipple(), enabled = enabled, onClick = onClick)
             .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
@@ -501,7 +500,7 @@ fun GlowChip(
             .pressScale(interaction, 0.93f)
             .clip(if (pill) CircleShape else RoundedCornerShape(10.dp))
             .background(bg)
-            .clickable(interaction, ripple(), onClick = onClick)
+            .clickable(interaction, glowRipple(), onClick = onClick)
             .padding(horizontal = if (pill) 16.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -564,7 +563,7 @@ fun PillButton(
             .clip(CircleShape)
             .background(bg)
             .alpha(if (enabled) 1f else 0.5f)
-            .clickable(interaction, ripple(), enabled = enabled, onClick = onClick)
+            .clickable(interaction, glowRipple(), enabled = enabled, onClick = onClick)
             // Compact buttons often share a row; less side padding keeps their label whole.
             .padding(horizontal = if (height < 54.dp) 14.dp else 22.dp),
         horizontalArrangement = Arrangement.Center,
@@ -711,7 +710,7 @@ fun SongRow(
         modifier
             .fillMaxWidth()
             .pressScale(interaction, 0.98f)
-            .combinedClickable(interaction, ripple(), onClick = rowClick, onLongClick = rowLongClick)
+            .combinedClickable(interaction, glowRipple(), onClick = rowClick, onLongClick = rowLongClick)
             .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(highlight)

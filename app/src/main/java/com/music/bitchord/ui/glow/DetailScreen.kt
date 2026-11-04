@@ -377,7 +377,7 @@ private fun ArtistPageScreen(page: DetailPage) {
                             .pressScale(interaction, 0.98f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(onTint.copy(alpha = 0.08f))
-                            .clickable(interaction, androidx.compose.material3.ripple()) { g.openShelfItem(latest, page.title) }
+                            .clickable(interaction, glowRipple()) { g.openShelfItem(latest, page.title) }
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -494,7 +494,7 @@ private fun ArtistAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun ArtistCard(item: ShelfItem, size: androidx.compose.ui.unit.Dp, onTint: Color, dim: Color, onClick: () -> Unit) {
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    Column(Modifier.width(size).pressScale(interaction, 0.95f).clickable(interaction, null, onClick = onClick)) {
+    Column(Modifier.width(size).pressScale(interaction, 0.95f).clickable(interaction, FocusRing, onClick = onClick)) {
         Cover(item.thumbnailUrl, size = size, shape = RoundedCornerShape(10.dp))
         Spacer(Modifier.height(6.dp))
         Text(item.title, style = GlowType.body.copy(fontSize = 14.sp), color = onTint, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)

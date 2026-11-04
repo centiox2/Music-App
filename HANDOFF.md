@@ -595,6 +595,24 @@ either form (that mismatch crashed the app at launch until `6dc1972`).
 - **Test environment:** YouTube gives this cloud server no album data and cut-down artist pages;
   `ReviewScreenshotTest.realAlbumPage` injects a page instead.
 
+### 5.14 Android TV (32-bit) and D-pad
+
+- 32-bit: `armeabi-v7a` was already in the ABI splits and every native library (ffmpeg, ONNX
+  Runtime, QuickJS, loopmix/analysis/dsd/dst) builds for it; the TV box takes
+  `Sonder-<ver>-armeabi-v7a.apk` (or the universal one).
+- Manifest: `LEANBACK_LAUNCHER` filter on MainActivity, `android:banner` (`drawable-xhdpi/tv_banner.png`),
+  touchscreen/leanback/microphone/bluetooth `uses-feature` all `required="false"`.
+- `ui/glow/TvFocus.kt`: `glowRipple()` (ripple + focus ring) is the app-wide `LocalIndication`
+  and replaces every explicit `ripple()`; `FocusRing` replaces `indication = null`, so every
+  clickable shows where the remote is. `Modifier.dpadAdjust` makes the seek bar (±10 s),
+  volume bar (±5 %), EQ faders (±0.5 dB) and the playlist editor's drag handles (up/down move)
+  work with arrows. `Modifier.focusBlocked` keeps focus out of pages/rail/mini player while the
+  player, devices sheet or sign-in is on top; GlowApp clears focus when an overlay opens/closes
+  or the page changes, so the next arrow starts on the new screen.
+- Test: `TvDpadTest` drives the real UI at 960×540dp TV qualifiers with key events only.
+- CI: `.github/workflows/build-apk.yml` builds all APKs on GitHub (signed when the
+  `KEYSTORE_BASE64`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` secrets exist).
+
 ## 10. Project history (one commit per round, newest last)
 
 | Commit | Round |

@@ -292,13 +292,35 @@ private fun GlowRoot(state: GlowState) {
         }
     }
 
+    // Something full-screen on top: the remote's arrows must stay inside it (TvFocus.kt).
+    val welcomeShown = !onboardingComplete && !signedIn
+    val covered = (state.playerOpen && player.song != null) || state.devicesOpen ||
+        welcomeShown || state.signInOpen || state.switchChannelOpen
+    // With a remote, focus follows what is on top: into the player or devices sheet when one
+    // opens, back into the page when it closes or a new page is pushed. (Switching tabs leaves it
+    // on the tab, the way TV apps do: right goes on into the page.)
+    val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+    val pageFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val playerFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val devicesFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val playerShown = state.playerOpen && player.song != null
+    LaunchedEffect(playerShown, state.devicesOpen, state.top) {
+        // After the slide/fade, so the new content is in place to be focused.
+        delay(420)
+        when {
+            state.devicesOpen -> devicesFocus.enterIfRemote(inputMode.inputMode)
+            playerShown -> playerFocus.enterIfRemote(inputMode.inputMode)
+            else -> pageFocus.enterIfRemote(inputMode.inputMode)
+        }
+    }
+
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(c.base)) {
         state.wide = maxWidth >= 840.dp
         val railWidth = if (state.wide) RailWidth else 0.dp
         // Pages.
         val pageStates = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
         AnimatedContent(
-            modifier = Modifier.padding(start = railWidth),
+            modifier = Modifier.padding(start = railWidth).focusBlocked(covered).focusArea(pageFocus),
             targetState = state.top to state.tab,
             transitionSpec = {
                 val forward = state.stack.size > 0 && targetState.first != null && initialState.first != targetState.first
@@ -363,6 +385,7 @@ private fun GlowRoot(state: GlowState) {
             Column(
                 Modifier
                     .align(Alignment.BottomCenter)
+                    .focusBlocked(covered)
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(start = railWidth)
@@ -400,7 +423,7 @@ private fun GlowRoot(state: GlowState) {
             ) { ToastHost(state) }
         }
 
-        if (state.wide) SideRail(state)
+        if (state.wide) Box(Modifier.focusBlocked(covered)) { SideRail(state) }
 
         // The player is a full-screen take-over.
         LaunchedEffect(state.playerOpen) { if (state.playerOpen) state.playerDrag = 0f }
@@ -413,7 +436,9 @@ private fun GlowRoot(state: GlowState) {
             val density = androidx.compose.ui.platform.LocalDensity.current
             val radius = with(density) { 28.dp.toPx() }
             Box(
-                Modifier.graphicsLayer {
+                Modifier.focusBlocked(state.devicesOpen || state.signInOpen || state.switchChannelOpen)
+                    .focusTrap(playerFocus)
+                    .graphicsLayer {
                     val drag = state.playerDrag
                     // fractionOf, not a plain divide: with the song gone (swiped away from the mini
                     // player) this box is 0 tall, and 0 / 0 made NaN corners that crashed the app.
@@ -444,7 +469,7 @@ private fun GlowRoot(state: GlowState) {
             enter = slideInVertically(tween(300)) { it },
             exit = slideOutVertically(tween(240)) { it },
         ) {
-            DevicesScreen()
+            Box(Modifier.focusTrap(devicesFocus)) { DevicesScreen() }
         }
 
         // First launch: sign in or carry on, then the notifications ask.
@@ -586,7 +611,7 @@ private fun MiniPlayer(state: GlowState) {
             }
             .clip(RoundedCornerShape(16.dp))
             .background(miniColor)
-            .clickable(interaction, androidx.compose.material3.ripple()) { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
+            .clickable(interaction, glowRipple()) { state.playerPane = PlayerPane.NOW_PLAYING; state.playerOpen = true }
             .pointerInput(Unit) {
                 // Up opens the player; down pulls the mini player away and, far enough, stops the music.
                 detectVerticalDragGestures(
@@ -804,7 +829,7 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(
         Modifier
             .weight(1f)
             .fillMaxSize()
-            .clickable(interaction, null, onClick = onClick)
+            .clickable(interaction, FocusRing, onClick = onClick)
             .semantics(mergeDescendants = true) { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

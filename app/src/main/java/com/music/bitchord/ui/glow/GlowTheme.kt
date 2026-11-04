@@ -173,7 +173,10 @@ fun GlowTheme(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalGlowColors provides colors) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme) {
+            // Every plain clickable gets the ripple plus the remote's focus ring (TvFocus.kt).
+            CompositionLocalProvider(androidx.compose.foundation.LocalIndication provides glowRipple()) { RemoteScrolling(content) }
+        }
     }
 }
 
