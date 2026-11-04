@@ -51,9 +51,11 @@ fun ChannelPickerSheet(afterSignIn: Boolean, onDismiss: () -> Unit) {
     }
     if (afterSignIn && (loading || !asked || channels.size <= 1)) return
 
+    // The same identity the view model files a channel under (pageId, else dataSyncId). Not "any
+    // id matches": every channel of one Google account carries that account's user id as its
+    // dataSyncId, so matching on it marked them all as current and a press switched nothing.
     fun isSelected(ch: AccountChannel): Boolean =
-        selected != null && (selected == ch.pageId || selected == ch.dataSyncId || selected == ch.key) ||
-            (selected == null && ch.activeOnWeb)
+        if (selected != null) selected == (ch.pageId ?: ch.dataSyncId) else ch.activeOnWeb
 
     GlowSheet(onDismiss) {
         GlowText(if (afterSignIn) "Which channel?" else "Switch channel", GlowType.titleSmall)
@@ -83,7 +85,10 @@ fun ChannelPickerSheet(afterSignIn: Boolean, onDismiss: () -> Unit) {
                             .clip(RoundedCornerShape(14.dp))
                             .background(if (on) c.glassStrong else c.glass)
                             .clickable {
-                                if (!on) vm.selectChannel(ch)
+                                if (!on) {
+                                    vm.selectChannel(ch)
+                                    g.notify("Switched to ${ch.name}")
+                                }
                                 onDismiss()
                             }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
