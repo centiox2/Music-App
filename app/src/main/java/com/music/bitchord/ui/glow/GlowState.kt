@@ -41,6 +41,7 @@ sealed interface Route {
     data object SettingsLyrics : Route
     data object SettingsTranslation : Route
     data object SettingsPlaybackOptions : Route
+    data object SettingsPerformance : Route
     data object SettingsPrivacy : Route
     data object SettingsBackup : Route
     data object SettingsLogs : Route

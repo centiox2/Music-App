@@ -40,7 +40,8 @@ object GlowMotion {
 @Composable
 fun rememberReduceMotion(): Boolean {
     val reduce by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
-    return reduce
+    val lowMemory by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
+    return reduce || lowMemory
 }
 
 /**

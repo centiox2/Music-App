@@ -431,6 +431,12 @@ object AppSettings {
     val reduceAnimation = MutableStateFlow(false)
 
     /**
+     * Caps memory- and GPU-heavy work for small Android TV boxes and budget devices.
+     * Defaults to Android's hardware recommendation but remains a real user preference.
+     */
+    val lowMemoryMode = MutableStateFlow(false)
+
+    /**
      * Whether the welcome pages (party name, then YouTube sign-in) have been
      * through. Absent rather than true for anyone updating from a build that
      * had no onboarding, so they get it once too — they have no party name yet.
@@ -1039,6 +1045,11 @@ object AppSettings {
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
         showListenTogetherButton.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_BUTTON, false)
         reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
+        lowMemoryMode.value = prefs.getBoolean(
+            KEY_LOW_MEMORY_MODE,
+            com.music.bitchord.data.LowRam.recommended,
+        )
+        com.music.bitchord.data.LowRam.setEnabled(lowMemoryMode.value)
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         diwaliGreetingShown.value = prefs.getBoolean(KEY_DIWALI_GREETING_SHOWN, false)
         highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
@@ -1436,6 +1447,16 @@ object AppSettings {
         if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
         editor.apply()
     }
+
+    fun setLowMemoryMode(value: Boolean) {
+        lowMemoryMode.value = value
+        com.music.bitchord.data.LowRam.setEnabled(value)
+        prefs.edit().putBoolean(KEY_LOW_MEMORY_MODE, value).apply()
+    }
+
+    /** Work that decodes a second copy of a track is suspended in low-memory mode. */
+    val intensiveAudioAnalysisAllowed: Boolean
+        get() = !lowMemoryMode.value
 
     fun setOnboardingComplete() {
         onboardingComplete.value = true
@@ -2303,6 +2324,7 @@ object AppSettings {
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
     private const val KEY_CACHE_LIMIT = "audio_cache_limit_bytes"
     private const val KEY_REDUCE_ANIMATION = "reduce_animation"
+    private const val KEY_LOW_MEMORY_MODE = "low_memory_mode"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_DIWALI_GREETING_SHOWN = "diwali_greeting_2026_shown"
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"

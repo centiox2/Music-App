@@ -35,10 +35,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.SingletonImageLoader
 import com.music.bitchord.data.PlayHistory
 import com.music.bitchord.data.lyrics.TRANSLATION_LANGUAGES
 import com.music.bitchord.data.lyrics.translationLanguageName
@@ -303,6 +305,68 @@ fun PlaybackSettingsScreen() {
             CardDivider()
             SwitchRow("Haptic feedback", haptics, GlowPrefs::setHaptics, subtitle = "A light tap on play, skip and like")
         }
+    }
+}
+
+// ---- Performance and memory ----
+
+@Composable
+fun PerformanceSettingsScreen() {
+    val context = LocalContext.current
+    val c = Glow.colors
+    val enabled by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
+
+    SettingsPage("Performance & memory") {
+        GroupLabel("Low-resource devices")
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow(
+                "Low-memory mode",
+                enabled,
+                onCheckedChange = { value ->
+                    AppSettings.setLowMemoryMode(value)
+                    if (value) {
+                        runCatching {
+                            SingletonImageLoader.get(context).memoryCache?.clear()
+                        }
+                    }
+                },
+                subtitle = "Recommended for TVs with 1–2 GB RAM. Automatically enabled on detected low-memory devices.",
+            )
+        }
+
+        GroupLabel("Optimizations")
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SettingRow(
+                "Artwork memory",
+                subtitle = "Uses a 4% image cache, a 32 MB disk cache and no image crossfades",
+                value = if (enabled) "Reduced" else "Normal",
+            )
+            CardDivider()
+            SettingRow(
+                "Player graphics",
+                subtitle = "Uses a static background instead of GPU blur and multi-layer motion",
+                value = if (enabled) "Static" else "Animated",
+            )
+            CardDivider()
+            SettingRow(
+                "Playback buffer",
+                subtitle = "Caps read-ahead at 2 MB and keeps only 5 seconds behind the playhead",
+                value = if (enabled) "Compact" else "Full",
+            )
+            CardDivider()
+            SettingRow(
+                "Audio analysis",
+                subtitle = "Pauses Automix and version-matching background decoders",
+                value = if (enabled) "Paused" else "Available",
+            )
+        }
+
+        Text(
+            "Graphics and analysis change immediately. Reopen Sonder after changing this option so the image cache and playback buffer are rebuilt with the new limits.",
+            style = GlowType.caption.copy(fontSize = 12.sp),
+            color = c.textTertiary,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+        )
     }
 }
 

@@ -298,7 +298,8 @@ class PlaybackActions(
         if (index !in 0 until c.mediaItemCount || c.currentMediaItem?.mediaId != song.videoId) return
         scope.launch {
             switchingVersion = true
-            val holdUntilAligned = AppSettings.smartVersionAlignment.value
+            val holdUntilAligned = AppSettings.smartVersionAlignment.value &&
+                AppSettings.intensiveAudioAnalysisAllowed
             if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = true
             try {
                 val other = runCatching {

@@ -301,7 +301,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.08 else 0.20)
+                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.04 else 0.20)
                     .build()
             }
             .diskCache {
@@ -314,7 +314,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             }
             // Covers arriving with a hard cut read as the list flickering as
             // it scrolls; a short fade reads as them developing.
-            .crossfade(200)
+            .crossfade(if (com.music.bitchord.data.LowRam.active) 0 else 200)
             .allowHardware(!emulatedGpu)
             .build()
 

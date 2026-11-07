@@ -51,6 +51,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Lyrics
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Storage
@@ -135,6 +136,7 @@ fun SettingsScreen() {
     val fromArtwork by GlowPrefs.glowFromArtwork.collectAsStateWithLifecycle()
     val pureBlack by GlowPrefs.pureBlack.collectAsStateWithLifecycle()
     val reduceMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val lowMemory by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
     val startTab by GlowPrefs.startTab.collectAsStateWithLifecycle()
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsStateWithLifecycle()
@@ -161,6 +163,15 @@ fun SettingsScreen() {
         },
         SettingEntry("Reduce motion", "Appearance") {
             SwitchRow("Reduce motion", reduceMotion, AppSettings::setReduceAnimation, icon = Icons.Rounded.Animation)
+        },
+        SettingEntry("Performance & memory", "Appearance") {
+            SettingRow(
+                "Performance & memory",
+                icon = Icons.Rounded.Memory,
+                subtitle = "Optimizations for low-RAM Android TV devices",
+                value = if (lowMemory) "Low-memory" else "Normal",
+                chevron = true,
+            ) { g.push(Route.SettingsPerformance) }
         },
         SettingEntry("Start on", "Appearance") {
             SettingRow("Start on", icon = Icons.Rounded.Home, value = listOf("Home", "Search", "Library")[startTab], chevron = true) {
