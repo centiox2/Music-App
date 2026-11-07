@@ -70,6 +70,12 @@ fun LiquidArtwork(
     moving: Boolean = true,
     dark: Boolean = true,
 ) {
+    // RuntimeShader + four transformed bitmaps is attractive but expensive on the shared-memory
+    // GPUs in small TV boxes. A static palette keeps the same visual identity at a tiny cost.
+    if (com.music.bitchord.data.LowRam.active) {
+        GlowMesh(fallback, modifier, moving = false, dark = dark)
+        return
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
         GlowMesh(fallback, modifier, moving = moving, dark = dark)
         return

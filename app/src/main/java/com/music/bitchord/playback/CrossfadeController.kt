@@ -901,7 +901,7 @@ class CrossfadeController(
      * playing is left for the playing path to decide.
      */
     private fun refreshMarkerWhilePaused(player: ExoPlayer) {
-        if (!AppSettings.smartFadeEnabled.value) return
+        if (!AppSettings.smartFadeEnabled.value || !AppSettings.intensiveAudioAnalysisAllowed) return
         val now = SystemClock.elapsedRealtime()
         if (now - pausedMarkerAt < PAUSED_MARKER_STEP_MS) return
         pausedMarkerAt = now
@@ -990,7 +990,7 @@ class CrossfadeController(
         // measurement is the same either way, so it may as well be made during
         // the loop rather than after it.
         if (player.repeatMode == Player.REPEAT_MODE_ONE) {
-            if (AppSettings.smartFadeEnabled.value) requestAnalysisAround(player, duration)
+            if (AppSettings.smartFadeEnabled.value && AppSettings.intensiveAudioAnalysisAllowed) requestAnalysisAround(player, duration)
             // Stale otherwise: the marker would keep describing the transition
             // planned for this pair before the loop went on, at a point the
             // playhead now runs past on every lap without anything happening.
@@ -1002,7 +1002,7 @@ class CrossfadeController(
         // length: it decides its own duration from each pair of tracks (beats,
         // tempo, structure), so requiring a nonzero [AppSettings.crossfadeSeconds]
         // first would tie an automatic feature to a manual one it doesn't use.
-        if (AppSettings.smartFadeEnabled.value) {
+        if (AppSettings.smartFadeEnabled.value && AppSettings.intensiveAudioAnalysisAllowed) {
             considerSmartTransition(duration)
             return
         }
@@ -1851,7 +1851,7 @@ class CrossfadeController(
         // [configuredFadeMs] at zero, and reading that as "turned off" would
         // end every Automix on its first tick.
         val settingSwitchedOff = if (smartFadeActive) {
-            !AppSettings.smartFadeEnabled.value
+            !AppSettings.smartFadeEnabled.value || !AppSettings.intensiveAudioAnalysisAllowed
         } else {
             configuredFadeMs() <= 0L
         }
@@ -2681,7 +2681,7 @@ class CrossfadeController(
         val player = active()
         val item = player.currentMediaItem
         val text = when {
-            !AppSettings.smartFadeEnabled.value || item == null || ListenTogether.state.value.inParty -> null
+            !AppSettings.smartFadeEnabled.value || !AppSettings.intensiveAudioAnalysisAllowed || item == null || ListenTogether.state.value.inParty -> null
             else -> describeAutomix(player, item)
         }
         if (AppSettings.automixDetail.value != text) AppSettings.automixDetail.value = text
@@ -2859,7 +2859,9 @@ class CrossfadeController(
 
     /** Still a next track, still playing, still switched on — by whichever setting armed this one. */
     private fun stillWorthFading(): Boolean {
-        val stillOn = if (smartFadeActive) AppSettings.smartFadeEnabled.value else configuredFadeMs() > 0L
+        val stillOn = if (smartFadeActive) {
+            AppSettings.smartFadeEnabled.value && AppSettings.intensiveAudioAnalysisAllowed
+        } else configuredFadeMs() > 0L
         return stillOn && (outgoing ?: active()).hasNextMediaItem()
     }
 

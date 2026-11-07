@@ -275,18 +275,18 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.08 else 0.20)
+                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.04 else 0.20)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024)
+                    .maxSizeBytes(if (com.music.bitchord.data.LowRam.active) 32L * 1024 * 1024 else 100L * 1024 * 1024)
                     .build()
             }
             // Covers arriving with a hard cut read as the list flickering as
             // it scrolls; a short fade reads as them developing.
-            .crossfade(200)
+            .crossfade(if (com.music.bitchord.data.LowRam.active) 0 else 200)
             .build()
 
     private fun initLastfm() {

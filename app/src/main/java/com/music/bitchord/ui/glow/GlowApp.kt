@@ -362,6 +362,7 @@ private fun GlowRoot(state: GlowState) {
                     Route.SettingsLyrics -> LyricsSourcesScreen()
                     Route.SettingsTranslation -> TranslationSettingsScreen()
                     Route.SettingsPlaybackOptions -> PlaybackSettingsScreen()
+                    Route.SettingsPerformance -> PerformanceSettingsScreen()
                     Route.SettingsPrivacy -> PrivacyScreen()
                     Route.SettingsBackup -> BackupScreen()
                     Route.SettingsLogs -> LogsScreen()
@@ -382,7 +383,7 @@ private fun GlowRoot(state: GlowState) {
             Route.Settings, Route.SettingsTheme, Route.SettingsLyrics, Route.SettingsStorage,
             Route.SettingsLastFm, Route.SettingsPlayback, Route.Equalizer, Route.JoinSession,
             Route.SettingsTranslation, Route.SettingsPlaybackOptions, Route.SettingsPrivacy, Route.SettingsBackup,
-            Route.SettingsLogs,
+            Route.SettingsLogs, Route.SettingsPerformance,
         ) || state.top is Route.EditPlaylist || state.top is Route.LogView || state.top is Route.Discography
         if (!chromeHidden) {
             Column(

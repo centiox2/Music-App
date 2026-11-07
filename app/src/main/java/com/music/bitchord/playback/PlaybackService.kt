@@ -2093,7 +2093,8 @@ class PlaybackService : MediaLibraryService() {
 
         val sourceSong = currentItem.toSong()
         val targetSong = targetMediaItem.toSong()
-        val smartAlignEnabled = AppSettings.smartVersionAlignment.value
+        val smartAlignEnabled = AppSettings.smartVersionAlignment.value &&
+            AppSettings.intensiveAudioAnalysisAllowed
 
         versionSwapJob?.cancel()
         val generation = ++versionSwapGeneration
@@ -6263,13 +6264,16 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun farBufferingLoadControl() = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-            /* maxBufferMs = */ FAR_BUFFER_MS,
+            if (com.music.bitchord.data.LowRam.active) LOW_MEMORY_MIN_BUFFER_MS else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+            /* maxBufferMs = */ if (com.music.bitchord.data.LowRam.active) LOW_MEMORY_MAX_BUFFER_MS else FAR_BUFFER_MS,
             /* bufferForPlaybackMs = */ START_PLAYBACK_MS,
             /* bufferForPlaybackAfterRebufferMs = */ RESUME_PLAYBACK_MS,
         )
-        .setTargetBufferBytes(FAR_BUFFER_BYTES)
-        .setBackBuffer(/* backBufferDurationMs = */ BACK_BUFFER_MS, /* retainBackBufferFromKeyframe = */ true)
+        .setTargetBufferBytes(if (com.music.bitchord.data.LowRam.active) LOW_MEMORY_BUFFER_BYTES else FAR_BUFFER_BYTES)
+        .setBackBuffer(
+            /* backBufferDurationMs = */ if (com.music.bitchord.data.LowRam.active) LOW_MEMORY_BACK_BUFFER_MS else BACK_BUFFER_MS,
+            /* retainBackBufferFromKeyframe = */ true,
+        )
         .build()
 
     /**
@@ -8936,6 +8940,12 @@ class PlaybackService : MediaLibraryService() {
          * above with the read-ahead it would otherwise starve.
          */
         const val BACK_BUFFER_MS = 30 * 1000
+
+        /** Conservative read-ahead for a 1 GB process where decoded audio and artwork share RAM. */
+        const val LOW_MEMORY_MIN_BUFFER_MS = 10 * 1000
+        const val LOW_MEMORY_MAX_BUFFER_MS = 60 * 1000
+        const val LOW_MEMORY_BUFFER_BYTES = 2 * 1024 * 1024
+        const val LOW_MEMORY_BACK_BUFFER_MS = 5 * 1000
 
         /** Enough to cover the decoder's own latency, not seconds of dead air. */
         const val START_PLAYBACK_MS = 500
