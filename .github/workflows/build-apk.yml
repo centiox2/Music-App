@@ -109,3 +109,18 @@ jobs:
           else
             gh release create tv-latest Sonder-TV.apk --title "Sonder for TV (latest)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
           fi
+
+      # The phone (64-bit) APK at a fixed link too:
+      # https://github.com/centiox2/Music-App/releases/download/phone-latest/Sonder-Phone.apk
+      - name: Publish the phone APK (release "phone-latest")
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp out/*-arm64-v8a.apk Sonder-Phone.apk
+          NOTES="Latest phone build (64-bit, arm64-v8a) from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}."
+          if gh release view phone-latest > /dev/null 2>&1; then
+            gh release upload phone-latest Sonder-Phone.apk --clobber
+            gh release edit phone-latest --notes "$NOTES"
+          else
+            gh release create phone-latest Sonder-Phone.apk --title "Sonder for phone (latest)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+          fi
