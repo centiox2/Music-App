@@ -816,8 +816,10 @@ object StreamResolver {
         return runCatching {
             jsPlayerManager { YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId) }
         }
-            .onFailure { TrackLog.w(TAG, "no signature timestamp: ${it.message}") }
+            .onFailure { TrackLog.w(TAG, "no signature timestamp from NewPipe: ${it.message}; trying the music.youtube.com player") }
             .getOrNull()
+            ?: Innertube.signatureTimestampFallback()
+                ?.also { TrackLog.d(TAG, "signature timestamp $it from the music.youtube.com player") }
             ?.also { cachedSignatureTimestamp = it }
     }
 

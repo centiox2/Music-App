@@ -129,18 +129,27 @@ object VideoSquareCrop : Transformation() {
         return Bitmap.createBitmap(input, left, top, side, side)
     }
 
-    /** The part of [bitmap] inside any black bars. */
+    /**
+     * The part of [bitmap] inside any black bars. Reads one row or column at a time into a
+     * small buffer: copying the whole picture made a 300 KB array per cover, which on a list
+     * of video rows was tens of MB of garbage a second.
+     */
     internal fun pictureBounds(bitmap: Bitmap): android.graphics.Rect {
         val w = bitmap.width
         val h = bitmap.height
-        val pixels = IntArray(w * h)
-        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        val line = IntArray(maxOf(w, h))
         // Bars are at most this much of each edge: a 16:9 picture in a 4:3 frame leaves
         // 12.5% top and bottom, a square cover in a 16:9 frame 21.9% left and right.
         val maxRows = (h * 0.3f).toInt()
         val maxCols = (w * 0.3f).toInt()
-        fun rowIsBar(y: Int): Boolean = lineIsBar(pixels, y * w, 1, w)
-        fun colIsBar(x: Int): Boolean = lineIsBar(pixels, x, w, h)
+        fun rowIsBar(y: Int): Boolean {
+            bitmap.getPixels(line, 0, w, 0, y, w, 1)
+            return lineIsBar(line, w)
+        }
+        fun colIsBar(x: Int): Boolean {
+            bitmap.getPixels(line, 0, 1, x, 0, 1, h)
+            return lineIsBar(line, h)
+        }
         var top = 0
         while (top < maxRows && rowIsBar(top)) top++
         var bottom = 0
@@ -160,15 +169,15 @@ object VideoSquareCrop : Transformation() {
         return android.graphics.Rect(trimH + padH, trimV + padV, w - trimH - padH, h - trimV - padV)
     }
 
-    /** Whether [count] pixels from [start], [step] apart, are all near black. */
-    private fun lineIsBar(pixels: IntArray, start: Int, step: Int, count: Int): Boolean {
+    /** Whether the first [count] pixels of [pixels] are all near black. */
+    private fun lineIsBar(pixels: IntArray, count: Int): Boolean {
         // Every few pixels is plenty, and keeps this cheap on a slow TV.
         val stride = maxOf(1, count / 64)
         var dark = 0
         var samples = 0
         var i = 0
         while (i < count) {
-            val p = pixels[start + i * step]
+            val p = pixels[i]
             val r = (p shr 16) and 0xFF
             val g = (p shr 8) and 0xFF
             val b = p and 0xFF

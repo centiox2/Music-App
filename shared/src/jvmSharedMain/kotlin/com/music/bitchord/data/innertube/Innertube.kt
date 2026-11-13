@@ -492,6 +492,9 @@ object Innertube {
         // sending it would 401 every request in the app.
         val signedIn = CONFIG_LOGGED_IN.find(html)?.groupValues?.get(1) == "true"
         val clientVersion = CONFIG_CLIENT_VERSION.find(html)?.groupValues?.get(1)
+        // The player revision for watch history (see [signatureTimestampFallback]).
+        CONFIG_STS.find(html)?.groupValues?.get(1)?.toIntOrNull()?.let { shellSignatureTimestamp = it }
+        CONFIG_PLAYER_JS.find(html)?.groupValues?.get(1)?.let { shellPlayerJsPath = it.replace("\\/", "/") }
         if (!signedIn) {
             Log.w(TAG, "music.youtube.com served a signed-out shell; not scoping requests")
             // Still worth the client version — that part is true either way.
@@ -525,6 +528,45 @@ object Innertube {
     private val CONFIG_SESSION_INDEX = Regex(""""SESSION_INDEX"\s*:\s*"?(\d+)""")
     private val CONFIG_VISITOR_DATA = Regex(""""VISITOR_DATA"\s*:\s*"([^"]+)"""")
     private val CONFIG_CLIENT_VERSION = Regex(""""INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"""")
+    private val CONFIG_STS = Regex(""""STS"\s*:\s*(\d+)""")
+    private val CONFIG_PLAYER_JS = Regex(""""(?:PLAYER_JS_URL|jsUrl)"\s*:\s*"([^"]+base\.js)"""")
+    private val PLAYER_JS_STS = Regex("""signatureTimestamp\s*[:=]\s*(\d+)""")
+
+    @Volatile
+    private var shellSignatureTimestamp: Int? = null
+
+    @Volatile
+    private var shellPlayerJsPath: String? = null
+
+    /**
+     * The player revision ("signature timestamp") without NewPipe: the music.youtube.com shell
+     * quotes it as `STS`, or names the player script, which states it as `signatureTimestamp`.
+     * Watch history can't be registered without it, and NewPipe's own lookup goes through
+     * youtube.com's embed page, which some networks and regions don't serve ("Could not fetch
+     * embedded watch page"): every play then went unrecorded.
+     */
+    suspend fun signatureTimestampFallback(): Int? {
+        shellSignatureTimestamp?.let { return it }
+        if (cookie != null) runCatching { ensureSessionScope() }
+        shellSignatureTimestamp?.let { return it }
+        val path = shellPlayerJsPath ?: runCatching {
+            val html = client.get("$MUSIC_ORIGIN/") {
+                header("User-Agent", WEB_USER_AGENT)
+                header("Accept-Language", acceptLanguageHeader)
+            }.bodyAsText()
+            CONFIG_STS.find(html)?.groupValues?.get(1)?.toIntOrNull()?.let {
+                shellSignatureTimestamp = it
+                return it
+            }
+            CONFIG_PLAYER_JS.find(html)?.groupValues?.get(1)?.replace("\\/", "/")
+        }.getOrNull() ?: return null
+        shellPlayerJsPath = path
+        val url = if (path.startsWith("http")) path else "https://www.youtube.com$path"
+        return runCatching {
+            val js = client.get(url) { header("User-Agent", WEB_USER_AGENT) }.bodyAsText()
+            PLAYER_JS_STS.find(js)?.groupValues?.get(1)?.toIntOrNull()
+        }.getOrNull()?.also { shellSignatureTimestamp = it }
+    }
 
     private const val WEB_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +

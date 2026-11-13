@@ -46,6 +46,7 @@ object AppLog {
         keepPreviousSession(app)
         // Settings → Performance → Diagnostic log. Crash reports are written either way.
         if (PerformanceProfile.storedDiagnosticLog(app)) startRecording(app)
+        if (PerformanceProfile.storedDiagnosticLog(app)) MainThreadWatchdog.start()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { writeCrash(app, thread, error) }
@@ -227,3 +228,46 @@ object AppLog {
         dir(context).listFiles { f -> f.name.startsWith("previous-session.log") || f.name.startsWith("older-session.log") }?.forEach { it.delete() }
     }
 }
+
+/**
+ * Writes what the main thread is doing whenever it is stuck for [STALL_MS] or more, so a
+ * freeze in a field log ("Skipped 75 frames", "Davey!") comes with the code that caused it.
+ * A background thread posts a no-op to the main thread every [TICK_MS]; if it hasn't run by
+ * the next check, the main thread's stack is logged once for that stall (tag `SonderStall`).
+ */
+internal object MainThreadWatchdog {
+    private const val TICK_MS = 250L
+    private const val STALL_MS = 700L
+    private const val MAX_REPORTS = 20
+
+    @Volatile private var lastSeen = android.os.SystemClock.uptimeMillis()
+    @Volatile private var started = false
+
+    fun start() {
+        if (started) return
+        started = true
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        val mainThread = android.os.Looper.getMainLooper().thread
+        Thread({
+            var reports = 0
+            var reportedThisStall = false
+            val ping = Runnable { lastSeen = android.os.SystemClock.uptimeMillis() }
+            while (reports < MAX_REPORTS) {
+                main.post(ping)
+                try { Thread.sleep(TICK_MS) } catch (_: InterruptedException) { return@Thread }
+                val stuck = android.os.SystemClock.uptimeMillis() - lastSeen
+                if (stuck >= STALL_MS) {
+                    if (!reportedThisStall) {
+                        reportedThisStall = true
+                        reports++
+                        val stack = mainThread.stackTrace.take(40).joinToString("\n    at ")
+                        Log.w("SonderStall", "main thread stuck ${stuck}ms:\n    at $stack")
+                    }
+                } else {
+                    reportedThisStall = false
+                }
+            }
+        }, "sonder-stall-watchdog").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
+    }
+}
+
