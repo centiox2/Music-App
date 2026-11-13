@@ -64,7 +64,7 @@ fun rememberGlowPalette(url: String?): CoverPalette? {
     var palette by remember(url) { mutableStateOf(ArtworkPalettes.get(url)) }
     LaunchedEffect(url) {
         if (url == null || palette != null) return@LaunchedEffect
-        val request = ImageRequest.Builder(context).data(url).size(64).forPixelAccess().build()
+        val request = glowImageRequest(context, url) { size(64); forPixelAccess() }
         val bitmap = (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toImageBitmap()
             ?: return@LaunchedEffect
         val found = withContext(Dispatchers.Default) { coverPalette(bitmap) } ?: return@LaunchedEffect

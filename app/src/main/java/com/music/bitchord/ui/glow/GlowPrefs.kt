@@ -75,6 +75,31 @@ object GlowPrefs {
     private val _lastSync = MutableStateFlow(0L)
     val lastSync: StateFlow<Long> = _lastSync.asStateFlow()
 
+    private val _imageCacheMb = MutableStateFlow(DEFAULT_IMAGE_CACHE_MB)
+    /**
+     * The most the picture cache on disk may hold, in MB. Coil's disk cache is sized when the
+     * image loader is built, so a change applies from the next launch (a smaller limit trims
+     * the cache then).
+     */
+    val imageCacheMb: StateFlow<Int> = _imageCacheMb.asStateFlow()
+
+    fun setImageCacheMb(mb: Int) {
+        _imageCacheMb.value = mb
+        prefs?.edit()?.putInt(KEY_IMAGE_CACHE_MB, mb)?.apply()
+    }
+
+    /** What [imageCacheMb] holds on disk, readable before [init] has run. */
+    fun storedImageCacheBytes(context: Context): Long {
+        val mb = runCatching {
+            context.applicationContext.getSharedPreferences("cover_glow", Context.MODE_PRIVATE)
+                .getInt(KEY_IMAGE_CACHE_MB, DEFAULT_IMAGE_CACHE_MB)
+        }.getOrDefault(DEFAULT_IMAGE_CACHE_MB)
+        return mb.coerceIn(50, 4096).toLong() * 1024 * 1024
+    }
+
+    const val DEFAULT_IMAGE_CACHE_MB = 100
+    private const val KEY_IMAGE_CACHE_MB = "image_cache_mb"
+
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
@@ -109,6 +134,7 @@ object GlowPrefs {
         _glowIntensity.value = p.getFloat("glow_intensity", 1f)
         _swipeMiniPlayer.value = p.getBoolean("swipe_mini_player", true)
         _haptics.value = p.getBoolean("haptics", true)
+        _imageCacheMb.value = runCatching { p.getInt(KEY_IMAGE_CACHE_MB, DEFAULT_IMAGE_CACHE_MB) }.getOrDefault(DEFAULT_IMAGE_CACHE_MB)
         _autoSync.value = p.getBoolean("auto_sync", true)
         _lastSync.value = p.getLong("last_sync", 0L)
         _liquidBackground.value = p.getBoolean("liquid_background", true)

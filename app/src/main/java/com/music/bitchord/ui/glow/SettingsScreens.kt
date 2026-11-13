@@ -558,6 +558,21 @@ fun StorageScreen() {
             color = c.textSecondary,
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
         )
+        GroupLabel("Image cache limit")
+        val imageLimit by GlowPrefs.imageCacheMb.collectAsStateWithLifecycle()
+        val loadedLimitMb = remember { (GlowPrefs.storedImageCacheBytes(context) shr 20).toInt() }
+        FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(50 to "50 MB", 100 to "100 MB", 250 to "250 MB", 500 to "500 MB", 1024 to "1 GB", 2048 to "2 GB").forEach { (mb, label) ->
+                GlowChip(label, imageLimit == mb, pill = true) { GlowPrefs.setImageCacheMb(mb) }
+            }
+        }
+        Text(
+            if (imageLimit != loadedLimitMb) "Covers and thumbnails kept on the device. The new limit applies the next time Sonder starts."
+            else "Covers and thumbnails kept on the device, so pages load without fetching them again.",
+            style = GlowType.secondary,
+            color = c.textSecondary,
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+        )
         val quality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SettingRow("Manage downloads", chevron = true) { g.push(Route.Downloads) }

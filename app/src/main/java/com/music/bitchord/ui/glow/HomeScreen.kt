@@ -243,7 +243,7 @@ private fun FeaturedCard(shelfTitle: String, item: ShelfItem) {
             .background(Glow.colors.glassStrong)
             .clickable(interaction, glowRipple()) { g.openShelfItem(item, shelfTitle) },
     ) {
-        ArtImage(item.thumbnailUrl, 720, Modifier.fillMaxSize())
+        ArtImage(item.thumbnailUrl, 720, Modifier.fillMaxSize(), square = false)
         Box(
             Modifier
                 .fillMaxWidth()

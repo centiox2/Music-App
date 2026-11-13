@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.request.transformations
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
@@ -52,12 +53,17 @@ class CoilBitmapLoader(context: Context) : BitmapLoader {
                 val request = ImageRequest.Builder(app)
                     .data(data)
                     .allowHardware(false)
+                    .apply { if (com.music.bitchord.ui.glow.youTubeVideoId(data) != null) transformations(com.music.bitchord.ui.glow.VideoSquareCrop) }
                     .networkCachePolicy(if (network) CachePolicy.ENABLED else CachePolicy.DISABLED)
                     .build()
                 return (loader.execute(request) as? SuccessResult)?.image?.toBitmap()
             }
             val url = uri.toString()
-            val bitmap = load(url, network = true)
+            // A video's own frame list first, best first, so the notification gets the same
+            // sharp square as the player rather than whatever size the metadata named.
+            val video = com.music.bitchord.ui.glow.youTubeVideoId(url) != null
+            val bitmap = (if (video) artCandidates(url, 1080).firstNotNullOfOrNull { load(it, network = true) } else null)
+                ?: load(url, network = true)
                 ?: (artCandidates(url, 1080) + artCandidates(url, 544) + artCandidates(url, 180))
                     .distinct()
                     .firstNotNullOfOrNull { load(it, network = false) }

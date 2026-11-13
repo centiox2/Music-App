@@ -307,7 +307,9 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024)
+                    // Settings → Storage → Image cache limit. Read straight from the stored
+                    // preference: the loader is built before the UI's preferences are loaded.
+                    .maxSizeBytes(com.music.bitchord.ui.glow.GlowPrefs.storedImageCacheBytes(context))
                     .build()
             }
             // Covers arriving with a hard cut read as the list flickering as

@@ -93,7 +93,7 @@ fun LiquidArtwork(
         }
         if (url == null) return@LaunchedEffect
         val image = LiquidCovers.get(url) ?: run {
-            val request = ImageRequest.Builder(context).data(url).size(200).forPixelAccess().build()
+            val request = glowImageRequest(context, url) { size(200); forPixelAccess() }
             (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toImageBitmap()
                 ?.also { LiquidCovers.put(url, it) }
         } ?: return@LaunchedEffect

@@ -1,7 +1,6 @@
 package com.music.bitchord.data.settings
 
 import com.music.bitchord.data.webdav.update
-import com.music.bitchord.ui.components.VideoThumbnails
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
@@ -1059,7 +1058,6 @@ object AppSettings {
         hideTopPicks.value = prefs.getBoolean(KEY_HIDE_TOP_PICKS, false)
         hideHomeMoods.value = prefs.getBoolean(KEY_HIDE_HOME_MOODS, false)
         squareVideoThumbnails.value = prefs.getBoolean(KEY_SQUARE_VIDEO_THUMBNAILS, false)
-        VideoThumbnails.square = squareVideoThumbnails.value
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
         disableBlendEffects.value = prefs.getBoolean(KEY_DISABLE_BLEND_EFFECTS, false)
@@ -1511,7 +1509,6 @@ object AppSettings {
 
     fun setSquareVideoThumbnails(value: Boolean) {
         squareVideoThumbnails.value = value
-        VideoThumbnails.square = value
         prefs.edit().putBoolean(KEY_SQUARE_VIDEO_THUMBNAILS, value).apply()
     }
 
