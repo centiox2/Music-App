@@ -278,4 +278,7 @@
     <string name="mix_view_seconds">%1$d sec</string>
     <string name="mix_view_bpm">%1$d bpm</string>
     <string name="automix_overview_unavailable">No Automix transition coming up</string>
+    <!-- Still used by Sonder's copy of the shared UI; dropped upstream. -->
+    <string name="switch_to_grid_view">Switch to grid view</string>
+    <string name="switch_to_list_view">Switch to list view</string>
 </resources>

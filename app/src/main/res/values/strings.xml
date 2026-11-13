@@ -1332,4 +1332,9 @@
     <string name="diwali_title">BitChord wishes you a Happy Diwali</string>
     <string name="diwali_subtitle">May this festival of lights fill your home with joy and your days with music.</string>
     <string name="diwali_cta">Let\'s Celebrate</string>
+    <!-- Still used by Sonder; dropped upstream. -->
+    <string name="legacy_mesh_gradient">Legacy mesh gradient</string>
+    <string name="legacy_mesh_gradient_subtitle">Brings back the drifting colour blobs behind the player from v1.5</string>
+
+    <string name="advanced_options">Advanced &amp; experimental options</string>
 </resources>
