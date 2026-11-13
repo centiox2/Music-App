@@ -318,6 +318,7 @@ fun ShelfCard(
         Modifier
             .width(size)
             .pressScale(interaction, 0.95f)
+            .menuKey(onLongClick)
             .combinedClickable(interaction, FocusRing, onClick = onClick, onLongClick = onLongClick),
     ) {
         Box(contentAlignment = Alignment.Center) {

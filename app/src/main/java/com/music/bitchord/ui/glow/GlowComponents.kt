@@ -710,6 +710,8 @@ fun SongRow(
         modifier
             .fillMaxWidth()
             .pressScale(interaction, 0.98f)
+            // Remote: Menu opens the song's menu (long press of OK still starts selecting).
+            .menuKey(song?.let { s -> { g.openSongMenu(s) } } ?: onLongClick)
             .combinedClickable(interaction, glowRipple(), onClick = rowClick, onLongClick = rowLongClick)
             .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(12.dp))

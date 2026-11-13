@@ -254,7 +254,8 @@ private fun PlayerBackdrop(song: Song) {
     val fixed by GlowPrefs.fixedColor.collectAsStateWithLifecycle()
     val intensity by GlowPrefs.glowIntensity.collectAsStateWithLifecycle()
     val reduce = rememberReduceMotion()
-    if (!liquid) {
+    val animated by com.music.bitchord.data.PerformanceProfile.animatedBackground.collectAsStateWithLifecycle()
+    if (!liquid || !animated) {
         CoverGlow(song.thumbnailUrl, height = 900.dp, intensity = 0.55f)
         return
     }

@@ -41,7 +41,8 @@ object GlowMotion {
 fun rememberReduceMotion(): Boolean {
     val reduce by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val lowMemory by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
-    return reduce || lowMemory
+    val motion by com.music.bitchord.data.PerformanceProfile.motion.collectAsStateWithLifecycle()
+    return reduce || lowMemory || !motion
 }
 
 /**

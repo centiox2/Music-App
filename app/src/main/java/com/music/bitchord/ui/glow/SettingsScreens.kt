@@ -164,12 +164,12 @@ fun SettingsScreen() {
         SettingEntry("Reduce motion", "Appearance") {
             SwitchRow("Reduce motion", reduceMotion, AppSettings::setReduceAnimation, icon = Icons.Rounded.Animation)
         },
-        SettingEntry("Performance & memory", "Appearance") {
+        SettingEntry("Performance", "Appearance") {
             SettingRow(
-                "Performance & memory",
+                "Performance",
                 icon = Icons.Rounded.Memory,
-                subtitle = "Optimizations for low-RAM Android TV devices",
-                value = if (lowMemory) "Low-memory" else "Normal",
+                subtitle = "Effects, lyrics animation and memory, one switch each. For slow TVs",
+                value = if (lowMemory) "Low-memory" else null,
                 chevron = true,
             ) { g.push(Route.SettingsPerformance) }
         },

@@ -21,6 +21,7 @@ import android.graphics.Bitmap
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.request.transformations
 import coil3.size.Size
 import coil3.transform.Transformation
@@ -41,7 +42,7 @@ fun artCandidates(url: String?, px: Int): List<String> {
     if (url == null) return emptyList()
     val id = youTubeVideoId(url) ?: return listOfNotNull(url.artworkAt(px))
     val base = "https://i.ytimg.com/vi/$id/"
-    val hd = GlowPrefs.hdVideoThumbnails.value || px > 200
+    val hd = com.music.bitchord.data.PerformanceProfile.hdThumbnails.value || px > 200
     return if (hd) {
         listOf(base + "maxresdefault.jpg", base + "hq720.jpg", base + "sddefault.jpg", base + "hqdefault.jpg")
     } else {
@@ -68,6 +69,8 @@ fun glowImageRequest(
     .data(data)
     .apply {
         if (square && data != null && youTubeVideoId(data) != null) transformations(VideoSquareCrop)
+        // Settings → Performance → Image fade-in.
+        if (!com.music.bitchord.data.PerformanceProfile.imageFade.value) crossfade(false)
         configure()
     }
     .build()
@@ -83,12 +86,13 @@ fun ArtImage(
     /** Square the picture (video frames lose their bars and sides). False for wide cards. */
     square: Boolean = true,
 ) {
-    val hdSetting by GlowPrefs.hdVideoThumbnails.collectAsStateWithLifecycle()
+    val hdSetting by com.music.bitchord.data.PerformanceProfile.hdThumbnails.collectAsStateWithLifecycle()
+    val fade by com.music.bitchord.data.PerformanceProfile.imageFade.collectAsStateWithLifecycle()
     val candidates = remember(url, px, hdSetting) { artCandidates(url, px) }
     var index by remember(candidates) { mutableIntStateOf(0) }
     val context = LocalPlatformContext.current
     val model = candidates.getOrNull(index)
-    val request = remember(model, square) { glowImageRequest(context, model, square) }
+    val request = remember(model, square, fade) { glowImageRequest(context, model, square) }
     AsyncImage(
         model = request,
         contentDescription = contentDescription,
@@ -184,6 +188,8 @@ object VideoSquareCrop : Transformation() {
  */
 fun Modifier.coverShadow(cornerRadius: Dp, weight: Float = 1f): Modifier = composed {
     val strength by GlowPrefs.coverShadow.collectAsStateWithLifecycle()
+    val shadows by com.music.bitchord.data.PerformanceProfile.coverShadows.collectAsStateWithLifecycle()
+    if (!shadows) return@composed this
     val elevation = 22.dp * strength * weight
     if (elevation <= 0.5.dp) return@composed this
     val dark = Glow.colors.isDark

@@ -1456,7 +1456,7 @@ object AppSettings {
 
     /** Work that decodes a second copy of a track is suspended in low-memory mode. */
     val intensiveAudioAnalysisAllowed: Boolean
-        get() = !lowMemoryMode.value
+        get() = !lowMemoryMode.value && com.music.bitchord.data.PerformanceProfile.audioAnalysis.value
 
     fun setOnboardingComplete() {
         onboardingComplete.value = true

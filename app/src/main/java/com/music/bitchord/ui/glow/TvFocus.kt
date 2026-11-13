@@ -137,6 +137,19 @@ fun Modifier.dpadAdjust(
 }
 
 /**
+ * The remote's Menu key (☰ / ⋮ on most TV remotes) does [action] on the focused item: the song
+ * menu on a song, which otherwise needs a long press of OK, awkward on a remote. Put it before
+ * the item's clickable so the key reaches it from the focused item.
+ */
+fun Modifier.menuKey(action: (() -> Unit)?): Modifier =
+    if (action == null) this else onKeyEvent { e ->
+        val menu = e.key == Key.Menu || e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_MENU
+        if (!menu) return@onKeyEvent false
+        if (e.type == KeyEventType.KeyUp) action()
+        true
+    }
+
+/**
  * Keeps the remote out of what is underneath an overlay (the player, the devices sheet, the
  * sign-in flow): Compose looks for the next thing to focus across the whole screen, covered or
  * not, so without this the arrows wandered into the page behind the player.

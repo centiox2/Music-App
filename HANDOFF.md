@@ -663,3 +663,30 @@ either form (that mismatch crashed the app at launch until `6dc1972`).
   keys defensively (`runCatching`, or `prefs.all[key]`); a `ClassCastException` in `GlowPrefs.init`
   runs on every launch.
 - Don't do many `TextMeasurer.measure` calls in one frame; spread them out.
+
+### 5.15 Round 1.9.2 (image cache, thumbnails, TV performance, BitChord v1.9.1)
+- **Engine:** BitChord's non-UI changes up to v1.9.1 merged (three-way, from `fea57eba`; upstream
+  clone at `github.com/kushagrasinghx/BitChord`). Kept Sonder's side where they differ: logcat on
+  in release (upstream strips `android.util.Log` with R8, which would empty Settings → Logs),
+  hearts not stars, prefer-audio-version on, order-aware lyrics cache. Not taken: upstream UI,
+  `AppNavigator`, `VideoThumbnails`, alternate launcher icons, SF Symbols. "Open with" on an audio
+  file plays it (`LinkRequest.LocalFile` in `GlowApp`). **Committed without a local build**: the
+  owner asked for builds on GitHub, and Actions was not starting jobs at the time.
+- **Image cache limit:** Settings → Storage → Image cache limit (`GlowPrefs.imageCacheMb`,
+  50 MB–2 GB). Coil sizes the disk cache when the loader is built, so it applies on next launch;
+  `GlowPrefs.storedImageCacheBytes` reads it before the UI prefs are loaded.
+- **Video thumbnails:** every size tries maxres → hq720 → sd → hq (rows used 320×180 `mqdefault`,
+  the "sometimes sharp, sometimes soft" report). `VideoSquareCrop` (Coil `Transformation`, in
+  `GlowArt.kt`) finds paired near-black bars (top+bottom, left+right) and takes the largest centred
+  square inside the picture, so 4:3 frames lose their letterbox and 16:9 frames lose only their
+  sides. Used by `ArtImage`, palettes, the liquid background and the notification artwork.
+  `ArtImage(square = false)` for wide cards (Home's featured card).
+- **Performance** (`data/PerformanceProfile.kt`, Settings → Performance): one switch each for the
+  moving player background, cover shadows, image fade-in, animations, HD thumbnails, word-by-word
+  lyrics, audio analysis, low-memory mode and the diagnostic log. On a TV or a low-RAM device the
+  heavy ones default off; "Use TV settings" / "Turn all on". The owner's TV: 32-bit, Android 13,
+  **1 GB RAM** (so `LowRam` is on there too). Low-memory: 10% memory cache, two decodes at a time.
+- **Remote:** the Menu key opens the song menu on song rows, Home cards and artist top songs
+  (`Modifier.menuKey` in `TvFocus.kt`).
+- Tip for a sideloaded TV install: `adb shell cmd package compile -m speed-profile -f com.coverglow.music`
+  compiles the baseline profile at once instead of waiting for the idle-time dexopt.

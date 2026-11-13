@@ -44,7 +44,8 @@ object AppLog {
     fun install(context: Context) {
         val app = context.applicationContext
         keepPreviousSession(app)
-        startRecording(app)
+        // Settings → Performance → Diagnostic log. Crash reports are written either way.
+        if (PerformanceProfile.storedDiagnosticLog(app)) startRecording(app)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { writeCrash(app, thread, error) }

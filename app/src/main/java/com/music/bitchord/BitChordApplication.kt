@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.bitmapFactoryMaxParallelism
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
@@ -144,6 +145,8 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         com.music.bitchord.data.LowRam.init(this)
+        // After LowRam: a device short of memory starts with the light effects.
+        com.music.bitchord.data.PerformanceProfile.init(this)
         AppSettings.init(this, authStore)
         // The settings that most change how playback behaves, once per launch.
         runCatching {
@@ -301,7 +304,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.04 else 0.20)
+                    .maxSizePercent(context, if (com.music.bitchord.data.LowRam.active) 0.10 else 0.20)
                     .build()
             }
             .diskCache {
@@ -315,6 +318,14 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             // Covers arriving with a hard cut read as the list flickering as
             // it scrolls; a short fade reads as them developing.
             .crossfade(if (com.music.bitchord.data.LowRam.active) 0 else 200)
+            // A 1 GB TV has four slow cores shared with the UI and the player: two pictures decoded
+            // at a time keeps scrolling and playback smooth, and caps the memory a screen full
+            // of covers takes while it fills in.
+            .apply {
+                if (com.music.bitchord.data.LowRam.active) {
+                    bitmapFactoryMaxParallelism(2)
+                }
+            }
             .allowHardware(!emulatedGpu)
             .build()
 

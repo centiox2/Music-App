@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -206,7 +207,8 @@ internal fun LyricsLine(
                     }
                 }
 
-                if (isSynced && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3)) {
+                val wordByWord by com.music.bitchord.data.PerformanceProfile.wordLyrics.collectAsStateWithLifecycle()
+                if (wordByWord && isSynced && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3)) {
                     WordLevelLyrics(
                         mainText = mainText,
                         words = effectiveWords,

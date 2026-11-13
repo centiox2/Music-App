@@ -527,6 +527,7 @@ private fun TopSongPages(songs: List<Song>, page: DetailPage, onTint: Color, dim
                                 .fillMaxWidth()
                                 .height(58.dp)
                                 .clip(RoundedCornerShape(10.dp))
+                                .menuKey { g.openSongMenu(song) }
                                 .combinedClickable(
                                     onClick = { g.playList(songs, index, page.title, PlaybackSourceType.BROWSE, page.browseId) },
                                     onLongClick = { g.openSongMenu(song) },

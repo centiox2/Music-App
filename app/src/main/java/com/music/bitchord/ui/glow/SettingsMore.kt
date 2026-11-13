@@ -314,59 +314,78 @@ fun PlaybackSettingsScreen() {
 fun PerformanceSettingsScreen() {
     val context = LocalContext.current
     val c = Glow.colors
-    val enabled by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
+    val P = com.music.bitchord.data.PerformanceProfile
+    val lowMemory by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
+    val background by P.animatedBackground.collectAsStateWithLifecycle()
+    val wordLyrics by P.wordLyrics.collectAsStateWithLifecycle()
+    val fade by P.imageFade.collectAsStateWithLifecycle()
+    val shadows by P.coverShadows.collectAsStateWithLifecycle()
+    val motion by P.motion.collectAsStateWithLifecycle()
+    val hd by P.hdThumbnails.collectAsStateWithLifecycle()
+    val analysis by P.audioAnalysis.collectAsStateWithLifecycle()
+    val log by P.diagnosticLog.collectAsStateWithLifecycle()
+    val reduceMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
 
-    SettingsPage("Performance & memory") {
-        GroupLabel("Low-resource devices")
+    SettingsPage("Performance") {
+        Text(
+            if (P.isTv) "This is a TV: the heavy effects started off. Turn on any your TV copes with."
+            else "Each switch below costs frames or memory. Turn off the ones a slow device struggles with.",
+            style = GlowType.secondary,
+            color = c.textSecondary,
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp),
+        )
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton("Use TV settings", Modifier.weight(1f), height = 44.dp) { P.applyLight() }
+            PillButton("Turn all on", Modifier.weight(1f), primary = false, height = 44.dp) { P.applyFull() }
+        }
+
+        GroupLabel("Graphics")
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow("Moving player background", background, P::setAnimatedBackground,
+                subtitle = "The blurred, turning cover behind the player. Off: a still glow in its colours")
+            CardDivider()
+            SwitchRow("Cover shadows", shadows, P::setCoverShadows,
+                subtitle = "Soft shadows under large covers")
+            CardDivider()
+            SwitchRow("Image fade-in", fade, P::setImageFade,
+                subtitle = "Covers fade in as they load. Off: less redrawing while scrolling")
+            CardDivider()
+            SwitchRow("Animations", motion && !reduceMotion, { on ->
+                P.setMotion(on)
+                if (on && reduceMotion) AppSettings.setReduceAnimation(false)
+            }, subtitle = "Pages cascading in, buttons bouncing, colours blending between songs")
+            CardDivider()
+            SwitchRow("HD video thumbnails", hd, P::setHdThumbnails,
+                subtitle = "Full-size video frames in lists too. Off: smaller frames in rows")
+        }
+
+        GroupLabel("Lyrics")
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow("Word-by-word lyrics", wordLyrics, P::setWordLyrics,
+                subtitle = "Words light up as they're sung. Off: the whole line lights at once")
+        }
+
+        GroupLabel("Playback and memory")
+        GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow("Audio analysis", analysis && !lowMemory, { on ->
+                P.setAudioAnalysis(on)
+                if (on && lowMemory) AppSettings.setLowMemoryMode(false)
+            }, subtitle = "Measures upcoming songs for Automix blends and version matching. Uses the CPU in the background")
+            CardDivider()
             SwitchRow(
                 "Low-memory mode",
-                enabled,
+                lowMemory,
                 onCheckedChange = { value ->
                     AppSettings.setLowMemoryMode(value)
-                    if (value) {
-                        runCatching {
-                            SingletonImageLoader.get(context).memoryCache?.clear()
-                        }
-                    }
+                    if (value) runCatching { SingletonImageLoader.get(context).memoryCache?.clear() }
                 },
-                subtitle = "Recommended for TVs with 1–2 GB RAM. Automatically enabled on detected low-memory devices.",
+                subtitle = "Smaller picture memory, a short playback buffer and no audio analysis. For TVs with 1–2 GB of RAM. Applies fully after reopening Sonder",
             )
+            CardDivider()
+            SwitchRow("Diagnostic log", log, P::setDiagnosticLog,
+                subtitle = "Keeps Settings → Logs filled. Crash reports are kept either way. Applies after reopening Sonder")
         }
-
-        GroupLabel("Optimizations")
-        GlassCard(Modifier.padding(horizontal = 20.dp)) {
-            SettingRow(
-                "Artwork memory",
-                subtitle = "Uses a 4% image cache, a 32 MB disk cache and no image crossfades",
-                value = if (enabled) "Reduced" else "Normal",
-            )
-            CardDivider()
-            SettingRow(
-                "Player graphics",
-                subtitle = "Uses a static background instead of GPU blur and multi-layer motion",
-                value = if (enabled) "Static" else "Animated",
-            )
-            CardDivider()
-            SettingRow(
-                "Playback buffer",
-                subtitle = "Caps read-ahead at 2 MB and keeps only 5 seconds behind the playhead",
-                value = if (enabled) "Compact" else "Full",
-            )
-            CardDivider()
-            SettingRow(
-                "Audio analysis",
-                subtitle = "Pauses Automix and version-matching background decoders",
-                value = if (enabled) "Paused" else "Available",
-            )
-        }
-
-        Text(
-            "Graphics and analysis change immediately. Reopen Sonder after changing this option so the image cache and playback buffer are rebuilt with the new limits.",
-            style = GlowType.caption.copy(fontSize = 12.sp),
-            color = c.textTertiary,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-        )
+        Spacer(Modifier.height(24.dp))
     }
 }
 
