@@ -9564,8 +9564,6 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
     private companion object {
-        /** How long the loop mix waits for a track's synced lyrics. */
-        const val LOOP_MIX_LYRICS_TIMEOUT_MS = 10_000L
         const val MEDIA_ROOT_ID = "root"
         const val MEDIA_RECENTS_ID = "recents"
         const val MEDIA_QUICK_PICKS_ID = "quick_picks"

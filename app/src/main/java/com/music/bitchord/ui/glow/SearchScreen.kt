@@ -199,6 +199,8 @@ private fun SearchIdle(onStartTyping: () -> Unit) {
                                 EntityType.ARTIST -> g.openDetail(entity.id, entity.title, entity.subtitle, entity.artworkUrl, BrowseType.ARTIST)
                                 EntityType.ALBUM -> g.openDetail(entity.id, entity.title, entity.subtitle, entity.artworkUrl, BrowseType.ALBUM)
                                 EntityType.PLAYLIST -> g.openDetail(entity.id, entity.title, entity.subtitle, entity.artworkUrl, BrowseType.PLAYLIST)
+                                // A podcast show or another page that opens rather than plays.
+                                EntityType.OTHER -> g.openDetail(entity.id, entity.title, entity.subtitle, entity.artworkUrl, BrowseType.PLAYLIST)
                             }
                         }
                     }
@@ -271,6 +273,7 @@ private fun RecentSearchRow(entity: SearchHistoryEntity, onRemove: () -> Unit, o
         EntityType.ALBUM -> "Album"
         EntityType.ARTIST -> "Artist"
         EntityType.PLAYLIST -> "Playlist"
+        EntityType.OTHER -> "Page"
     }
     val subtitle = if (entity.entityType == EntityType.ARTIST || entity.subtitle.isBlank()) kind else "$kind · ${entity.subtitle}"
     Row(
