@@ -395,13 +395,16 @@ private fun WidePlayer(song: Song) {
                 .navigationBarsPadding()
                 .padding(horizontal = 36.dp, vertical = 24.dp),
         ) {
-            val playerWidth = minOf(maxWidth * 0.42f, 460.dp)
+            // The column is as wide as the cover, and the cover as tall as the screen leaves
+            // after the header, title, seek bar and controls (~236dp), so every part lines up
+            // under the cover. A 960×540dp TV gets a ~256dp cover.
+            val playerWidth = (maxHeight - 236.dp).coerceIn(220.dp, minOf(maxWidth * 0.45f, 460.dp))
             Row(
                 Modifier.fillMaxSize(),
                 horizontalArrangement = if (paneOpen) Arrangement.spacedBy(48.dp) else Arrangement.Center,
             ) {
                 Column(Modifier.width(playerWidth).fillMaxHeight()) {
-                    Row(Modifier.height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Listening to", style = GlowType.secondary, color = c.textSecondary, maxLines = 1)
                             Text(
@@ -414,16 +417,15 @@ private fun WidePlayer(song: Song) {
                         // For touch screens; the remote's Back does the same.
                         IconTap(Icons.Rounded.KeyboardArrowDown, "Close player", iconSize = 28.dp) { g.playerOpen = false }
                     }
+                    Spacer(Modifier.weight(1f))
+                    Artwork(song, Modifier.fillMaxWidth().aspectRatio(1f))
                     Spacer(Modifier.height(14.dp))
-                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopStart) {
-                        Artwork(song, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    TitleRow(song, large = true, lyricsMenuFromMore = false)
-                    Spacer(Modifier.height(12.dp))
+                    TitleRow(song, large = false, lyricsMenuFromMore = false, showCover = false)
+                    Spacer(Modifier.height(8.dp))
                     SeekBar()
-                    Spacer(Modifier.height(10.dp))
-                    Controls()
+                    Spacer(Modifier.height(4.dp))
+                    Controls(compact = true)
+                    Spacer(Modifier.weight(1f))
                 }
                 androidx.compose.animation.AnimatedVisibility(
                     visible = paneOpen,
@@ -687,7 +689,7 @@ private fun PlaybackErrorCard(error: String) {
 }
 
 @Composable
-private fun TitleRow(song: Song, large: Boolean, lyricsMenuFromMore: Boolean = true) {
+private fun TitleRow(song: Song, large: Boolean, lyricsMenuFromMore: Boolean = true, showCover: Boolean = true) {
     val g = LocalGlow.current
     val vm = g.vm
     val c = Glow.colors
@@ -695,7 +697,7 @@ private fun TitleRow(song: Song, large: Boolean, lyricsMenuFromMore: Boolean = t
     val signedIn by vm.signedIn.collectAsStateWithLifecycle()
     val liked = likes[song.videoId] == LikeStatus.LIKE
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (!large) {
+        if (!large && showCover) {
             Cover(song.thumbnailUrl, size = 52.dp, shape = RoundedCornerShape(8.dp), px = PLAYER_ART_PX)
             Spacer(Modifier.width(14.dp))
         }
@@ -812,7 +814,7 @@ private fun SeekBar() {
 }
 
 @Composable
-private fun Controls() {
+private fun Controls(compact: Boolean = false) {
     val g = LocalGlow.current
     val c = Glow.colors
     val player = g.player
@@ -828,15 +830,15 @@ private fun Controls() {
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconTap(Icons.Rounded.Shuffle, "Shuffle", tint = if (shuffle) c.text else c.textSecondary, iconSize = 24.dp, modifier = Modifier.popOnChange(shuffle)) { g.toggleShuffle() }
-        IconTap(Icons.Rounded.SkipPrevious, "Previous", size = 56.dp, iconSize = 40.dp) { haptic(); controller?.seekToPrevious() }
+        IconTap(Icons.Rounded.SkipPrevious, "Previous", size = if (compact) 48.dp else 56.dp, iconSize = if (compact) 32.dp else 40.dp) { haptic(); controller?.seekToPrevious() }
         PrimaryCircle(
             if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
             if (player.isPlaying) "Pause" else "Play",
             modifier = Modifier.focusRequester(playFocus),
-            size = 68.dp,
-            iconSize = 34.dp,
+            size = if (compact) 58.dp else 68.dp,
+            iconSize = if (compact) 30.dp else 34.dp,
         ) { haptic(); g.actions.togglePlayPause() }
-        IconTap(Icons.Rounded.SkipNext, "Next", size = 56.dp, iconSize = 40.dp, enabled = player.hasNext) { haptic(); controller?.seekToNext() }
+        IconTap(Icons.Rounded.SkipNext, "Next", size = if (compact) 48.dp else 56.dp, iconSize = if (compact) 32.dp else 40.dp, enabled = player.hasNext) { haptic(); controller?.seekToNext() }
         IconTap(
             if (player.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
             "Repeat",
