@@ -45,7 +45,8 @@ object AppLog {
         val app = context.applicationContext
         keepPreviousSession(app)
         // Settings → Performance → Diagnostic log. Crash reports are written either way.
-        if (PerformanceProfile.storedDiagnosticLog(app)) startRecording(app)
+        // Starting logcat is a fork and exec; off the main thread, it costs launch nothing.
+        if (PerformanceProfile.storedDiagnosticLog(app)) Thread({ startRecording(app) }, "sonder-log").start()
         if (PerformanceProfile.storedDiagnosticLog(app)) MainThreadWatchdog.start()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->

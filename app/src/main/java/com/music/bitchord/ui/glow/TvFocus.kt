@@ -10,6 +10,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -205,3 +209,50 @@ fun RemoteScrolling(content: @Composable () -> Unit) {
         content()
     }
 }
+
+/**
+ * Text boxes with a remote. Compose opens the keyboard as soon as a text field takes focus,
+ * so arrowing past a search box (Settings, Search) popped the keyboard up over the page. With
+ * a remote, the box itself is what focus lands on (it shows the ring); OK opens it for typing
+ * and brings the keyboard up; leaving it puts it back. Touch is unchanged.
+ */
+class RemoteTextGate internal constructor(
+    /** Goes on the box around the field: focusable and clickable with a remote. */
+    val container: Modifier,
+    /** Goes on the text field itself. */
+    val field: Modifier,
+)
+
+@Composable
+fun rememberRemoteTextGate(): RemoteTextGate {
+    val remote = androidx.compose.ui.platform.LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    var armed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val requester = remember { FocusRequester() }
+    val source = remember { MutableInteractionSource() }
+    var hadFocus by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(armed) {
+        if (armed) {
+            // The field becomes focusable this frame; ask once it is.
+            kotlinx.coroutines.yield()
+            runCatching { requester.requestFocus() }
+        }
+    }
+    val container = if (remote && !armed) {
+        Modifier.clickable(interactionSource = source, indication = FocusRing) { armed = true }
+    } else {
+        Modifier
+    }
+    val field = Modifier
+        .focusRequester(requester)
+        .focusProperties { canFocus = !remote || armed }
+        .onFocusChanged {
+            if (it.isFocused) {
+                hadFocus = true
+            } else if (hadFocus) {
+                hadFocus = false
+                armed = false
+            }
+        }
+    return RemoteTextGate(container, field)
+}
+

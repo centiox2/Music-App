@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.blur
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -130,11 +131,22 @@ internal fun LyricsLine(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Settings → Performance → Blur other lines: lines away from the sung one go soft, more the
+    // further they are, and sharpen while the listener scrolls by hand (or for unsynced lyrics).
+    val blurOn by com.music.bitchord.data.PerformanceProfile.lyricsBlur.collectAsStateWithLifecycle()
+    val distance = if (displayedCurrentLineIndex >= 0) abs(index - displayedCurrentLineIndex) else 0
+    val blurTarget = if (!blurOn || !isSynced || isActiveLine || !isAutoScrollEnabled || distance == 0 || isSelectionModeActive) {
+        0.dp
+    } else {
+        (1.5f + 0.8f * (distance - 1)).coerceAtMost(4f).dp
+    }
+    val blurRadius by androidx.compose.animation.core.animateDpAsState(blurTarget, tween(300), label = "lyricsBlur")
     val itemModifier = modifier
         .fillMaxWidth()
         .onSizeChanged { onSizeChanged(it.height) }
         .clip(RoundedCornerShape(8.dp))
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        .then(if (blurRadius > 0.05.dp) Modifier.blur(blurRadius, androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded) else Modifier)
         .background(if (isSelected && isSelectionModeActive) accent.copy(alpha = 0.18f) else Color.Transparent)
         .padding(
             start = 4.dp,

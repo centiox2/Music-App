@@ -38,6 +38,10 @@ object PerformanceProfile {
     /** Lyrics lit word by word (and letter by letter). Off: the whole line lights at once. */
     val wordLyrics: StateFlow<Boolean> = _wordLyrics.asStateFlow()
 
+    private val _lyricsBlur = MutableStateFlow(true)
+    /** Lyric lines away from the one being sung are softly blurred (a GPU blur per line). */
+    val lyricsBlur: StateFlow<Boolean> = _lyricsBlur.asStateFlow()
+
     private val _imageFade = MutableStateFlow(true)
     /** Covers fade in as they load. Off: they appear at once (less redrawing while scrolling). */
     val imageFade: StateFlow<Boolean> = _imageFade.asStateFlow()
@@ -73,6 +77,7 @@ object PerformanceProfile {
         val rich = !lightDefaults
         _animatedBackground.value = read(KEY_BACKGROUND, rich)
         _wordLyrics.value = read(KEY_WORD_LYRICS, rich)
+        _lyricsBlur.value = read(KEY_LYRICS_BLUR, rich)
         _imageFade.value = read(KEY_IMAGE_FADE, rich)
         _coverShadows.value = read(KEY_SHADOWS, rich)
         _motion.value = read(KEY_MOTION, rich)
@@ -87,6 +92,7 @@ object PerformanceProfile {
 
     fun setAnimatedBackground(value: Boolean) { _animatedBackground.value = value; put(KEY_BACKGROUND, value) }
     fun setWordLyrics(value: Boolean) { _wordLyrics.value = value; put(KEY_WORD_LYRICS, value) }
+    fun setLyricsBlur(value: Boolean) { _lyricsBlur.value = value; put(KEY_LYRICS_BLUR, value) }
     fun setImageFade(value: Boolean) { _imageFade.value = value; put(KEY_IMAGE_FADE, value) }
     fun setCoverShadows(value: Boolean) { _coverShadows.value = value; put(KEY_SHADOWS, value) }
     fun setMotion(value: Boolean) { _motion.value = value; put(KEY_MOTION, value) }
@@ -98,6 +104,7 @@ object PerformanceProfile {
     fun applyLight() {
         setAnimatedBackground(false)
         setWordLyrics(false)
+        setLyricsBlur(false)
         setImageFade(false)
         setCoverShadows(false)
         setMotion(false)
@@ -108,6 +115,7 @@ object PerformanceProfile {
     fun applyFull() {
         setAnimatedBackground(true)
         setWordLyrics(true)
+        setLyricsBlur(true)
         setImageFade(true)
         setCoverShadows(true)
         setMotion(true)
@@ -130,6 +138,7 @@ object PerformanceProfile {
     private const val PREFS = "sonder_performance"
     private const val KEY_BACKGROUND = "animated_background"
     private const val KEY_WORD_LYRICS = "word_lyrics"
+    private const val KEY_LYRICS_BLUR = "lyrics_blur"
     private const val KEY_IMAGE_FADE = "image_fade"
     private const val KEY_SHADOWS = "cover_shadows"
     private const val KEY_MOTION = "motion"

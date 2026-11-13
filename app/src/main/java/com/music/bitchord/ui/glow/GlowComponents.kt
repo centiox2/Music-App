@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -1002,10 +1003,12 @@ fun SearchField(
     onSearch: () -> Unit = {},
 ) {
     val c = Glow.colors
+    val gate = rememberRemoteTextGate()
     Row(
         modifier
             .height(height)
             .clip(RoundedCornerShape(14.dp))
+            .then(gate.container)
             .background(c.glass)
             .then(if (outlined) Modifier.border(1.dp, c.textTertiary, RoundedCornerShape(14.dp)) else Modifier)
             .padding(horizontal = 14.dp),
@@ -1025,7 +1028,7 @@ fun SearchField(
                 cursorBrush = SolidColor(c.text),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                modifier = Modifier.fillMaxWidth().then(autoFocusModifier),
+                modifier = Modifier.fillMaxWidth().then(gate.field).then(autoFocusModifier),
             )
         }
         if (value.isNotEmpty()) {
@@ -1047,6 +1050,7 @@ fun GlowTextField(
     password: Boolean = false,
 ) {
     val c = Glow.colors
+    val gate = rememberRemoteTextGate()
     Column(modifier) {
         if (label != null) {
             Text(label, style = GlowType.secondary, color = c.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
@@ -1056,6 +1060,7 @@ fun GlowTextField(
                 .fillMaxWidth()
                 .height(if (singleLine) minHeight else minHeight * 1.2f)
                 .clip(RoundedCornerShape(12.dp))
+                .then(gate.container)
                 .background(c.base.copy(alpha = 0.6f))
                 .border(1.dp, c.textTertiary, RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1073,7 +1078,7 @@ fun GlowTextField(
                 } else {
                     androidx.compose.ui.text.input.VisualTransformation.None
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(gate.field),
             )
         }
     }
@@ -1296,7 +1301,8 @@ fun GlowSlider(
     androidx.compose.material3.Slider(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier,
+        // Remote: Material's slider moves with left/right already; this shows that it has focus.
+        modifier = modifier.indication(interaction, FocusRing),
         enabled = enabled,
         valueRange = valueRange,
         steps = steps,

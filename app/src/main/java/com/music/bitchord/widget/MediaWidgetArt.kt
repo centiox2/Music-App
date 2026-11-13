@@ -630,6 +630,105 @@ internal object MediaWidgetArt {
         return out
     }
 
+    // ---- Sonder card (the 4×2 widget) ----
+
+    /** The Sonder card: a tinted background for the whole widget, and the rounded cover. */
+    class SonderCard(val background: Bitmap, val cover: Bitmap?)
+
+    fun peekSonder(key: String?, widthPx: Int, heightPx: Int): SonderCard? {
+        val k = key ?: return null
+        val bg = composites["sonder-bg|$k|$widthPx|$heightPx"]?.takeIf { !it.isRecycled } ?: return null
+        val cover = composites["sonder-cover|$k|$heightPx"]?.takeIf { !it.isRecycled }
+        return SonderCard(bg, cover)
+    }
+
+    /**
+     * Sonder's look for the 4×2 widget, after the mini player: a card in the cover's own
+     * dominant colour (darkened so white text reads), and the cover itself, square and rounded,
+     * at the left. Video thumbnails lose their black bars first, as everywhere in the app.
+     */
+    suspend fun sonderCard(
+        context: Context,
+        artworkUrl: String?,
+        widthPx: Int,
+        heightPx: Int,
+        key: String?,
+        cornerRadiusPx: Float,
+    ): SonderCard {
+        peekSonder(key, widthPx, heightPx)?.let { return it }
+        val coverSide = (heightPx * 0.78f).roundToInt().coerceAtLeast(1)
+        val raw = if (isCoolingOff(key)) null else loadArtwork(context, artworkUrl, coverSide)
+        val failed = raw == null && !artworkUrl.isNullOrBlank()
+        if (failed && key != null) failures[key] = SystemClock.elapsedRealtime()
+        val squared = raw?.let { bmp ->
+            val trimmed = if (com.music.bitchord.ui.glow.youTubeVideoId(artworkUrl) != null) {
+                runCatching { com.music.bitchord.ui.glow.VideoSquareCrop.transform(bmp, coil3.size.Size.ORIGINAL) }.getOrDefault(bmp)
+            } else {
+                bmp
+            }
+            val side = minOf(trimmed.width, trimmed.height)
+            val cropped = Bitmap.createBitmap(trimmed, (trimmed.width - side) / 2, (trimmed.height - side) / 2, side, side)
+            val scaled = Bitmap.createScaledBitmap(cropped, coverSide, coverSide, true)
+            scaled.withRoundedCorners(coverSide * 0.1f)
+        }
+
+        val tint = dominantDark(raw)
+        val bg = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        Canvas(bg).drawRoundRect(
+            RectF(0f, 0f, widthPx.toFloat(), heightPx.toFloat()),
+            cornerRadiusPx,
+            cornerRadiusPx,
+            Paint().apply {
+                isAntiAlias = true
+                shader = LinearGradient(
+                    0f, 0f, widthPx.toFloat(), heightPx.toFloat(),
+                    shade(tint, 1.35f), shade(tint, 0.75f), Shader.TileMode.CLAMP,
+                )
+            },
+        )
+        if (!failed && key != null) {
+            composites.put("sonder-bg|$key|$widthPx|$heightPx", bg)
+            squared?.let { composites.put("sonder-cover|$key|$heightPx", it) }
+        }
+        return SonderCard(bg, squared)
+    }
+
+    /** The cover's dominant colour at a dark, readable lightness (the mini player's rule). */
+    private fun dominantDark(cover: Bitmap?): Int {
+        val fallback = Color.rgb(0x1E, 0x2E, 0x2D)
+        cover ?: return fallback
+        val small = Bitmap.createScaledBitmap(cover, 48, 48, true)
+        val pixels = IntArray(48 * 48)
+        small.getPixels(pixels, 0, 48, 0, 0, 48, 48)
+        // Hue buckets weighted by saturation, so a grey border doesn't win over the colour.
+        val buckets = FloatArray(24)
+        val sums = Array(24) { FloatArray(3) }
+        val hsv = FloatArray(3)
+        for (p in pixels) {
+            Color.colorToHSV(p, hsv)
+            val weight = hsv[1] * hsv[2] + 0.02f
+            val b = ((hsv[0] / 15f).toInt()).coerceIn(0, 23)
+            buckets[b] += weight
+            sums[b][0] += Color.red(p) * weight
+            sums[b][1] += Color.green(p) * weight
+            sums[b][2] += Color.blue(p) * weight
+        }
+        val best = buckets.indices.maxByOrNull { buckets[it] } ?: return fallback
+        val w = buckets[best].takeIf { it > 0f } ?: return fallback
+        val avg = Color.rgb((sums[best][0] / w).toInt(), (sums[best][1] / w).toInt(), (sums[best][2] / w).toInt())
+        Color.colorToHSV(avg, hsv)
+        hsv[1] = hsv[1].coerceAtMost(0.55f)
+        hsv[2] = 0.28f
+        return Color.HSVToColor(hsv)
+    }
+
+    private fun shade(color: Int, factor: Float): Int {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        hsv[2] = (hsv[2] * factor).coerceIn(0f, 1f)
+        return Color.HSVToColor(hsv)
+    }
+
     // ---- tuning ----
 
     /**

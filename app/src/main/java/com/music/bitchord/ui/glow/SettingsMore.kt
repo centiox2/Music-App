@@ -318,6 +318,7 @@ fun PerformanceSettingsScreen() {
     val lowMemory by AppSettings.lowMemoryMode.collectAsStateWithLifecycle()
     val background by P.animatedBackground.collectAsStateWithLifecycle()
     val wordLyrics by P.wordLyrics.collectAsStateWithLifecycle()
+    val lyricsBlur by P.lyricsBlur.collectAsStateWithLifecycle()
     val fade by P.imageFade.collectAsStateWithLifecycle()
     val shadows by P.coverShadows.collectAsStateWithLifecycle()
     val motion by P.motion.collectAsStateWithLifecycle()
@@ -363,6 +364,9 @@ fun PerformanceSettingsScreen() {
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
             SwitchRow("Word-by-word lyrics", wordLyrics, P::setWordLyrics,
                 subtitle = "Words light up as they're sung. Off: the whole line lights at once")
+            CardDivider()
+            SwitchRow("Blur other lines", lyricsBlur, P::setLyricsBlur,
+                subtitle = "Lines before and after the one being sung are softly blurred")
         }
 
         GroupLabel("Playback and memory")

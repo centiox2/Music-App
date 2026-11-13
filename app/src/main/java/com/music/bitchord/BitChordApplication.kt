@@ -74,9 +74,12 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
     @kotlin.OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate() {
         super.onCreate()
+        startupStarted = android.os.SystemClock.uptimeMillis()
         // First, so a crash anywhere below is caught and the log covers the whole launch.
         com.music.bitchord.data.AppLog.install(this)
+        startupMark("com.music.bitchord.data.AppLog.install")
         AndroidStreamHooks.installEarly()
+        startupMark("AndroidStreamHooks.installEarly")
         // The shared data layer (lyrics, the YouTube Music client) logs to logcat on every
         // build, so the in-app log (Settings → Logs) has what happened there too.
         DebugLog.sink = DebugLog.Sink { level, tag, message, error ->
@@ -102,10 +105,12 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
         // Full tag (zh-Hant / zh-Hans preserved); Innertube maps to hl/gl.
         Innertube.appLanguage = { AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag() }
         migrateScriptOnlyAppLocale()
+        startupMark("migrateScriptOnlyAppLocale")
         LyricsTranslation.cacheDir = cacheDir
         // PlaybackService shares this process, so seeding the cookie here means
         // stream resolution is authenticated from the first play onwards.
         authStore = AuthStore(this)
+        startupMark("AuthStore")
         // Opened off the main thread, alongside everything below: none of these
         // reads a setting or the session, and between them they are the slowest
         // opens at startup — SourceRegistry's encrypted store most of all.
@@ -145,9 +150,12 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         com.music.bitchord.data.LowRam.init(this)
+        startupMark("com.music.bitchord.data.LowRam.init")
         // After LowRam: a device short of memory starts with the light effects.
         com.music.bitchord.data.PerformanceProfile.init(this)
+        startupMark("com.music.bitchord.data.PerformanceProfile.init")
         AppSettings.init(this, authStore)
+        startupMark("AppSettings.init")
         // The settings that most change how playback behaves, once per launch.
         runCatching {
             com.music.bitchord.data.AppLog.state(
@@ -159,45 +167,61 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
             )
         }
         watchNetworkChanges()
+        startupMark("watchNetworkChanges")
         com.music.bitchord.data.Connectivity.install(this)
+        startupMark("com.music.bitchord.data.Connectivity.install")
         // Restores the addon token, so the first search after a process restart
         // doesn't have to attest the device again.
         com.music.bitchord.data.sources.addon.AddonAuth.init(this)
+        startupMark("com.music.bitchord.data.sources.addon.AddonAuth.")
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.music.bitchord.playback.audio.LosslessOutput.init(this)
+        startupMark("com.music.bitchord.playback.audio.LosslessOutput")
         // Restores a party this device is still a member of, so a process death
         // mid-session is something the rest of the party never sees. The socket
         // and the clock offset are not restored — both are re-established on
         // the next connect, which is the only way to be sure they are current.
         ListenTogether.init(this)
+        startupMark("ListenTogether.init")
         SearchHistory.init(this)
+        startupMark("SearchHistory.init")
         LastPlayed.init(this)
+        startupMark("LastPlayed.init")
         BoundedContextPersistence.init(this)
+        startupMark("BoundedContextPersistence.init")
         com.music.bitchord.playback.PartyPersonalQueueStash.init(this)
+        startupMark("com.music.bitchord.playback.PartyPersonalQueueSt")
         // Which tracks the listener has reverted to YouTube's own upload. Read
         // by [Song.toMediaItem], so it has to be open before the restart
         // snapshot below is turned back into queue items.
         OriginalVersion.init(this)
+        startupMark("OriginalVersion.init")
         // What's already saved to Downloads, so the song menu can say so
         // without a media-store query per row.
         Downloads.init(this)
+        startupMark("Downloads.init")
         // After both of the things a check reads: the setting and the record.
         PlaylistSync.init(this)
+        startupMark("PlaylistSync.init")
         // The device's own listening record. Opened here rather than in
         // PlaybackService because the Replay page reads it from the UI side and
         // both live in this process — one owner, one directory.
         ListeningStats.init(this)
+        startupMark("ListeningStats.init")
         // After AppSettings, whose switch decides whether half of it runs.
         ArtistFacts.init(this)
+        startupMark("ArtistFacts.init")
         // One cache directory can only be opened once per process, and
         // PlaybackService shares this one — so it's opened here, not there.
         AudioCache.init(this)
+        startupMark("AudioCache.init")
         // The offscreen WebView that mints a Spotify access token from the
         // listener's own session cookie needs a Context, and nothing in the
         // suspend call chain that reaches it (a track's canvas lookup) has
         // one to hand — see SpotifyToken's doc for why.
         SpotifyToken.init(this)
+        startupMark("SpotifyToken.init")
         // A sideloaded update is just a new APK over the old one, so app data —
         // including whatever the old build left in the image cache — survives
         // it untouched. Wipe that on the first launch of a higher versionCode so
@@ -216,9 +240,13 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
         }
         // Initialize LastFM with saved settings if available
         initLastfm()
+        startupMark("initLastfm")
         // The public "apps open right now" count; see Presence.
         com.music.bitchord.data.presence.AndroidPresence.install(this)
+        startupMark("com.music.bitchord.data.presence.AndroidPresence")
         backgroundInit.join()
+        startupMark("background init joined")
+        android.util.Log.i("Sonder", "startup: Application.onCreate took ${android.os.SystemClock.uptimeMillis() - startupStarted}ms")
     }
 
     /**
@@ -348,6 +376,20 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
     private val emulatedGpu: Boolean by lazy {
         listOf("/vendor/lib64", "/vendor/lib", "/system/lib64", "/system/lib")
             .any { java.io.File("$it/egl/libEGL_emulation.so").exists() }
+    }
+
+    private var startupStarted = 0L
+    private var startupLast = 0L
+
+    /**
+     * Logs a startup step that took 15 ms or more (tag `Sonder`, "startup: …"), so a field log
+     * shows which part of launch is slow on that phone.
+     */
+    private fun startupMark(step: String) {
+        val now = android.os.SystemClock.uptimeMillis()
+        val since = now - (if (startupLast == 0L) startupStarted else startupLast)
+        startupLast = now
+        if (since >= 15) android.util.Log.i("Sonder", "startup: $step ${since}ms")
     }
 
     private fun initLastfm() {

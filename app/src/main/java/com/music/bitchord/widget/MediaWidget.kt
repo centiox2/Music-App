@@ -67,12 +67,13 @@ abstract class MediaWidget : AppWidgetProvider() {
 
     /** A widget that has been dragged off the home screen has no last cover. */
     override fun onDeleted(context: Context, ids: IntArray) {
-        for (id in ids) lastArt.remove(id)
+        for (id in ids) { lastArt.remove(id); lastCover.remove(id) }
     }
 
     override fun onDisabled(context: Context) {
         MediaWidgetArt.clear()
         lastArt.clear()
+        lastCover.clear()
     }
 
     /**
@@ -188,6 +189,23 @@ abstract class MediaWidget : AppWidgetProvider() {
             fallbackWidthDp: Int,
         ) {
             val size = measure(context, manager, id, fallbackWidthDp)
+            if (size.wide) {
+                // Sonder's card (see widget_media_wide): background and cover drawn together.
+                val ready = MediaWidgetArt.peekSonder(key, size.widthPx, size.heightPx)
+                if (ready == null) manager.push(id, views(context, snapshot, size, lastArt[id], lastCover[id]))
+                val card = ready ?: MediaWidgetArt.sonderCard(
+                    context = context,
+                    artworkUrl = snapshot.artworkUrl,
+                    widthPx = size.widthPx,
+                    heightPx = size.heightPx,
+                    key = key,
+                    cornerRadiusPx = size.cornerRadiusPx,
+                )
+                lastArt[id] = card.background
+                card.cover?.let { lastCover[id] = it } ?: lastCover.remove(id)
+                manager.push(id, views(context, snapshot, size, card.background, card.cover))
+                return
+            }
             val cached = MediaWidgetArt.peek(key, size.widthPx, size.heightPx, size.bandPx)
             if (cached == null) {
                 // The picture still has to be drawn, and that can mean a network
@@ -226,6 +244,7 @@ abstract class MediaWidget : AppWidgetProvider() {
             snapshot: MediaWidgetSnapshot,
             size: WidgetSize,
             art: Bitmap?,
+            cover: Bitmap? = null,
         ): RemoteViews {
             val layout =
                 if (size.wide) R.layout.widget_media_wide else R.layout.widget_media_compact
@@ -243,6 +262,16 @@ abstract class MediaWidget : AppWidgetProvider() {
                 },
             )
             if (size.wide) {
+                cover?.let { views.setImageViewBitmap(R.id.widget_cover, it) }
+                views.setImageViewResource(
+                    R.id.widget_like,
+                    if (snapshot.isLiked) R.drawable.ic_widget_heart_filled else R.drawable.ic_widget_heart,
+                )
+                views.setViewVisibility(R.id.widget_like, if (snapshot.hasTrack && snapshot.canLike) View.VISIBLE else View.INVISIBLE)
+                views.setOnClickPendingIntent(
+                    R.id.widget_like,
+                    MediaWidgetActions.pendingIntent(context, MediaWidgetActions.ACTION_LIKE),
+                )
                 views.setTextViewText(R.id.widget_artist, snapshot.artist)
                 views.setViewVisibility(
                     R.id.widget_artist,
@@ -449,6 +478,7 @@ abstract class MediaWidget : AppWidgetProvider() {
          * is on screen, and dropped when the widget is.
          */
         private val lastArt = ConcurrentHashMap<Int, Bitmap>()
+        private val lastCover = ConcurrentHashMap<Int, Bitmap>()
 
         private const val MAX_BITMAP_PX = 1_200f
 

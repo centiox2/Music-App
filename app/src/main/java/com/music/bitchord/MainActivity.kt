@@ -50,6 +50,11 @@ class MainActivity : AppCompatActivity() {
                 GlowApp()
             }
         }
+        // How long launch took to the first drawn frame, for the in-app log.
+        androidx.core.view.OneShotPreDrawListener.add(window.decorView) {
+            val sinceStart = android.os.SystemClock.uptimeMillis() - android.os.Process.getStartUptimeMillis()
+            android.util.Log.i("Sonder", "startup: first frame ${sinceStart}ms after launch")
+        }
     }
 
     /**

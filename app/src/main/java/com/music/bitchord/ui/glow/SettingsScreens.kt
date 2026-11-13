@@ -585,7 +585,10 @@ fun StorageScreen() {
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
         )
         val quality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
+        val downloadLiked by GlowPrefs.downloadLiked.collectAsStateWithLifecycle()
         GlassCard(Modifier.padding(horizontal = 20.dp)) {
+            SwitchRow("Download songs you like", downloadLiked, GlowPrefs::setDownloadLiked, subtitle = "Liking a song saves it for offline too")
+            CardDivider()
             SettingRow("Manage downloads", chevron = true) { g.push(Route.Downloads) }
             CardDivider()
             SettingRow("Download quality", value = quality.label, chevron = true) { g.push(Route.SettingsPlayback) }

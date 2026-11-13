@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stand-in for the cover-tinted card, before a provider has drawn it. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="24dp" />
+    <gradient android:angle="315" android:startColor="#FF2F5A55" android:endColor="#FF132624" />
+</shape>

@@ -690,3 +690,20 @@ either form (that mismatch crashed the app at launch until `6dc1972`).
   (`Modifier.menuKey` in `TvFocus.kt`).
 - Tip for a sideloaded TV install: `adb shell cmd package compile -m speed-profile -f com.coverglow.music`
   compiles the baseline profile at once instead of waiting for the idle-time dexopt.
+
+### 5.16 Round 1.9.3–1.9.5
+- **Field-log tools:** `MainThreadWatchdog` (in `data/AppLog.kt`) logs the main thread's stack
+  (tag `SonderStall`, up to six samples per stall) whenever it is stuck ≥700 ms. Startup logs
+  each `Application.onCreate` step ≥15 ms and the time to first frame (`startup: …`).
+- **Fixed from the owner's logs:** YouTube history (signature timestamp falls back to the
+  music.youtube.com shell / player script, `Innertube.signatureTimestampFallback`); song-start
+  freezes in autoplay (`QueueBuilder.RecordingIndex` instead of pairwise regex comparisons).
+- **Wide/TV player** (`WidePlayer` in `PlayerScreen.kt`, any width ≥840dp in landscape): rail,
+  player, Lyrics / Up next / Devices tabs top-right; no tab = player centred; ⋯ by the tabs opens
+  the lyrics menu. Phone landscape has the lyrics menu in its header.
+- **Lyrics blur** (`PerformanceProfile.lyricsBlur`, Settings → Performance → Blur other lines).
+- **Download songs you like** (`GlowPrefs.downloadLiked`, Settings → Storage).
+- **Remote and text boxes:** `rememberRemoteTextGate()` (TvFocus.kt) on `SearchField` and
+  `GlowTextField`: with a remote, the box takes focus and OK opens the keyboard.
+- **Widget:** the 4×2 widget is Sonder's card (`MediaWidgetArt.sonderCard`, cover-tinted).
+- **Up next** follows the current song (shuffle used to leave it at the top).

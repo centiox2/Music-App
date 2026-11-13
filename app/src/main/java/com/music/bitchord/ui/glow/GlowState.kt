@@ -275,6 +275,10 @@ class GlowState(
         val nowLiked = vm.likeStatuses.value[song.videoId] != com.music.bitchord.data.model.LikeStatus.LIKE
         vm.toggleLike(song.videoId)
         if (nowLiked) LikedSongsCache.liked(song)
+        // Settings → Storage → Download songs you like.
+        if (nowLiked && GlowPrefs.downloadLiked.value && song.videoId !in com.music.bitchord.download.Downloads.saved.value) {
+            if (actions.download(listOf(song))) notify("Liked and downloading")
+        }
     }
 
     /**

@@ -60,6 +60,8 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -75,6 +77,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalView
 import com.music.bitchord.ui.glow.lyrics.GlowLyrics
@@ -158,8 +161,8 @@ fun PlayerScreen() {
     ) {
         PlayerBackdrop(song)
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            if (maxWidth >= 840.dp && maxHeight >= 560.dp) {
-                TabletPlayer(song)
+            if (maxWidth >= 840.dp && maxWidth > maxHeight) {
+                WidePlayer(song)
             } else if (maxWidth > maxHeight && maxWidth > 600.dp) {
                 LandscapePlayer(song)
             } else {
@@ -349,7 +352,7 @@ private fun LandscapePlayer(song: Song) {
             Artwork(song, Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true))
         }
         Column(Modifier.weight(1f).fillMaxHeight()) {
-            PlayerHeader(song)
+            PlayerHeader(song, lyricsMenu = true)
             when (g.playerPane) {
                 PlayerPane.NOW_PLAYING -> {
                     Spacer(Modifier.weight(1f))
@@ -371,70 +374,146 @@ private fun LandscapePlayer(song: Song) {
 }
 
 /**
- * Tablet: the player on the left, and lyrics or the queue given the right
- * half of the screen, chosen by tabs rather than the bottom pane bar.
+ * TV and tablet (wide screens): a rail on the left (Home, Search, Library), the player, and
+ * Lyrics / Up next / Devices tabs at the top right. With no tab selected the player sits in
+ * the middle of the screen; picking Lyrics or Up next slides it left and opens that pane
+ * beside it. Choosing the selected tab again closes the pane.
  */
 @Composable
-private fun TabletPlayer(song: Song) {
+private fun WidePlayer(song: Song) {
     val g = LocalGlow.current
     val c = Glow.colors
-    if (g.playerPane == PlayerPane.NOW_PLAYING) {
-        androidx.compose.runtime.SideEffect { g.playerPane = PlayerPane.LYRICS }
-    }
-    Row(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 40.dp, vertical = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(48.dp),
-    ) {
-        Column(Modifier.weight(0.9f).fillMaxHeight()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconTap(Icons.Rounded.KeyboardArrowDown, "Close player", iconSize = 30.dp, modifier = Modifier.offset(x = (-10).dp)) {
-                    g.playerOpen = false
+    val lyrics by g.vm.lyrics.collectAsStateWithLifecycle()
+    val paneOpen = g.playerPane != PlayerPane.NOW_PLAYING
+    Row(Modifier.fillMaxSize()) {
+        PlayerRail()
+        BoxWithConstraints(
+            Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 36.dp, vertical = 24.dp),
+        ) {
+            val playerWidth = minOf(maxWidth * 0.42f, 460.dp)
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = if (paneOpen) Arrangement.spacedBy(48.dp) else Arrangement.Center,
+            ) {
+                Column(Modifier.width(playerWidth).fillMaxHeight()) {
+                    Row(Modifier.height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Listening to", style = GlowType.secondary, color = c.textSecondary, maxLines = 1)
+                            Text(
+                                song.radioName ?: song.playbackSource ?: song.albumName ?: "Your queue",
+                                style = GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 17.sp),
+                                color = c.text,
+                                maxLines = 1,
+                            )
+                        }
+                        // For touch screens; the remote's Back does the same.
+                        IconTap(Icons.Rounded.KeyboardArrowDown, "Close player", iconSize = 28.dp) { g.playerOpen = false }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopStart) {
+                        Artwork(song, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    TitleRow(song, large = true, lyricsMenuFromMore = false)
+                    Spacer(Modifier.height(12.dp))
+                    SeekBar()
+                    Spacer(Modifier.height(10.dp))
+                    Controls()
                 }
-                Column {
-                    Text("Listening to", style = GlowType.secondary, color = c.textSecondary)
-                    Text(
-                        song.radioName ?: song.playbackSource ?: song.albumName ?: "Your queue",
-                        style = GlowType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
-                        color = c.text,
-                        maxLines = 1,
-                    )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = paneOpen,
+                    enter = androidx.compose.animation.fadeIn(tween(220)) + androidx.compose.animation.expandHorizontally(tween(280)),
+                    exit = androidx.compose.animation.fadeOut(tween(160)) + androidx.compose.animation.shrinkHorizontally(tween(260)),
+                    modifier = Modifier.weight(1f, fill = false),
+                ) {
+                    Column(Modifier.fillMaxSize().padding(top = 64.dp)) {
+                        if (g.playerPane == PlayerPane.QUEUE) QueuePane(Modifier.weight(1f)) else LyricsPane(Modifier.weight(1f))
+                    }
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                Artwork(song, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
-            }
-            Spacer(Modifier.height(20.dp))
-            TitleRow(song, large = true)
-            Spacer(Modifier.height(16.dp))
-            SeekBar()
-            Spacer(Modifier.height(18.dp))
-            Controls()
-        }
-        Column(Modifier.weight(1f).fillMaxHeight()) {
-            Segmented(
-                listOf("Lyrics", "Up next", "Devices"),
-                if (g.playerPane == PlayerPane.QUEUE) 1 else 0,
-                Modifier.width(380.dp),
-            ) { i ->
-                when (i) {
-                    0 -> g.playerPane = PlayerPane.LYRICS
-                    1 -> g.playerPane = PlayerPane.QUEUE
-                    else -> g.devicesOpen = true
+            // The tabs stay in one place whether or not a pane is open, so the remote finds them.
+            Row(
+                Modifier.align(Alignment.TopEnd),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (g.playerPane == PlayerPane.LYRICS && !lyrics.isNullOrEmpty()) {
+                    val translating by TranslationPrefs.showTranslation.collectAsStateWithLifecycle()
+                    IconTap(
+                        Icons.Rounded.Translate,
+                        if (translating) "Hide translation" else "Translate lyrics",
+                        tint = if (translating) c.text else c.textSecondary,
+                        iconSize = 22.dp,
+                    ) { TranslationPrefs.setShowTranslation(!translating) }
+                }
+                if (g.playerPane == PlayerPane.LYRICS) {
+                    // The lyrics menu: source, timing, translation, search.
+                    IconTap(Icons.Rounded.MoreHoriz, "Lyrics options", iconSize = 24.dp) { g.lyricsMenuOpen = true }
+                }
+                Segmented(
+                    listOf("Lyrics", "Up next", "Devices"),
+                    when (g.playerPane) {
+                        PlayerPane.LYRICS -> 0
+                        PlayerPane.QUEUE -> 1
+                        PlayerPane.NOW_PLAYING -> -1
+                    },
+                    Modifier.width(360.dp),
+                ) { i ->
+                    when (i) {
+                        0 -> g.playerPane = if (g.playerPane == PlayerPane.LYRICS) PlayerPane.NOW_PLAYING else PlayerPane.LYRICS
+                        1 -> g.playerPane = if (g.playerPane == PlayerPane.QUEUE) PlayerPane.NOW_PLAYING else PlayerPane.QUEUE
+                        else -> g.devicesOpen = true
+                    }
                 }
             }
-            Spacer(Modifier.height(20.dp))
-            if (g.playerPane == PlayerPane.QUEUE) QueuePane(Modifier.weight(1f)) else LyricsPane(Modifier.weight(1f))
         }
     }
 }
 
+/** The app's rail, inside the wide player: a tab closes the player and goes there. */
 @Composable
-private fun PlayerHeader(song: Song) {
+private fun PlayerRail() {
+    val g = LocalGlow.current
+    val c = Glow.colors
+    Row(Modifier.fillMaxHeight()) {
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .width(84.dp)
+                .statusBarsPadding()
+                .padding(top = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            listOf(
+                Triple("Home", Icons.Rounded.Home, 0),
+                Triple("Search", Icons.Rounded.Search, 1),
+                Triple("Library", Icons.AutoMirrored.Rounded.FormatListBulleted, 2),
+            ).forEach { (label, icon, tab) ->
+                Column(
+                    Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { g.playerOpen = false; g.selectTab(tab) }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(icon, null, tint = c.textSecondary, modifier = Modifier.size(26.dp))
+                    Spacer(Modifier.height(4.dp))
+                    Text(label, style = GlowType.caption.copy(fontSize = 12.sp), color = c.textSecondary)
+                }
+            }
+        }
+        Box(Modifier.fillMaxHeight().width(1.dp).background(c.divider))
+    }
+}
+
+@Composable
+private fun PlayerHeader(song: Song, lyricsMenu: Boolean = false) {
     val g = LocalGlow.current
     val vm = g.vm
     val c = Glow.colors
@@ -472,6 +551,12 @@ private fun PlayerHeader(song: Song) {
         if (g.playerPane == PlayerPane.QUEUE) {
             TextAction("Clear", Modifier.align(Alignment.CenterEnd)) { g.actions.clearUpcoming() }
         }
+        if (lyricsMenu && g.playerPane == PlayerPane.LYRICS) {
+            // Landscape has no title row on the lyrics pane, so its ⋯ (the lyrics menu) is here.
+            IconTap(Icons.Rounded.MoreHoriz, "Lyrics options", iconSize = 24.dp, modifier = Modifier.align(Alignment.CenterEnd)) {
+                g.lyricsMenuOpen = true
+            }
+        }
         if (g.playerPane == PlayerPane.LYRICS && !lyrics.isNullOrEmpty()) {
             val translating by TranslationPrefs.showTranslation.collectAsStateWithLifecycle()
             val tint by animateColorAsState(if (translating) c.onPrimary else c.text, label = "translateTint")
@@ -479,6 +564,7 @@ private fun PlayerHeader(song: Song) {
             Box(
                 Modifier
                     .align(Alignment.CenterEnd)
+                    .padding(end = if (lyricsMenu) 44.dp else 0.dp)
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(bg)
@@ -601,7 +687,7 @@ private fun PlaybackErrorCard(error: String) {
 }
 
 @Composable
-private fun TitleRow(song: Song, large: Boolean) {
+private fun TitleRow(song: Song, large: Boolean, lyricsMenuFromMore: Boolean = true) {
     val g = LocalGlow.current
     val vm = g.vm
     val c = Glow.colors
@@ -657,7 +743,7 @@ private fun TitleRow(song: Song, large: Boolean) {
         }
         IconTap(Icons.Rounded.MoreHoriz, "More options", iconSize = 24.dp) {
             // On the lyrics screen, the menu is about the lyrics (Metrolist's lyrics menu).
-            if (g.playerPane == PlayerPane.LYRICS) g.lyricsMenuOpen = true else g.openSongMenu(song, fromPlayer = true)
+            if (lyricsMenuFromMore && g.playerPane == PlayerPane.LYRICS) g.lyricsMenuOpen = true else g.openSongMenu(song, fromPlayer = true)
         }
     }
 }
@@ -954,10 +1040,23 @@ private fun QueuePane(modifier: Modifier) {
         context?.let { snap -> g.actions.playFrom(snap.songs, i, snap.request.source, boundedContext = true, continuationToken = snap.continuationToken) }
     }
     val listState = rememberLazyListState()
-    // Opens on the current song, with what came before it above.
-    LaunchedEffect(Unit) {
-        val before = earlierInContext.size + history.size + (if (earlierInContext.isNotEmpty()) 1 else 0) + (if (history.isNotEmpty()) 1 else 0)
-        if (before > 0) listState.scrollToItem(before)
+    // On the current song, with what came before it above: when the pane opens, and again
+    // whenever the song changes or the queue is rearranged (shuffle reorders it, and the list
+    // used to stay at the top for as long as shuffle was on), unless the listener has
+    // scrolled it by hand since.
+    val before = earlierInContext.size + history.size + (if (earlierInContext.isNotEmpty() || history.isNotEmpty()) 1 else 0)
+    var handScrolled by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect {
+            if (it is androidx.compose.foundation.interaction.DragInteraction.Start) handScrolled = true
+        }
+    }
+    LaunchedEffect(current?.videoId, current?.queueEntryId) { handScrolled = false }
+    LaunchedEffect(current?.videoId, current?.queueEntryId, before, shuffle) {
+        if (handScrolled) return@LaunchedEffect
+        // Wait for the list to hold the current song before jumping to it.
+        androidx.compose.runtime.snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > before }
+        if (!handScrolled) listState.scrollToItem(before)
     }
 
     Column(modifier.fillMaxWidth()) {

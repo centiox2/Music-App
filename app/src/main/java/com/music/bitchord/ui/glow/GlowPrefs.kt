@@ -100,6 +100,11 @@ object GlowPrefs {
     const val DEFAULT_IMAGE_CACHE_MB = 100
     private const val KEY_IMAGE_CACHE_MB = "image_cache_mb"
 
+    private val _downloadLiked = MutableStateFlow(false)
+    /** Liking a song also downloads it. */
+    val downloadLiked: StateFlow<Boolean> = _downloadLiked.asStateFlow()
+    fun setDownloadLiked(value: Boolean) { _downloadLiked.value = value; prefs?.edit()?.putBoolean("download_liked", value)?.apply() }
+
     private val _haptics = MutableStateFlow(true)
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
 
@@ -134,6 +139,7 @@ object GlowPrefs {
         _glowIntensity.value = p.getFloat("glow_intensity", 1f)
         _swipeMiniPlayer.value = p.getBoolean("swipe_mini_player", true)
         _haptics.value = p.getBoolean("haptics", true)
+        _downloadLiked.value = runCatching { p.getBoolean("download_liked", false) }.getOrDefault(false)
         _imageCacheMb.value = runCatching { p.getInt(KEY_IMAGE_CACHE_MB, DEFAULT_IMAGE_CACHE_MB) }.getOrDefault(DEFAULT_IMAGE_CACHE_MB)
         _autoSync.value = p.getBoolean("auto_sync", true)
         _lastSync.value = p.getLong("last_sync", 0L)
