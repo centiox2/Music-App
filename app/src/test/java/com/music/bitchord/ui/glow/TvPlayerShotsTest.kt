@@ -106,13 +106,15 @@ class TvPlayerShotsTest {
         launch()
         shot("tv-00-home")
         click("Despacito")
-        settle(6)
-        shot("tv-01-player")
+        settle(12)
+        // Opens on lyrics.
+        shot("tv-01-lyrics")
         click("Up next")
         settle(4)
         shot("tv-02-up-next")
-        click("Lyrics")
-        settle(12)
-        shot("tv-03-lyrics")
+        // Up next again: no tab, the player centred.
+        click("Up next")
+        settle(4)
+        shot("tv-03-centred")
     }
 }

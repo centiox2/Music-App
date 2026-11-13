@@ -384,6 +384,8 @@ private fun WidePlayer(song: Song) {
     val g = LocalGlow.current
     val c = Glow.colors
     val lyrics by g.vm.lyrics.collectAsStateWithLifecycle()
+    // Opens on the lyrics tab; choosing Lyrics again closes it and centres the player.
+    LaunchedEffect(Unit) { if (g.playerPane == PlayerPane.NOW_PLAYING) g.playerPane = PlayerPane.LYRICS }
     val paneOpen = g.playerPane != PlayerPane.NOW_PLAYING
     Row(Modifier.fillMaxSize()) {
         PlayerRail()

@@ -4,6 +4,12 @@ name: TV screenshots
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - "app/src/main/java/com/music/bitchord/ui/glow/**"
+      - "app/src/test/java/com/music/bitchord/ui/glow/TvPlayerShotsTest.kt"
+      - ".github/workflows/tv-shots.yml"
 
 permissions:
   contents: write
