@@ -65,6 +65,9 @@ class TvPlayerShotsTest {
         AppSettings.setThemeMode(ThemeMode.DARK)
         GlowPrefs.init(app)
         GlowPrefs.setNotificationsAsked()
+        // What a TV starts with (Settings → Performance), so the shots look like the TV.
+        com.music.bitchord.data.PerformanceProfile.init(app)
+        com.music.bitchord.data.PerformanceProfile.applyLight()
         @Suppress("UNCHECKED_CAST")
         (com.music.bitchord.data.Connectivity::class.java.getDeclaredField("_online").apply { isAccessible = true }
             .get(com.music.bitchord.data.Connectivity) as MutableStateFlow<Boolean>).value = true
@@ -116,5 +119,9 @@ class TvPlayerShotsTest {
         click("Up next")
         settle(4)
         shot("tv-03-centred")
+        // Last: once lyrics are showing, their frame loop keeps Compose busy.
+        click("Lyrics")
+        settle(20)
+        shot("tv-04-lyrics-loaded")
     }
 }

@@ -429,13 +429,11 @@ private fun WidePlayer(song: Song) {
                     Controls(compact = true)
                     Spacer(Modifier.weight(1f))
                 }
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = paneOpen,
-                    enter = androidx.compose.animation.fadeIn(tween(220)) + androidx.compose.animation.expandHorizontally(tween(280)),
-                    exit = androidx.compose.animation.fadeOut(tween(160)) + androidx.compose.animation.shrinkHorizontally(tween(260)),
-                    modifier = Modifier.weight(1f, fill = false),
-                ) {
-                    Column(Modifier.fillMaxSize().padding(top = 64.dp)) {
+                // Shown or not, no slide: an animated exit was left half-way on the TV (the
+                // lyrics' frame loop kept it from finishing), so the pane stayed on screen over
+                // the player and the player never moved to the middle.
+                if (paneOpen) {
+                    Column(Modifier.weight(1f).fillMaxHeight().padding(top = 64.dp)) {
                         if (g.playerPane == PlayerPane.QUEUE) QueuePane(Modifier.weight(1f)) else LyricsPane(Modifier.weight(1f))
                     }
                 }
