@@ -107,6 +107,9 @@ class TvPlayerShotsTest {
     @Test
     fun tvPlayer() {
         launch()
+        // A hand-driven clock: once lyrics are showing they animate every frame, and with the
+        // clock running by itself Compose never counts as idle (AppNotIdleException).
+        rule.mainClock.autoAdvance = false
         shot("tv-00-home")
         click("Despacito")
         settle(12)
