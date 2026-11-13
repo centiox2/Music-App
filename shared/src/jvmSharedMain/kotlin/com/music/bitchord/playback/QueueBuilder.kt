@@ -38,7 +38,10 @@ object QueueBuilder {
      * already queued, nothing repeated, at most [limit] tracks.
      */
     fun extend(existing: List<Song>, candidates: List<Song>, limit: Int, preferVideos: Boolean = false): List<Song> {
-        val taken = existing.toMutableList()
+        // An index rather than a list scan: comparing every candidate with every queued song
+        // ran three regexes per pair, about a second on the main thread for a queue built from
+        // a long Liked songs list (the owner's log: "main thread stuck 941ms" in isSameRecording).
+        val taken = RecordingIndex(existing)
         val perArtist = mutableMapOf<String, Int>()
         val seedArtists = existing.lastOrNull()?.artist?.let(::artistSet).orEmpty()
         val out = mutableListOf<Song>()
@@ -60,7 +63,7 @@ object QueueBuilder {
 
         for (candidate in ordered) {
             if (out.size >= limit) break
-            if (taken.any { isSameRecording(it, candidate) }) continue
+            if (candidate in taken) continue
 
             val artists = artistSet(candidate.artist)
             val key = artists.minOrNull()
@@ -75,7 +78,7 @@ object QueueBuilder {
                 perArtist[key] = played + 1
             }
 
-            taken += candidate
+            taken.add(candidate)
             out += candidate
         }
         return out
@@ -95,6 +98,33 @@ object QueueBuilder {
         val left = artistSet(a.artist)
         val right = artistSet(b.artist)
         return left.isEmpty() || right.isEmpty() || left.any { it in right }
+    }
+
+    /**
+     * Songs indexed for [isSameRecording] checks: each song's title and artists are normalised
+     * once, and a lookup only compares songs with the same normalised title.
+     */
+    class RecordingIndex(songs: Iterable<Song> = emptyList()) {
+        private val ids = HashSet<String>()
+        private val byTitle = HashMap<String, MutableList<Set<String>>>()
+
+        init { songs.forEach(::add) }
+
+        fun add(song: Song) {
+            ids += song.videoId
+            val title = normalisedTitle(song.title)
+            if (title.isNotEmpty()) byTitle.getOrPut(title) { mutableListOf() } += artistSet(song.artist)
+        }
+
+        /** Whether any indexed song is the same recording as [song] (see [isSameRecording]). */
+        operator fun contains(song: Song): Boolean {
+            if (song.videoId in ids) return true
+            val title = normalisedTitle(song.title)
+            if (title.isEmpty()) return false
+            val artistsOfSameTitle = byTitle[title] ?: return false
+            val right = artistSet(song.artist)
+            return artistsOfSameTitle.any { left -> left.isEmpty() || right.isEmpty() || left.any { it in right } }
+        }
     }
 
     /**

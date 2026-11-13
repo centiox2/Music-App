@@ -239,6 +239,8 @@ internal object MainThreadWatchdog {
     private const val TICK_MS = 250L
     private const val STALL_MS = 700L
     private const val MAX_REPORTS = 20
+    private const val SAMPLES_PER_STALL = 6
+    private const val SAMPLE_GAP_MS = 200L
 
     @Volatile private var lastSeen = android.os.SystemClock.uptimeMillis()
     @Volatile private var started = false
@@ -250,22 +252,33 @@ internal object MainThreadWatchdog {
         val mainThread = android.os.Looper.getMainLooper().thread
         Thread({
             var reports = 0
-            var reportedThisStall = false
+            var samplesThisStall = 0
+            var lastSampleAt = 0L
+            var lastTop = ""
             val ping = Runnable { lastSeen = android.os.SystemClock.uptimeMillis() }
             while (reports < MAX_REPORTS) {
                 main.post(ping)
                 try { Thread.sleep(TICK_MS) } catch (_: InterruptedException) { return@Thread }
-                val stuck = android.os.SystemClock.uptimeMillis() - lastSeen
-                if (stuck >= STALL_MS) {
-                    if (!reportedThisStall) {
-                        reportedThisStall = true
-                        reports++
-                        val stack = mainThread.stackTrace.take(40).joinToString("\n    at ")
-                        Log.w("SonderStall", "main thread stuck ${stuck}ms:\n    at $stack")
-                    }
-                } else {
-                    reportedThisStall = false
+                val now = android.os.SystemClock.uptimeMillis()
+                val stuck = now - lastSeen
+                if (stuck < STALL_MS) {
+                    samplesThisStall = 0
+                    lastTop = ""
+                    continue
                 }
+                // Several samples through one long stall (startup is a run of different work),
+                // each only when the code it is in has changed.
+                if (samplesThisStall >= SAMPLES_PER_STALL || now - lastSampleAt < SAMPLE_GAP_MS) continue
+                val frames = mainThread.stackTrace
+                val top = frames.firstOrNull { it.className.startsWith("com.music") }?.toString()
+                    ?: frames.take(3).joinToString()
+                if (top == lastTop) continue
+                lastTop = top
+                lastSampleAt = now
+                if (samplesThisStall == 0) reports++
+                samplesThisStall++
+                val stack = frames.take(40).joinToString("\n    at ")
+                Log.w("SonderStall", "main thread stuck ${stuck}ms (sample $samplesThisStall):\n    at $stack")
             }
         }, "sonder-stall-watchdog").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
     }

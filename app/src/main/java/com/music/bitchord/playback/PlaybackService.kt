@@ -3229,13 +3229,14 @@ class PlaybackService : MediaLibraryService() {
                         // was out — a station landing behind it is the usual
                         // case — so check against what is queued now, not the
                         // snapshot the batch was picked against.
-                        val queuedNow = (0 until latestPlayer.mediaItemCount)
-                            .map { latestPlayer.getMediaItemAt(it).toSong() }
+                        val queuedNow = QueueBuilder.RecordingIndex(
+                            (0 until latestPlayer.mediaItemCount).map { latestPlayer.getMediaItemAt(it).toSong() },
+                        )
                         val room = MAX_QUEUED_AUTOPLAY -
                             (latestPlayer.currentMediaItemIndex + 1 until latestPlayer.mediaItemCount)
                                 .count { latestPlayer.getMediaItemAt(it).fromAutoplay }
                         val fresh = resolved
-                            .filterNot { song -> queuedNow.any { QueueBuilder.isSameRecording(it, song) } }
+                            .filterNot { song -> song in queuedNow }
                             .take(room.coerceAtLeast(0))
                         if (fresh.isNotEmpty()) latestPlayer.addMediaItems(fresh.map { it.toMediaItem() })
                     }
