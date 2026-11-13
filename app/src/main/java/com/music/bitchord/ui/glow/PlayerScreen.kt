@@ -406,7 +406,12 @@ private fun WidePlayer(song: Song) {
                 horizontalArrangement = if (paneOpen) Arrangement.spacedBy(48.dp) else Arrangement.Center,
             ) {
                 Column(Modifier.width(playerWidth).fillMaxHeight()) {
-                    Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Centred, the column's top runs under the tabs at the top right: keep the
+                    // header (and its close arrow) clear of them.
+                    val tabsLeft = maxWidth - 376.dp
+                    val columnRight = (maxWidth + playerWidth) / 2
+                    val clearOfTabs = if (paneOpen) 0.dp else (columnRight - tabsLeft).coerceAtLeast(0.dp)
+                    Row(Modifier.height(44.dp).padding(end = clearOfTabs), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Listening to", style = GlowType.secondary, color = c.textSecondary, maxLines = 1)
                             Text(
