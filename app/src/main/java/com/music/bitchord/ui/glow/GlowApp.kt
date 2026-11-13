@@ -224,6 +224,7 @@ private fun GlowRoot(state: GlowState) {
         }
     }
     val link by MusicLink.pending.collectAsStateWithLifecycle()
+    val appContext = LocalContext.current.applicationContext
     LaunchedEffect(link, state.controller) {
         val request = link ?: return@LaunchedEffect
         val session = state.controller ?: return@LaunchedEffect
@@ -255,6 +256,22 @@ private fun GlowRoot(state: GlowState) {
                 }
             }
             LinkRequest.Resume -> if (session.mediaItemCount > 0) session.play()
+            // A file opened from a file manager ("Open with").
+            is LinkRequest.LocalFile -> {
+                runCatching {
+                    appContext.contentResolver.takePersistableUriPermission(
+                        request.uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                    )
+                }
+                val song = com.music.bitchord.data.LocalMediaRepository.songFromUri(appContext, request.uri)
+                state.actions.playFrom(
+                    listOf(song),
+                    0,
+                    QueueSource("Opened file", PlaybackSourceType.SHARED_LINK, song.localUri),
+                )
+                state.playerOpen = true
+            }
         }
         MusicLink.handled()
     }

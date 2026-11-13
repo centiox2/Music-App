@@ -420,13 +420,14 @@ class QueueWindow(
      * Turning shuffle off restores canonical order and leaves the cursor at the current canonical
      * index.  Turning it on keeps cycle-consumed state, so tracks already consumed in this cycle do
      * not reappear in automatic traversal merely because the setting changed.
+     *
+     * [shuffleSeed] replaces the root seed when shuffle turns on. Without a new seed, turning
+     * shuffle off and on again rebuilds exactly the order it had before.
      */
-    fun setShuffle(enabled: Boolean, reseed: Long? = null): QueueWindow {
+    fun setShuffle(enabled: Boolean, shuffleSeed: Long = seed): QueueWindow {
         if (enabled == shuffled) return this
         shuffled = enabled
-        // A fresh seed each time shuffle is turned on, when the owner gives one, so turning it
-        // off and on again deals a new order rather than the same one.
-        if (enabled && reseed != null) seed = reseed
+        if (enabled) seed = shuffleSeed
         plannedCycles.clear()
         val current = currentIndex ?: run {
             logicalOrder = IntArray(canonicalCount) { it }
