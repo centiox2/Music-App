@@ -1,40 +1,65 @@
+@file:Suppress("UnstableApiUsage")
+
+val useLocalInnerTubeX = providers.gradleProperty("useLocalInnerTubeX").isPresent
+val useMavenLocalInnerTubeX = providers.gradleProperty("useMavenLocalInnerTubeX").isPresent
+if (useLocalInnerTubeX && useMavenLocalInnerTubeX) {
+    error("-PuseLocalInnerTubeX and -PuseMavenLocalInnerTubeX are mutually exclusive")
+}
+
 pluginManagement {
     repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven { setUrl("https://maven.aliyun.com/repository/public") }
     }
 }
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+    id("com.gradle.develocity") version "4.6.1"
+}
+
+develocity {
+    buildScan {
+        termsOfUseUrl = "https://gradle.com/terms-of-service"
+        termsOfUseAgree = "yes"
+        publishing.onlyIf { System.getenv("CI") != null }
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
     repositories {
+        if (useMavenLocalInnerTubeX) mavenLocal()
         google()
         mavenCentral()
-        // NewPipeExtractor is published via JitPack.
-        maven("https://jitpack.io")
+        maven {
+            setUrl("https://jitpack.io")
+            content {
+                includeGroup("com.github.MetrolistGroup.innertubex")
+                includeGroup("com.github.MetrolistGroup.quackjs")
+            }
+        }
+        maven { setUrl("https://maven.aliyun.com/repository/public") }
+        maven("https://jogamp.org/deployment/maven")
+        maven {
+            name = "FDD Maven"
+            url = uri("https://maven.firstdark.dev/releases")
+        }
     }
 }
 
-rootProject.name = "Sonder"
-include(":shared")
-include(":sharedUi")
-
-// The Android module only when there is an SDK to build it against. A machine
-// set up for the desktop alone has none, and including it there fails at
-// configuration time — before the desktop module it has nothing to do with can
-// build at all.
-// Read as a Properties file, not line by line: Android Studio writes the path
-// escaped (`C\:\Users\...` on Windows), and only Properties undoes that.
-val androidSdk: String? = file("local.properties")
-    .takeIf { it.isFile }
-    ?.let { f -> java.util.Properties().apply { f.inputStream().use(::load) } }
-    ?.getProperty("sdk.dir")
-    ?.trim()
-    ?: System.getenv("ANDROID_HOME")
-    ?: System.getenv("ANDROID_SDK_ROOT")
-
-if (androidSdk != null && file(androidSdk).isDirectory) {
-    include(":app")
-} else {
-    logger.lifecycle("No Android SDK found — building the desktop targets only.")
+rootProject.name = "Metrolist"
+if (useLocalInnerTubeX) {
+    includeBuild("../innertubex") {
+        dependencySubstitution {
+            substitute(module("com.github.MetrolistGroup.innertubex:innertubex")).using(project(":"))
+        }
+    }
 }
+include(":shared")
+include(":listenTogetherProto")
+include(":opusDecoder")
+include(":androidApp")
+include(":desktopApp")

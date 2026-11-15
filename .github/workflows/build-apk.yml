@@ -1,57 +1,36 @@
-# Builds the Sonder APKs on GitHub, so nothing has to be built locally.
-#
-# Run it from the Actions tab ("Build APK" → Run workflow), or push to a claude/** branch.
-# The APKs (32-bit armeabi-v7a for Android TV boxes, 64-bit arm64-v8a, and universal) are
-# attached to the run as the "sonder-apks" artifact.
-#
-# Signing: add these repository secrets (Settings → Secrets and variables → Actions) and the
-# APKs are signed with your key, so they install over the app you already have:
-#   KEYSTORE_BASE64    base64 of the .jks file   (base64 -w0 coverglow2.jks)
-#   KEYSTORE_PASSWORD  the keystore password
-#   KEY_ALIAS          coverglow
-#   KEY_PASSWORD       the key password (leave unset when it is the keystore password)
-# Without them the APKs come out unsigned.
-name: Build APK
+# Builds Sonder on Metrolist KMP (branch claude/sonder-metrolist) and publishes the APK at a fixed
+# link: https://github.com/centiox2/Music-App/releases/download/sonder-next/Sonder-Next.apk
+# Signed with the same key as Sonder (secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS,
+# KEY_PASSWORD). While the move is in progress the app id is com.coverglow.music.next, so it
+# installs beside the current Sonder.
+name: Build Sonder (Metrolist)
 
 on:
   workflow_dispatch:
   push:
-    branches: ["claude/**"]
+    branches: ["claude/sonder-metrolist"]
 
 permissions:
-  contents: write   # to publish the TV APK as a release
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Android SDK packages
-        run: |
-          SDK="$ANDROID_HOME"
-          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          # Answer every licence prompt (preview platforms carry their own licence).
-          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" \
-            "ndk;27.0.12077973" "cmake;3.22.1" | grep -v "^\[=*" || true
-          ls "$SDK/platforms" "$SDK/ndk"
-          # AGP 8.10 looks for "android-37" and can't read the newer package.xml.
-          if [ ! -d "$SDK/platforms/android-37" ]; then
-            cp -r "$SDK/platforms/android-37.0" "$SDK/platforms/android-37"
-            rm -f "$SDK/platforms/android-37/package.xml"
-            sed -i 's/^AndroidVersion.ApiLevel=.*/AndroidVersion.ApiLevel=37/' "$SDK/platforms/android-37/source.properties"
-            grep -q '^AndroidVersion.ApiLevel=' "$SDK/platforms/android-37/source.properties" || \
-              echo "AndroidVersion.ApiLevel=37" >> "$SDK/platforms/android-37/source.properties"
-          fi
-          echo "sdk.dir=$SDK" > local.properties
+      - name: Android SDK licences
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Signing key
         env:
@@ -63,64 +42,36 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           {
-            echo "storeFile=$RUNNER_TEMP/release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=${KEY_ALIAS:-coverglow}"
-            echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
-          } > keystore.properties
+            echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks"
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "KEY_ALIAS=${KEY_ALIAS:-coverglow}"
+            echo "KEY_PASSWORD=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+          } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew --no-daemon :app:assembleProdRelease -Pbitchord.bundleWear=false
+        run: ./gradlew :androidApp:assembleRelease --no-daemon --no-configuration-cache -x :androidApp:lintVitalRelease
 
-      - name: Name the APKs
+      - name: Collect the APK
         run: |
-          mkdir out
-          VERSION=$(grep -oP 'bitchordVersionName"\] = "\K[^"]+' build.gradle.kts | head -1)
-          for f in app/build/outputs/apk/prod/release/*.apk; do
-            abi=$(basename "$f" | sed -E 's/app-prod-(.*)-release(-unsigned)?\.apk/\1/')
-            cp "$f" "out/Sonder-${VERSION}-${abi}.apk"
-          done
-          ls -l out
+          ls -l androidApp/build/outputs/apk/release/
+          apk=$(ls androidApp/build/outputs/apk/release/*.apk | grep -i universal | head -1)
+          [ -n "$apk" ] || apk=$(ls androidApp/build/outputs/apk/release/*.apk | head -1)
+          cp "$apk" Sonder-Next.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sonder-apks
-          path: out/*.apk
-          if-no-files-found: error
+          name: sonder-next-apk
+          path: Sonder-Next.apk
+          retention-days: 7
 
-      # Just the TV (32-bit) APK, on its own and as a plain .apk, at a link that never changes:
-      # https://github.com/centiox2/Music-App/releases/download/tv-latest/Sonder-TV.apk
-      - name: TV APK on its own
-        run: cp out/*-armeabi-v7a.apk Sonder-TV.apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sonder-tv-apk
-          path: Sonder-TV.apk
-
-      - name: Publish the TV APK (release "tv-latest")
+      - name: Publish (release "sonder-next")
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTES="Latest TV build (32-bit, armeabi-v7a) from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}."
-          if gh release view tv-latest > /dev/null 2>&1; then
-            gh release upload tv-latest Sonder-TV.apk --clobber
-            gh release edit tv-latest --notes "$NOTES"
+          NOTES="Sonder on Metrolist KMP (test build) from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}."
+          if gh release view sonder-next > /dev/null 2>&1; then
+            gh release upload sonder-next Sonder-Next.apk --clobber
+            gh release edit sonder-next --notes "$NOTES"
           else
-            gh release create tv-latest Sonder-TV.apk --title "Sonder for TV (latest)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
-          fi
-
-      # The phone (64-bit) APK at a fixed link too:
-      # https://github.com/centiox2/Music-App/releases/download/phone-latest/Sonder-Phone.apk
-      - name: Publish the phone APK (release "phone-latest")
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp out/*-arm64-v8a.apk Sonder-Phone.apk
-          NOTES="Latest phone build (64-bit, arm64-v8a) from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}."
-          if gh release view phone-latest > /dev/null 2>&1; then
-            gh release upload phone-latest Sonder-Phone.apk --clobber
-            gh release edit phone-latest --notes "$NOTES"
-          else
-            gh release create phone-latest Sonder-Phone.apk --title "Sonder for phone (latest)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+            gh release create sonder-next Sonder-Next.apk --title "Sonder on Metrolist (test)" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
           fi

@@ -1,52 +1,97 @@
 # Gradle
 .gradle/
-.vscode/
-/build/
-/app/build/
 build/
-gradle-app.setting
-!gradle-wrapper.jar
-!gradle-wrapper.properties
-
-# Local configuration file (SDK path, etc.)
-local.properties
-
-# Kotlin
+!gradle/wrapper/gradle-wrapper.jar
 .kotlin/
+.kotlin/errors/
+gradle/gradle-daemon-jvm.properties
 
-# Android Studio / IntelliJ
+# IntelliJ IDEA
 .idea/
 *.iml
-*.ipr
 *.iws
-.navigation/
-captures/
-.externalNativeBuild/
-.cxx/
-*.hprof
+*.bak
 
-# Log/OS files
-*.log
+# VSCode
+.vscode/
+
+# Zed
+.zed/
+
+# Android
+local.properties
+.externalNativeBuild
+.cxx
+*.keystore
+!debug.keystore
+
+# Desktop
+*.dll
+*.so
+*.so.*
+*.dylib
+*.class
+bin/
+!external/*.dll
+!external/*.so
+!external/*.dylib
+external/
+desktopApp/src/desktopMain/resources/windows/*.exe
+desktopApp/src/desktopMain/resources/windows/*.dll
+desktopApp/src/desktopMain/resources/linux/bgutil-ytdlp-pot-provider-rs
+desktopApp/src/desktopMain/resources/macos/bgutil-ytdlp-pot-provider-rs
+/desktopApp/src/jvmMain/proto/listentogether.proto
+metro-wv2-helper/bin/
+metro-wv2-helper/obj/
+metro-wv2-helper/tests/obj/
+
+# iOS / Xcode
+DerivedData/
+iosApp/DerivedData/
+iosApp/build/
+project.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.ipa
+
+# Swift
+.swift-version
+swiftly-x86_64.tar.gz
+
+# Secrets
+secrets.properties
+chucker-export-*
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Release signing — never commit the key or its passwords
-keystore.properties
-*.jks
-*.keystore
+# Logs / dumps
+*.log
+*.har
+/*.txt
+!androidApp/src/main/baseline-prof.txt
+!opusDecoder/src/main/jni/CMakeLists.txt
+!opusDecoder/src/main/resources/META-INF/LICENSE-libopus.txt
+Screenshot_*.png
 
-# Project scratch / debug artifacts
-.shots/
-.tmp_verify/
-.debug/
+# Local / scratch
+stuff
+.stuff/
+stuff/*
+skills
+dist/
+tools/
+scripts/.fonts/
+__pycache__/
+/linter/
+HANDOFF.md
 
-# AI agent configuration
-AGENTS.md
-/output/
-
-# Built packages — release APKs/bundles are handed out, never committed
-*.apk
-*.aab
-
-# Claude Code session files (launch configs, worktrees)
-.claude/
+# AI tooling
+.cortexkit
+.cursor
+.claude
+.codex
+.codeium
+.opencode
+.mcp.json
