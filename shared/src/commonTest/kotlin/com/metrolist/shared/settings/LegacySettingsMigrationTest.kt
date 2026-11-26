@@ -6,11 +6,11 @@ import com.metrolist.shared.model.CollectionSort
 import com.metrolist.shared.model.LyricsProvider
 import com.metrolist.shared.model.SortDirection
 import com.russhwolf.settings.MapSettings
+import com.russhwolf.settings.Settings as KmpSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import com.russhwolf.settings.Settings as KmpSettings
 
 class LegacySettingsMigrationTest {
     @Test

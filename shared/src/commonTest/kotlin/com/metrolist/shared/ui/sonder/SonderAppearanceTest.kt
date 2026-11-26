@@ -49,6 +49,14 @@ class SonderAppearanceTest {
     }
 
     @Test
+    fun brightArtworkRemainsReadableInBothPlayerThemes() {
+        for (color in listOf(Color.Yellow, Color.Green, Color.Cyan, Color.White, Color.Black, Color.Red)) {
+            assertTrue(readableGlowColor(color, dark = true).luminance() <= 0.15f)
+            assertTrue(readableGlowColor(color, dark = false).luminance() >= 0.175f)
+        }
+    }
+
+    @Test
     fun browsingSurfacesAndPrimaryControlsHaveReadableContrast() {
         for (dark in listOf(false, true)) {
             val scheme = (if (dark) darkColorScheme() else lightColorScheme()).sonder(dark)

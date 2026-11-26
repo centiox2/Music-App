@@ -11,23 +11,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import com.metrolist.shared.ui.sonder.SonderColorUtils
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.flow.collectLatest
 import com.metrolist.shared.ui.components.LocalVisualWorkActive
+import com.metrolist.shared.ui.sonder.SonderColorUtils
 import com.metrolist.shared.ui.theme.rememberReducedMotion
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.MotionDurationScale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 
 private const val SLOTS = 6
 
@@ -52,13 +53,13 @@ fun GlowMesh(
     loopMillis: Int = 80_000,
 ) {
     val spec = tween<Color>(1200)
-    val base by animateColorAsState(readable(palette.dominant, dark), spec, label = "meshBase")
-    val shadeA by animateColorAsState(readable(shade(palette.dominant, +0.07f), dark), spec, label = "meshShadeA")
-    val shadeB by animateColorAsState(readable(shade(palette.dominant, -0.06f), dark), spec, label = "meshShadeB")
+    val base by animateColorAsState(readableGlowColor(palette.dominant, dark), spec, label = "meshBase")
+    val shadeA by animateColorAsState(readableGlowColor(shade(palette.dominant, +0.07f), dark), spec, label = "meshShadeA")
+    val shadeB by animateColorAsState(readableGlowColor(shade(palette.dominant, -0.06f), dark), spec, label = "meshShadeB")
     // Slots for the cover's other colours, each with the share of the cover it covers.
     val others = palette.colors.drop(1).zip(palette.weights.drop(1)).take(SLOTS)
     val slotColors = List(SLOTS) { i ->
-        val target = others.getOrNull(i)?.first?.let { readable(it, dark) } ?: base.copy(alpha = 0f)
+        val target = others.getOrNull(i)?.first?.let { readableGlowColor(it, dark) } ?: base.copy(alpha = 0f)
         animateColorAsState(target, spec, label = "meshColor$i").value
     }
     val slotWeights = List(SLOTS) { i ->
@@ -118,10 +119,13 @@ fun GlowMesh(
  * The colour as it should sit behind white controls: hue and saturation kept,
  * only very bright colours brought down. Black stays black.
  */
-private fun readable(color: Color, dark: Boolean): Color {
+internal fun readableGlowColor(color: Color, dark: Boolean): Color {
     val hsl = FloatArray(3)
     SonderColorUtils.colorToHSL(color.toArgb(), hsl)
-    hsl[2] = if (dark) minOf(hsl[2], 0.62f) * 0.88f else 0.12f + hsl[2] * 0.82f
+    hsl[2] = if (dark) minOf(hsl[2], 0.62f) * 0.88f else hsl[2].coerceIn(0.82f, 0.96f)
+    if (dark) {
+        while (Color(SonderColorUtils.HSLToColor(hsl)).luminance() > 0.15f) hsl[2] *= 0.9f
+    }
     return Color(SonderColorUtils.HSLToColor(hsl))
 }
 

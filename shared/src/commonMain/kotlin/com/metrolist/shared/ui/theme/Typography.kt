@@ -10,21 +10,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalLocaleList
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontStyle
-import com.metrolist.shared.settings.FontOption
-import com.metrolist.shared.generated.resources.Res
-import com.metrolist.shared.generated.resources.inter_regular
-import com.metrolist.shared.generated.resources.inter_italic
-import com.metrolist.shared.generated.resources.inter_medium
-import com.metrolist.shared.generated.resources.inter_semibold
-import com.metrolist.shared.generated.resources.inter_bold
-import org.jetbrains.compose.resources.Font
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.sp
+import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.inter_bold
+import com.metrolist.shared.generated.resources.inter_italic
+import com.metrolist.shared.generated.resources.inter_medium
+import com.metrolist.shared.generated.resources.inter_regular
+import com.metrolist.shared.generated.resources.inter_semibold
+import com.metrolist.shared.settings.FontOption
 import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.settings.resolveAppLanguageTag
 import com.metrolist.shared.state.GlobalYouTube
+import org.jetbrains.compose.resources.Font
 
 @Composable
 fun currentAppLocaleList(): LocaleList = resolveAppLocaleList(Settings.shared.appLanguage, LocalLocaleList.current)

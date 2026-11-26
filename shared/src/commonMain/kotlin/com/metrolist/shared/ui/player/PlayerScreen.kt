@@ -195,7 +195,6 @@ import com.metrolist.shared.ui.components.BottomSheet
 import com.metrolist.shared.ui.components.BottomSheetState
 import com.metrolist.shared.ui.components.COLLAPSED_ANCHOR
 import com.metrolist.shared.ui.components.CrossfadeArtwork
-import com.metrolist.shared.ui.components.EXPANDED_ANCHOR
 import com.metrolist.shared.ui.components.LiquidBackground
 import com.metrolist.shared.ui.components.LoadingScreen
 import com.metrolist.shared.ui.components.LocalPlayerArtworkPrefetchUrls
@@ -211,7 +210,6 @@ import com.metrolist.shared.ui.components.VintagePlayerControls
 import com.metrolist.shared.ui.components.adjacentArtworkUrls
 import com.metrolist.shared.ui.components.focusOutline
 import com.metrolist.shared.ui.components.formatSleepTimerRemaining
-import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.components.lyrics.LyricsContrastScrim
 import com.metrolist.shared.ui.components.lyrics.LyricsOffsetEditor
 import com.metrolist.shared.ui.components.playerControlBlend
@@ -231,16 +229,16 @@ import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.youtube.playback.PlaybackEventKind
 import com.metrolist.shared.youtube.playback.PlaybackEventLog
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
+import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.abs
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 
 @Composable
 internal fun Modifier.artworkSwipe(
@@ -750,8 +748,9 @@ fun PlayerScreen(
             } else {
                 when (playerBackground) {
                     PlayerBackgroundStyle.BLURRED_ARTWORK,
-                    PlayerBackgroundStyle.LIQUID,
                     -> if (currentSong?.displayThumbnail != null) Color.White else MaterialTheme.colorScheme.onSurface
+
+                    PlayerBackgroundStyle.LIQUID -> MaterialTheme.colorScheme.onSurface
 
                     PlayerBackgroundStyle.GRADIENT,
                     PlayerBackgroundStyle.ANIMATED_GRADIENT,

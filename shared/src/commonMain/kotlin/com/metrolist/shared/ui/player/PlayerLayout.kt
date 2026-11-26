@@ -38,7 +38,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawing
@@ -172,8 +171,8 @@ import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
 import com.metrolist.shared.utils.Logger
 import com.metrolist.shared.viewmodels.PlayerViewModel
-import org.jetbrains.compose.resources.stringResource
 import kotlin.math.max
+import org.jetbrains.compose.resources.stringResource
 
 // Header, metadata, actions, playback controls, fixed bottom row and outer padding.
 private val TabletPlayerChromeHeight = 574.dp
@@ -892,7 +891,7 @@ internal fun LandscapePlayerContent(
             textBackgroundColor
         }
     val controlsSurface by animateColorAsState(
-        if (artworkBehindControls) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer,
+        if (artworkBehindControls && Settings.shared.getCurrentThemeIsDark()) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer,
         MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
     val hapticManager = rememberMetrolistHaptics()

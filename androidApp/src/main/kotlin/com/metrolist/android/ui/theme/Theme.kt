@@ -46,8 +46,8 @@ import com.metrolist.shared.ui.theme.ThemeColorExtractor
 import com.metrolist.shared.ui.theme.animateColorScheme
 import com.metrolist.shared.ui.theme.orIfIllegible
 import com.metrolist.shared.ui.theme.pureBlack
-import com.metrolist.shared.ui.theme.themeColorScheme
 import com.metrolist.shared.ui.theme.sonder
+import com.metrolist.shared.ui.theme.themeColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber

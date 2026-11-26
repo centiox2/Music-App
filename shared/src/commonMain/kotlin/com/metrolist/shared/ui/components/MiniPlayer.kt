@@ -7,14 +7,9 @@
 
 package com.metrolist.shared.ui.components
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -84,13 +78,11 @@ import com.metrolist.shared.constants.ModernMiniPlayerHorizontalPadding
 import com.metrolist.shared.constants.modernMiniPlayerHeight
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.action_like
-import com.metrolist.shared.generated.resources.unlike
-import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.generated.resources.loading
 import com.metrolist.shared.generated.resources.next
 import com.metrolist.shared.generated.resources.pause
 import com.metrolist.shared.generated.resources.play
-import com.metrolist.shared.generated.resources.previous
+import com.metrolist.shared.generated.resources.unlike
 import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.model.isLive
 import com.metrolist.shared.model.isVideoSong
@@ -98,12 +90,13 @@ import com.metrolist.shared.model.previewThumbnailUrl
 import com.metrolist.shared.settings.MiniPlayerType
 import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.settings.displayName
+import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.design.expressive.components.ExpressiveMiniPlayer
 import com.metrolist.shared.ui.haptics.rememberMetrolistHaptics
 import com.metrolist.shared.ui.icons.MetrolistIcons
-import com.metrolist.shared.ui.sonder.rememberGlowPalette
 import com.metrolist.shared.ui.sonder.miniPlayerTint
+import com.metrolist.shared.ui.sonder.rememberGlowPalette
 import com.metrolist.shared.ui.theme.getGradientColors
 import com.metrolist.shared.ui.theme.rememberArtworkSeedColor
 import com.metrolist.shared.ui.utils.artworkBlur
@@ -111,7 +104,6 @@ import com.metrolist.shared.ui.utils.supportsNativeBlur
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -506,7 +498,7 @@ fun MiniPlayer(
 
                         val showLike = onLike != null && !LocalIsTv.current
                         IconButton(
-                            onClick = if (showLike) ({ onLike?.invoke() }) else onSkipNext,
+                            onClick = { if (showLike) onLike?.invoke() else onSkipNext() },
                             enabled = if (showLike) playbackEnabled else canSkipNext,
                             colors =
                                 IconButtonDefaults.iconButtonColors(

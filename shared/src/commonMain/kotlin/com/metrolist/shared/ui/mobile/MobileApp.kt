@@ -6,10 +6,8 @@ package com.metrolist.shared.ui.mobile
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -142,7 +140,6 @@ import com.metrolist.shared.generated.resources.home
 import com.metrolist.shared.generated.resources.library
 import com.metrolist.shared.generated.resources.liked_songs
 import com.metrolist.shared.generated.resources.listen_together
-import com.metrolist.shared.generated.resources.loading
 import com.metrolist.shared.generated.resources.logo
 import com.metrolist.shared.generated.resources.mysterious_fourth_tab
 import com.metrolist.shared.generated.resources.mysterious_fourth_tab_description
@@ -231,7 +228,6 @@ import com.metrolist.shared.ui.navigation.rememberNavigationMotion
 import com.metrolist.shared.ui.playback.LocalPlaybackController
 import com.metrolist.shared.ui.playback.PlaybackController
 import com.metrolist.shared.ui.playback.PlaybackControllerPlayerSession
-import com.metrolist.shared.ui.playback.PlaybackUiState
 import com.metrolist.shared.ui.player.LocalPlayerPlatform
 import com.metrolist.shared.ui.player.PlayerScreen
 import com.metrolist.shared.ui.player.collectWhilePlayerActive
@@ -261,8 +257,8 @@ import com.metrolist.shared.ui.settings.applyIosAppLanguage
 import com.metrolist.shared.ui.settings.rememberIosAppIconActions
 import com.metrolist.shared.ui.settings.rememberIosFontActions
 import com.metrolist.shared.ui.settings.rememberIosLogExportAction
-import com.metrolist.shared.ui.theme.MdSpacing
 import com.metrolist.shared.ui.sonder.sonderBackdrop
+import com.metrolist.shared.ui.theme.MdSpacing
 import com.metrolist.shared.ui.theme.MetrolistTheme
 import com.metrolist.shared.ui.theme.rememberArtworkSeedColor
 import com.metrolist.shared.ui.theme.resolveThemeSeedColor
@@ -279,6 +275,8 @@ import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.viewmodels.SearchViewModel
 import com.metrolist.shared.youtube.playback.PlaybackEventLog
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
@@ -295,8 +293,6 @@ import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.mp.KoinPlatform
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -862,6 +858,11 @@ fun MobileApp(
                                     }
                                 },
                                 actions = {
+                                    if (selectedTab == MobileRoute.Home) {
+                                        IconButton(onClick = { selectTab(MobileRoute.Search) }, shapes = IconButtonDefaults.shapes()) {
+                                            Icon(MetrolistIcons.Outlined.Search, contentDescription = stringResource(Res.string.search))
+                                        }
+                                    }
                                     if (Settings.shared.devtoolsUnlocked) {
                                         IconButton(
                                             onClick = { open(MobileRoute.Settings(initialPage = SettingsPageId.DEVTOOLS)) },
@@ -1055,6 +1056,7 @@ fun MobileApp(
                                             modifier = Modifier.fillMaxSize(),
                                         ) {
                                             HomeContent(
+                                                sonderLayout = true,
                                                 uiState = homeState,
                                                 text = text,
                                                 onItemClick = ::openItem,

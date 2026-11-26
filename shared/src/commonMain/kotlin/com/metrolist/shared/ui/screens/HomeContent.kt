@@ -111,6 +111,7 @@ import com.metrolist.shared.ui.components.YTGridItem
 import com.metrolist.shared.ui.components.YTListItem
 import com.metrolist.shared.ui.components.carouselArtworkShape
 import com.metrolist.shared.ui.components.rememberItemPlayback
+import com.metrolist.shared.ui.sonder.SonderFeaturedCard
 import com.metrolist.shared.ui.utils.DragScrollableColumn
 import com.metrolist.shared.ui.utils.carouselScroll
 import com.metrolist.shared.ui.utils.desktopArrowScroll
@@ -212,6 +213,7 @@ fun HomeContent(
     header: (LazyListScope.() -> Unit)? = null,
     shelfCache: HomeShelfCache? = null,
     onPlaySongs: ((List<SongItem>) -> Unit)? = null,
+    sonderLayout: Boolean = false,
 ) {
     val activeSongId =
         remember(currentSongId) {
@@ -231,6 +233,18 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(if (isWide) 16.dp else 8.dp),
         ) {
             header?.invoke(this)
+
+            if (sonderLayout) {
+                val featured = effectiveShelves.firstNotNullOfOrNull { shelf ->
+                    shelf.items.firstOrNull { (it is PlaylistItem || it is AlbumItem) && it.thumbnail != null && isItemEnabled(it) }
+                        ?.let { shelf.title to it }
+                }
+                if (featured != null) {
+                    item(key = "sonder_featured") {
+                        SonderFeaturedCard(featured.first, featured.second) { onItemClick(featured.second) }
+                    }
+                }
+            }
 
             renderHomeShelves(
                 shelves = effectiveShelves,
