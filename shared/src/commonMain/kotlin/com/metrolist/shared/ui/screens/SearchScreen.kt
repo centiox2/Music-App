@@ -242,9 +242,14 @@ fun SearchBar(
     val keyboard = LocalSoftwareKeyboardController.current
     Column(modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
         Text(stringResource(Res.string.search), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp))
-        com.metrolist.shared.ui.sonder.SonderSearchField(
-            value = query, placeholder = placeholder, onChange = onQueryChange,
-            onSearch = { onSearch(query); keyboard?.hide() },
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.metrolist.shared.ui.sonder.SonderSearchField(
+                value = query, placeholder = placeholder, onChange = onQueryChange,
+                onSearch = { onSearch(query); keyboard?.hide() }, modifier = Modifier.weight(1f), focusRequester = focusRequester,
+            )
+            onMicrophoneClick?.let { recognize ->
+                com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Rounded.Mic, microphoneContentDescription, recognize, glass = true)
+            }
+        }
     }
 }

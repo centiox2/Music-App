@@ -32,6 +32,11 @@ dependencyResolutionManagement {
 
     repositories {
         if (useMavenLocalInnerTubeX) mavenLocal()
+        // Maven Central's large native test runtime is frequently rate limited on hosted runners.
+        exclusiveContent {
+            forRepository { maven("https://maven-central.storage-download.googleapis.com/maven2/") }
+            filter { includeGroup("org.robolectric") }
+        }
         google()
         mavenCentral()
         maven {

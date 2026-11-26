@@ -550,7 +550,7 @@ fun QueueScreen(
                                 modifier = Modifier.tvFocusHighlight(CircleShape).navigationPopupSource(),
                                 shapes = IconButtonDefaults.shapes(),
                             ) {
-                                Icon(MetrolistIcons.Rounded.MoreVert, stringResource(Res.string.more_options))
+                                Icon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options))
                             }
                         }
                     },
@@ -937,138 +937,24 @@ private fun QueueBottomToolbar(
     onEvent: (QueueEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val sleepTimerState by LocalPlayerSession.current?.sleepTimerState?.collectWhilePlayerActive()
-        ?: remember { mutableStateOf(SleepTimerState()) }
-    val hapticManager = rememberMetrolistHaptics()
-    Row(
-        modifier = modifier.width(240.dp).height(72.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            modifier = Modifier.width(176.dp).height(72.dp),
-            shape = RoundedCornerShape(36.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.85f),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (selectionActions != null) {
-                    selectionActions.take(3).forEach { action ->
-                        IconButton(
-                            onClick = {
-                                hapticManager.perform(HapticEvent.PRESS)
-                                action.onClick()
-                            },
-                            enabled = action.enabled,
-                            modifier = Modifier.size(48.dp).tvFocusHighlight(CircleShape, scale = 1f).navigationPopupSource(),
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(action.icon, contentDescription = action.title, tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            hapticManager.perform(HapticEvent.PRESS)
-                            onEvent(QueueEvent.ToggleSleepTimer)
-                        },
-                        modifier = Modifier.size(48.dp).tvFocusHighlight(CircleShape, scale = 1f),
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(
-                            imageVector = MetrolistIcons.Outlined.Bedtime,
-                            contentDescription = sleepTimerContentDescription(sleepTimerState),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            hapticManager.perform(HapticEvent.PRESS)
-                            onEvent(QueueEvent.ToggleShuffle)
-                        },
-                        modifier = Modifier.size(48.dp).tvFocusHighlight(CircleShape, scale = 1f),
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(
-                            imageVector = MetrolistIcons.Rounded.Shuffle,
-                            contentDescription = stringResource(Res.string.shuffle),
-                            tint = if (isShuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            hapticManager.perform(HapticEvent.PRESS)
-                            onEvent(QueueEvent.CycleRepeat)
-                        },
-                        modifier = Modifier.size(48.dp).tvFocusHighlight(CircleShape, scale = 1f),
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(
-                            imageVector = if (repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat,
-                            contentDescription =
-                                stringResource(
-                                    when (repeatMode) {
-                                        1 -> Res.string.repeat_mode_one
-                                        2 -> Res.string.repeat_mode_all
-                                        else -> Res.string.repeat_mode_off
-                                    },
-                                ),
-                            tint = if (repeatMode == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            }
-        }
 
+    val timer by LocalPlayerSession.current?.sleepTimerState?.collectWhilePlayerActive() ?: remember { mutableStateOf(SleepTimerState()) }
+    Row(modifier.height(56.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
         if (selectionActions != null) {
-            var selectionMenuOpen by remember { mutableStateOf(false) }
-            Box {
-                Surface(
-                    onClick = { selectionMenuOpen = true },
-                    modifier = Modifier.size(56.dp).tvFocusHighlight(RoundedCornerShape(16.dp), scale = 1f).navigationPopupSource(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.tertiaryFixedDim.copy(alpha = 0.85f),
-                    contentColor = MaterialTheme.colorScheme.onTertiaryFixedVariant,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = MetrolistIcons.Default.MoreVert,
-                            contentDescription = stringResource(Res.string.more_options),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
-                ExpressiveSelectionMenu(
-                    expanded = selectionMenuOpen,
-                    onDismissRequest = { selectionMenuOpen = false },
-                    options = selectionActions,
-                    selectedOption = null,
-                    onOptionSelected = { it.onClick() },
-                    optionLabel = { it.title },
-                    optionIcon = { Icon(it.icon, contentDescription = null) },
-                    optionEnabled = { it.enabled },
-                )
+            selectionActions.forEach { action ->
+                com.metrolist.shared.ui.sonder.SonderIcon(action.icon, action.title, action.onClick, enabled = action.enabled)
             }
+            com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Outlined.Close, stringResource(Res.string.close), { onEvent(QueueEvent.ClearSelection) })
         } else {
-            Surface(
-                onClick = { onEvent(QueueEvent.Dismiss) },
-                modifier = Modifier.size(56.dp).tvFocusHighlight(RoundedCornerShape(16.dp), scale = 1f),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.tertiaryFixedDim.copy(alpha = 0.85f),
-                contentColor = MaterialTheme.colorScheme.onTertiaryFixedVariant,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = collapseIcon,
-                        contentDescription = stringResource(Res.string.collapse),
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
+            com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Outlined.Bedtime, sleepTimerContentDescription(timer), { onEvent(QueueEvent.ToggleSleepTimer) }, selected = timer.isActive)
+            com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onEvent(QueueEvent.ToggleShuffle) }, selected = isShuffleOn)
+            com.metrolist.shared.ui.sonder.SonderIcon(if (repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat,
+                stringResource(Res.string.repeat), { onEvent(QueueEvent.CycleRepeat) }, selected = repeatMode != 0)
+            com.metrolist.shared.ui.sonder.SonderIcon(collapseIcon, stringResource(Res.string.collapse), { onEvent(QueueEvent.Dismiss) })
         }
     }
+
 }
 
 @Composable
@@ -1086,7 +972,7 @@ private fun PlaylistHeader(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
         shape = shape,
         modifier =
             modifier
@@ -1113,7 +999,7 @@ private fun PlaylistHeader(
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
-                                fontSize = 24.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 lineHeight = 28.sp,
                                 letterSpacing = 0.sp,
@@ -1321,30 +1207,9 @@ private fun TrackItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val highlightProgress =
-        animateFloatAsState(
-            targetValue = if (isActive) 1f else 0f,
-            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-            label = "queueCurrentShape",
-        ).value.coerceIn(0f, 1f)
-    val shape =
-        RoundedCornerShape(
-            object : CornerSize {
-                override fun toPx(
-                    shapeSize: Size,
-                    density: Density,
-                ): Float =
-                    lerp(
-                        queueItemShape.topStart.toPx(shapeSize, density),
-                        CircleShape.topStart.toPx(shapeSize, density),
-                        highlightProgress,
-                    )
-            },
-        )
-    val artworkShape = animatedCurrentSongArtworkShape(isActive, RoundedCornerShape(6.dp))
-    val motionScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-    val motionEnabled = isActive && motionScale > 0f && !rememberReducedMotion()
-    val artworkRotation by rememberArtworkShapeRotation(spinning = isPlaying, motionEnabled = motionEnabled)
+    val shape = RoundedCornerShape(12.dp)
+    val artworkShape = RoundedCornerShape(10.dp)
+    val artworkRotation = 0f
     val contextMenu = rememberCursorContextMenuState()
     LaunchedEffect(contextMenu.expanded) {
         if (contextMenu.expanded) {
@@ -1364,24 +1229,9 @@ private fun TrackItem(
             track.title,
             track.artist,
         )
-    val colors =
-        animateCurrentSongColors(
-            isCurrent = isActive,
-            container =
-                if (isSelected ||
-                    isMoving
-                ) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                },
-            content = if (isSelected || isMoving) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-            subtitle =
-                if (isSelected || isMoving) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.secondary,
-        )
-    val backgroundColor = colors.container
-    val contentColor = colors.content
-    val secondaryContentColor = colors.subtitle
+    val backgroundColor = if (isSelected || isMoving || isActive) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f) else Color.Transparent
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val secondaryContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     val durationText = remember(track.duration, isActive, currentDuration) { track.durationText(isActive, currentDuration) }
 
     Surface(
@@ -1440,7 +1290,7 @@ private fun TrackItem(
             Box(
                 modifier =
                     Modifier
-                        .squareArtworkSlot(44.dp, if (isActive) 1f else track.thumbnailAspectRatio)
+                        .squareArtworkSlot(48.dp, if (isActive) 1f else track.thumbnailAspectRatio)
                         .graphicsLayer { rotationZ = artworkRotation }
                         .clip(artworkShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -1540,7 +1390,7 @@ private fun TrackItem(
                     shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
-                        imageVector = MetrolistIcons.Rounded.MoreVert,
+                        imageVector = MetrolistIcons.Filled.MoreHoriz,
                         contentDescription = stringResource(Res.string.more_options),
                         tint = if (isActive || isSelected || isMoving) contentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),

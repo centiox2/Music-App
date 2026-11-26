@@ -196,6 +196,12 @@ class SonderScreenshotsTest {
             onQueryChange = {}, onSearch = {}, onBack = {}, onItemClick = {}, onItemLongClick = {}, onSongSave = {}, onHistoryItemClick = {}, onHistoryItemInsert = {}, onClearHistory = {}, onFilterSelected = {}, onLoadMore = {}, onRetryLoadMore = {},
         )
     }
+    @Test fun queue() = render("queue") {
+        QueueScreen(
+            state = QueueScreenState(playlist = PlaylistInfo("Quiet evenings", songs.size, "27 min"), tracks = songs.mapIndexed { i, song -> QueueTrack(song.id, song.title, "Luna Vale", song.thumbnail, song.duration, false, i == 0, true, queueIndex = i, entryKey = i.toLong(), uniqueKey = i.toString()) }, currentEntryKey = 0L, isPlaying = true),
+            onEvent = {}, onDismiss = {},
+        )
+    }
     @Test fun rowsAndControls() = render("rows-and-controls") {
         Column { SonderTopBar("Your library", {}); Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { SonderPill("Songs", true) {}; SonderPill("Albums", false) {}; SonderPill("Playlists", false) {} }; songs.forEach { SonderMediaRow(it, {}, {}) }; SonderGroup(Modifier.padding(20.dp)) { Text("Playback", Modifier.padding(16.dp)); Row(Modifier.padding(16.dp)) { Text("Autoplay", Modifier.weight(1f)); com.metrolist.shared.ui.components.ExpressiveSwitch(true, {}) } } }
     }

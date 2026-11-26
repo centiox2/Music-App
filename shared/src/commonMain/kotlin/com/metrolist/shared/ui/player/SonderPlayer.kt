@@ -50,8 +50,8 @@ internal fun SonderPlayerScreen(
     val platform = LocalPlayerPlatform.current
     var pane by remember { mutableStateOf(SonderPlayerPane.COVER) }
     var menu by remember { mutableStateOf(false) }
-    var queueMenu by remember { mutableStateOf<Long?>(null) }
-    val download = platform.rememberSongDownloader()
+    val playerSession = LocalPlayerSession.current
+    var sleepTimer by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf(false) }
     var lyricsMenu by remember { mutableStateOf(false) }
@@ -67,9 +67,10 @@ internal fun SonderPlayerScreen(
     DisposableEffect(viewModel) { onDispose { viewModel.setCanvasVisible(false); viewModel.setQueueVisible(false) } }
     LaunchedEffect(active, pane, song.id) {
         onLyricsVisible(active && pane == SonderPlayerPane.LYRICS)
+        viewModel.setLyricsVisible(active && pane == SonderPlayerPane.LYRICS)
         if (active && pane == SonderPlayerPane.LYRICS) viewModel.loadLyrics(song)
     }
-    DisposableEffect(Unit) { onDispose { onLyricsVisible(false) } }
+    DisposableEffect(Unit) { onDispose { onLyricsVisible(false); viewModel.setLyricsVisible(false) } }
     LaunchedEffect(active, requestFocus) { if (active && requestFocus) { playFocus.requestFocus(); onFocusRequested() } }
     if (!active) return
     platform.PlayerWindowEffects(hideSystemBars = Settings.shared.immersivePlayer || (state.isFullscreen && state.isVideoModeActive), lockLandscape = state.isFullscreen && state.isVideoModeActive)
@@ -104,32 +105,17 @@ internal fun SonderPlayerScreen(
         },
         lyrics = { mod -> LyricsViewWithPosition(viewModel, state.lyrics, state.lyricsSongwriters, state.lyricsAgents, state.lyricsProvider,
             state.lyricsOffsetMs, viewModel::seekToPosition, state.isLyricsLoading, MaterialTheme.colorScheme.onSurface, false, mod) },
-        queue = { mod -> LazyColumn(mod) {
-            itemsIndexed(state.queueEntryKeys, key = { _, key -> key }) { index, key ->
-                viewModel.getQueueSong(key)?.let { entry ->
-                    SonderMediaRow(entry, { viewModel.playQueueEntry(key) }, { queueMenu = key }, current = index == state.currentQueueIndex)
-                }
-            }
-        } },
+        queue = { mod -> QueueScreen(
+            onClose = { pane = SonderPlayerPane.COVER }, onShowSleepTimer = { sleepTimer = true },
+            onNavigateToAlbum = onAlbum, onNavigateToArtist = onArtist, onNavigateToListenTogether = onListenTogether,
+            modifier = mod, viewModel = viewModel,
+        ) },
         timeline = { SonderTimeline(viewModel, state.duration, !guest) },
     )
-    queueMenu?.let { key ->
-        viewModel.getQueueSong(key)?.let { entry ->
-            val index = state.queueEntryKeys.indexOf(key)
-            platform.QueueMenu(
-                song = entry, durationText = null,
-                isLiked = state.queueItems.getOrNull(index)?.isLiked == true,
-                onDismiss = { queueMenu = null },
-                onRemoveFromQueue = if (guest) null else ({ viewModel.removeQueueEntry(key) }),
-                onPlayNext = { viewModel.playNextQueueEntry(key) },
-                onStartRadio = { viewModel.startRadio(entry) },
-                onAddToQueue = { viewModel.addQueueEntry(key) },
-                onLike = { viewModel.toggleLikeQueueEntry(key) },
-                onGoToAlbum = entry.album?.id?.let { id -> { onAlbum(id) } },
-                onGoToArtist = onArtist, onShare = { viewModel.shareSong(entry) },
-                onDownload = { download(listOf(entry)) }, onNavigateToListenTogether = onListenTogether,
-            )
-        }
+    if (sleepTimer && playerSession != null) {
+        val timer by playerSession.sleepTimerState.collectAsState()
+        com.metrolist.shared.ui.components.SleepTimerDialog(timer, { sleepTimer = false },
+            playerSession::startSleepTimer, playerSession::stopAfterCurrentSong, playerSession::cancelSleepTimer)
     }
     if (menu) platform.PlayerMenu(viewModel, { menu = false }, onAlbum, onArtist, onListenTogether, { details = true })
     if (details) platform.SongDetailsSheet(viewModel, { details = false })

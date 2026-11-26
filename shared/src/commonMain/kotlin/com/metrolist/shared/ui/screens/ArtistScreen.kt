@@ -450,6 +450,7 @@ private fun ArtistScreenContent(
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth().height(320.dp)) {
                         AsyncImage(artist.banner ?: artist.thumbnail, Modifier.fillMaxSize())
+                        headerVideoLayer?.invoke(Modifier.fillMaxSize())
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surface))))
                         Text(artist.displayTitle.uppercase(), Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                             fontFamily = FontFamily(org.jetbrains.compose.resources.Font(com.metrolist.shared.generated.resources.Res.font.archivo_condensed_black, FontWeight.Black)),

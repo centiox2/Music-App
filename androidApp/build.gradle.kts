@@ -442,3 +442,8 @@ tasks.matching { it.name.endsWith("UnitTestJavaRes") }.configureEach {
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=allow")
 }
+
+// Robolectric resolves its Android SDK at test runtime, separately from Gradle dependencies.
+tasks.withType<Test>().configureEach {
+    systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2/")
+}
