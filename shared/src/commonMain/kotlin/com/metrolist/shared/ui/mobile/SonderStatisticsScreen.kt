@@ -8,12 +8,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -33,10 +31,6 @@ import com.metrolist.shared.generated.resources.artists
 import com.metrolist.shared.generated.resources.back
 import com.metrolist.shared.generated.resources.statistics
 import com.metrolist.shared.generated.resources.statistics_activity
-import com.metrolist.shared.generated.resources.statistics_calendar_mode
-import com.metrolist.shared.generated.resources.statistics_continuous_mode
-import com.metrolist.shared.generated.resources.statistics_custom_dates
-import com.metrolist.shared.generated.resources.statistics_lifetime
 import com.metrolist.shared.generated.resources.statistics_seven_days
 import com.metrolist.shared.generated.resources.statistics_thirty_days
 import com.metrolist.shared.generated.resources.statistics_listening_habits
@@ -44,7 +38,6 @@ import com.metrolist.shared.generated.resources.statistics_no_data
 import com.metrolist.shared.generated.resources.statistics_overview
 import com.metrolist.shared.generated.resources.statistics_time
 import com.metrolist.shared.generated.resources.statistics_plays_label
-import com.metrolist.shared.generated.resources.share
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.screens.StatisticsDetail
 import com.metrolist.shared.ui.screens.StatisticsItem
@@ -55,19 +48,15 @@ import com.metrolist.shared.ui.screens.statisticsDuration
 import com.metrolist.shared.ui.statistics.ActivityHeatmap
 import com.metrolist.shared.ui.statistics.HourlyActivityChart
 import com.metrolist.shared.ui.statistics.StatisticsDateRange
-import com.metrolist.shared.ui.statistics.StatisticsDateRangePicker
 import com.metrolist.shared.ui.statistics.StatisticsPeriodMode
-import com.metrolist.shared.ui.statistics.StatisticsShareDialog
-import com.metrolist.shared.ui.statistics.canExportStatistics
 import com.metrolist.shared.ui.components.images.AsyncImage
-import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenu
-import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.sonder.SonderGroup
 import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.sonder.SonderPill
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun SonderStatisticsScreen(
     state: StatisticsUiState,
     onPeriodSelected: (StatisticsPeriod) -> Unit,
@@ -85,21 +74,6 @@ fun SonderStatisticsScreen(
 ) {
     var detail by remember { mutableStateOf<StatisticsDetail?>(null) }
     var detailed by rememberSaveable { mutableStateOf(false) }
-    var shareOpen by remember { mutableStateOf(false) }
-    val shareSnapshot = state.copy(dateRange = state.dateRange)
-    if (shareOpen) {
-        StatisticsShareDialog(
-            state = shareSnapshot,
-            period = periodLabel(state.period),
-            summary = "${state.totalPlays} plays · ${statisticsDuration(state.totalTimeMs)}",
-            exportLabel = exportLabel,
-            onExport = onExport,
-            onDismiss = { shareOpen = false },
-        )
-    }
-    var modeMenu by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    if (showDatePicker) StatisticsDateRangePicker(state.dateRange, onDateRangeSelected, onDismiss = { showDatePicker = false })
     val colors = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize()) {
@@ -107,7 +81,7 @@ fun SonderStatisticsScreen(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            onNavigateBack?.let { SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), it, glass = true) }
+            onNavigateBack?.let { SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), it) }
             Text(
                 text = if (detail == null) stringResource(Res.string.statistics) else when (detail) {
                     StatisticsDetail.TRACKS -> stringResource(Res.string.statistics_plays_label)
@@ -119,21 +93,6 @@ fun SonderStatisticsScreen(
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
                 maxLines = 1,
             )
-            if (detail == null) {
-                Box {
-                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, "Statistics options", { modeMenu = true }, modifier = Modifier.navigationPopupSource(), glass = true)
-                    DropdownMenu(expanded = modeMenu, onDismissRequest = { modeMenu = false }) {
-                        StatisticsPeriodMode.entries.forEach { mode ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(if (mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode)) },
-                                onClick = { modeMenu = false; onModeSelected(mode) },
-                            )
-                        }
-                        DropdownMenuItem(text = { Text(stringResource(Res.string.statistics_custom_dates)) }, onClick = { modeMenu = false; showDatePicker = true })
-                    }
-                }
-            }
-            if (state.canExportStatistics()) SonderIcon(MetrolistIcons.Outlined.Share, exportLabel, { shareOpen = true }, glass = true)
         }
 
         if (detail == null) {
