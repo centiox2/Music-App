@@ -37,6 +37,8 @@ import com.metrolist.shared.generated.resources.statistics_calendar_mode
 import com.metrolist.shared.generated.resources.statistics_continuous_mode
 import com.metrolist.shared.generated.resources.statistics_custom_dates
 import com.metrolist.shared.generated.resources.statistics_lifetime
+import com.metrolist.shared.generated.resources.statistics_seven_days
+import com.metrolist.shared.generated.resources.statistics_thirty_days
 import com.metrolist.shared.generated.resources.statistics_listening_habits
 import com.metrolist.shared.generated.resources.statistics_no_data
 import com.metrolist.shared.generated.resources.statistics_overview
@@ -137,9 +139,9 @@ fun SonderStatisticsScreen(
         if (detail == null) {
             SonderStatisticsTabs(selected = detailed, onSelected = { detailed = it })
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatisticsPeriod.entries.forEach { period ->
+                listOf(StatisticsPeriod.WEEK, StatisticsPeriod.MONTH, StatisticsPeriod.SIX_MONTHS, StatisticsPeriod.ALL).forEach { period ->
                     item(key = "sonder_stats_period_$period") {
-                        SonderPill(periodLabel(period), state.dateRange == null && state.period == period) { onPeriodSelected(period) }
+                        SonderPill(sonderStatisticsPeriodLabel(period), state.dateRange == null && state.period == period) { onPeriodSelected(period) }
                     }
                 }
             }
@@ -204,6 +206,14 @@ fun SonderStatisticsScreen(
         }
     }
 }
+
+@Composable
+private fun sonderStatisticsPeriodLabel(period: StatisticsPeriod): String =
+    when (period) {
+        StatisticsPeriod.WEEK -> stringResource(Res.string.statistics_seven_days)
+        StatisticsPeriod.MONTH -> stringResource(Res.string.statistics_thirty_days)
+        else -> periodLabel(period)
+    }
 
 @Composable
 private fun SonderStatisticsTabs(selected: Boolean, onSelected: (Boolean) -> Unit) {

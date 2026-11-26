@@ -2548,6 +2548,10 @@
     <!-- Translators: Statistics chart summary. %1$s is an hour/time label; %2$s is a localized track count. Keep the separator. -->
     <!-- Translators: Label for lifetime in the listening statistics. -->
     <string name="statistics_lifetime">Lifetime</string>
+    <!-- Translators: Period filter in listening statistics for the past seven days. -->
+    <string name="statistics_seven_days">7 days</string>
+    <!-- Translators: Period filter in listening statistics for the past thirty days. -->
+    <string name="statistics_thirty_days">30 days</string>
     <!-- Translators: Label for listening habits in the listening statistics. -->
     <string name="statistics_listening_habits">Listening habits</string>
     <!-- Translators: Label for overview in the listening statistics. -->
