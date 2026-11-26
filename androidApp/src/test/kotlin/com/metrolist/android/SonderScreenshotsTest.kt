@@ -17,6 +17,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.settings.ThemeMode
 import com.metrolist.shared.ui.player.*
 import com.metrolist.shared.ui.menu.*
 import com.metrolist.shared.ui.components.PlayerMenuAction
@@ -65,6 +66,7 @@ class SonderScreenshotsTest {
     }
     @After fun teardown() { Settings.replaceSharedForTest(null) }
     private fun render(name: String, dark: Boolean = true, content: @Composable () -> Unit) {
+        Settings.shared.themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT
         compose.setContent { MetrolistTheme(darkTheme = dark) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) { content() }
         } }
