@@ -650,7 +650,7 @@ fun ListenTogetherServerScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         shape = GroupShape,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
                     ) {
                         ServerRow(
                             server = server,
@@ -859,7 +859,7 @@ fun ListenTogetherLogsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp),
             shape = GroupShape,
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
         ) {
             Text(
                 text = logText.ifBlank { stringResource(Res.string.listen_together_no_logs) },
@@ -1059,7 +1059,7 @@ private fun TabHeading(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold,
         )
         Text(
@@ -1080,7 +1080,7 @@ private fun ExpressiveButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = ButtonDefaults.MediumContainerHeight).tvFocusHighlight(CircleShape),
+        modifier = modifier.heightIn(min = 52.dp).tvFocusHighlight(CircleShape),
         enabled = enabled,
         shapes = ButtonDefaults.shapes(),
         colors = colors,
@@ -1112,48 +1112,13 @@ private fun HeroHeader(
     compact: Boolean,
     onIconDoubleTap: (() -> Unit)?,
 ) {
-    val cookie = MaterialShapes.Cookie9Sided.toPolygonShape()
-    val currentDoubleTap by rememberUpdatedState(onIconDoubleTap)
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.listen_together).replaceFirst(' ', '\n'),
-                style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold,
-                lineHeight = if (compact) 30.sp else 36.sp,
-            )
-            Text(
-                text = stringResource(Res.string.listen_together_entry_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .size(if (compact) 64.dp else 80.dp)
-                    .clip(cookie)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .pointerInput(Unit) {
-                        detectTapGestures(onDoubleTap = { currentDoubleTap?.invoke() })
-                    },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = MetrolistIcons.Outlined.Group,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(if (compact) 32.dp else 40.dp),
-            )
-        }
+
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(Res.string.listen_together), fontSize = 30.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.pointerInput(onIconDoubleTap) { detectTapGestures(onDoubleTap = { onIconDoubleTap?.invoke() }) })
+        Text(stringResource(Res.string.listen_together_entry_subtitle), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+
 }
 
 @Composable
@@ -1175,8 +1140,8 @@ private fun UsernameRow(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -1280,28 +1245,12 @@ private fun HostJoinTabs(
     onSelectHost: () -> Unit,
     onSelectJoin: () -> Unit,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        ExpressiveTab(
-            text = stringResource(Res.string.listen_together_host_action),
-            selected = !joinSelected,
-            onClick = onSelectHost,
-            modifier = Modifier.weight(1f),
-        )
-        ExpressiveTab(
-            text = stringResource(Res.string.listen_together_join_tab),
-            selected = joinSelected,
-            onClick = onSelectJoin,
-            modifier = Modifier.weight(1f),
-        )
+
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.listen_together_host_action), !joinSelected, onSelectHost)
+        com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.listen_together_join_tab), joinSelected, onSelectJoin)
     }
+
 }
 
 @Composable
@@ -1330,7 +1279,7 @@ private fun ExpressiveTab(
         modifier =
             modifier
                 .heightIn(
-                    min = ButtonDefaults.MediumContainerHeight,
+                    min = 52.dp,
                 ).tvFocusHighlight(CircleShape)
                 .clip(ToggleButtonDefaults.shape),
     ) {
@@ -1737,8 +1686,8 @@ private fun NowPlayingCard(
     val progress = if (track.duration > 0) (positionMs.toFloat() / track.duration).coerceIn(0f, 1f) else 0f
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
@@ -1894,8 +1843,8 @@ private fun RoomCodeCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
@@ -1937,7 +1886,7 @@ private fun ConnectedUsersCard(
     val scrollState = rememberScrollState()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
         Row(
@@ -2339,7 +2288,7 @@ private fun ListenTogetherTextDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Column(

@@ -58,6 +58,13 @@ internal fun SonderPlayerScreen(
     var lyricsOffset by remember { mutableStateOf(false) }
     val playFocus = remember { FocusRequester() }
     val guest = platform.isListenTogetherGuest()
+    val canvasLayers = remember { CanvasLayers() }
+    val canvas = canvasLayers.select(song, platform)
+    LaunchedEffect(active, pane, state.isVideoModeActive) {
+        viewModel.setCanvasVisible(active && pane == SonderPlayerPane.COVER && !state.isVideoModeActive)
+        viewModel.setQueueVisible(active && pane == SonderPlayerPane.QUEUE)
+    }
+    DisposableEffect(viewModel) { onDispose { viewModel.setCanvasVisible(false); viewModel.setQueueVisible(false) } }
     LaunchedEffect(active, pane, song.id) {
         onLyricsVisible(active && pane == SonderPlayerPane.LYRICS)
         if (active && pane == SonderPlayerPane.LYRICS) viewModel.loadLyrics(song)
@@ -65,7 +72,7 @@ internal fun SonderPlayerScreen(
     DisposableEffect(Unit) { onDispose { onLyricsVisible(false) } }
     LaunchedEffect(active, requestFocus) { if (active && requestFocus) { playFocus.requestFocus(); onFocusRequested() } }
     if (!active) return
-    platform.PlayerWindowEffects(hideSystemBars = state.isFullscreen && state.isVideoModeActive, lockLandscape = state.isFullscreen && state.isVideoModeActive)
+    platform.PlayerWindowEffects(hideSystemBars = Settings.shared.immersivePlayer || (state.isFullscreen && state.isVideoModeActive), lockLandscape = state.isFullscreen && state.isVideoModeActive)
     if (state.isFullscreen && state.isVideoModeActive) {
         platform.MusicVideoSurface(modifier.fillMaxSize(), 0.dp, true, true, true,
             { viewModel.toggleFullscreen() },
@@ -90,7 +97,10 @@ internal fun SonderPlayerScreen(
         } },
         artwork = { mod ->
             if (state.isVideoModeActive) platform.MusicVideoSurface(mod, 18.dp, false, true, false, { viewModel.toggleFullscreen() }, null)
-            else AsyncImage(song.displayThumbnail, mod)
+            else Box(mod) {
+                AsyncImage(song.displayThumbnail, Modifier.fillMaxSize())
+                canvasLayers.Render(canvas, state.isPlaying && active, Modifier.fillMaxSize())
+            }
         },
         lyrics = { mod -> LyricsViewWithPosition(viewModel, state.lyrics, state.lyricsSongwriters, state.lyricsAgents, state.lyricsProvider,
             state.lyricsOffsetMs, viewModel::seekToPosition, state.isLyricsLoading, MaterialTheme.colorScheme.onSurface, false, mod) },
@@ -220,7 +230,7 @@ fun SonderPlayerPresentation(
                     SonderPill(stringResource(Res.string.queue), pane == SonderPlayerPane.QUEUE) { onPaneChange(if (pane == SonderPlayerPane.QUEUE) SonderPlayerPane.COVER else SonderPlayerPane.QUEUE) }
                     SonderPill(stringResource(Res.string.lyrics), pane == SonderPlayerPane.LYRICS) { onPaneChange(if (pane == SonderPlayerPane.LYRICS) SonderPlayerPane.COVER else SonderPlayerPane.LYRICS) }
                     if (pane == SonderPlayerPane.LYRICS) SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.LYRICS_MENU) })
-                    else if (state.isVideoAvailable) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), { onAction(SonderPlayerAction.VIDEO) })
+                    else if (state.isVideoAvailable && Settings.shared.showPlayerVideoButton) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), { onAction(SonderPlayerAction.VIDEO) })
                     else SonderIcon(MetrolistIcons.Outlined.Share, stringResource(Res.string.share), { onAction(SonderPlayerAction.SHARE) })
                 }
             }

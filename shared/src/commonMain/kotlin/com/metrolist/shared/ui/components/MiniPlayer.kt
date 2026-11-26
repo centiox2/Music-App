@@ -136,11 +136,13 @@ fun MiniPlayer(
     val shape = RoundedCornerShape(18.dp)
     var drag by remember { mutableFloatStateOf(0f) }
     val remote = LocalIsTv.current
+    val showLike = onLike != null && Settings.shared.showMiniPlayerLikeButton
+    val swipeThreshold = 0.5f - Settings.shared.swipeSensitivity.coerceIn(0f, 100f) * 0.004f
     Box(modifier.fillMaxWidth().height(MiniPlayerHeight).padding(horizontal = 12.dp).clip(shape)
-        .background(tint).pointerInput(canSkipNext, canSkipPrevious) {
+        .background(tint).pointerInput(canSkipNext, canSkipPrevious, playbackEnabled, swipeThreshold) {
             detectHorizontalDragGestures(onDragEnd = {
-                if (drag < -size.width * 0.2f && canSkipNext) onSkipNext()
-                if (drag > size.width * 0.2f && canSkipPrevious) onSkipPrevious()
+                if (drag < -size.width * swipeThreshold && canSkipNext && playbackEnabled) onSkipNext()
+                if (drag > size.width * swipeThreshold && canSkipPrevious && playbackEnabled) onSkipPrevious()
                 drag = 0f
             }, onDragCancel = { drag = 0f }) { change, amount -> change.consume(); drag += amount }
         }.clickable(onClick = onExpand)) {
@@ -153,8 +155,8 @@ fun MiniPlayer(
             }
             if (remote) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), onSkipPrevious, enabled = canSkipPrevious && playbackEnabled)
             com.metrolist.shared.ui.sonder.SonderIcon(if (isPlaying) MetrolistIcons.Rounded.Pause else MetrolistIcons.Rounded.PlayArrow, stringResource(if (isPlaying) Res.string.pause else Res.string.play), onTogglePlay, enabled = playbackEnabled)
-            if (onLike != null) com.metrolist.shared.ui.sonder.SonderIcon(if (isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder, stringResource(if (isLiked) Res.string.unlike else Res.string.action_like), onLike, enabled = playbackEnabled)
-            if (remote || onLike == null) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), onSkipNext, enabled = canSkipNext && playbackEnabled)
+            if (showLike && onLike != null) com.metrolist.shared.ui.sonder.SonderIcon(if (isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder, stringResource(if (isLiked) Res.string.unlike else Res.string.action_like), onLike, enabled = playbackEnabled)
+            if (remote || !showLike) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), onSkipNext, enabled = canSkipNext && playbackEnabled)
         }
         val color = MaterialTheme.colorScheme.onSurface
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(2.dp).drawWithContent {
