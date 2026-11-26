@@ -13,6 +13,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
@@ -139,7 +140,7 @@ fun MetrolistTheme(
         shapes = MetrolistShapes,
         motionScheme = motionScheme,
     ) {
-        CompositionLocalProvider(LocalIsTv provides isTv) {
+        CompositionLocalProvider(LocalIsTv provides isTv, LocalContentColor provides animatedColorScheme.onSurface) {
             MetrolistHapticsProvider {
                 FocusOutlineProvider(enabled = isTv, content = content)
             }

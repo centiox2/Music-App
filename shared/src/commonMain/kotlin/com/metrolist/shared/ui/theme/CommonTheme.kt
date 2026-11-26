@@ -7,10 +7,12 @@
 
 package com.metrolist.shared.ui.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,7 +110,7 @@ fun MetrolistTheme(
             typography = MetrolistTypography(),
             shapes = MetrolistShapes,
             motionScheme = motionScheme,
-            content = { MetrolistHapticsProvider(content) },
+            content = { CompositionLocalProvider(LocalContentColor provides animatedColorScheme.onSurface) { MetrolistHapticsProvider(content) } },
         )
     }
 }

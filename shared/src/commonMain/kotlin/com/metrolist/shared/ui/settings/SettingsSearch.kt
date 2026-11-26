@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -113,10 +114,10 @@ internal fun SettingsSearchField(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .focusOutline(CircleShape, focused = isFocused),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                .height(48.dp)
+                .focusOutline(RoundedCornerShape(14.dp), focused = isFocused),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),

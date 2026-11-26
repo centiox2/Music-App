@@ -807,7 +807,7 @@ internal fun SettingsNavigationRow(
     customIcon: (@Composable (Color) -> Unit)? = null,
     iconSize: Dp = 24.dp,
     iconTint: Color? = null,
-    titleFontSize: TextUnit = TextUnit.Unspecified,
+    titleFontSize: TextUnit = 15.sp,
     trailingContent: (@Composable () -> Unit)? = {
         Icon(MetrolistIcons.Outlined.ChevronRight, null, tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant)
     },
@@ -855,6 +855,7 @@ internal fun SettingsNavigationRow(
                 Text(
                     it,
                     style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

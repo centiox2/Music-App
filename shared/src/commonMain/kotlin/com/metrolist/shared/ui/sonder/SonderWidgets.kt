@@ -34,11 +34,12 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Presentation primitives ported from Sonder's ui/glow, independent of playback and networking. */
 @Composable
-fun SonderIcon(icon: ImageVector, label: String?, onClick: () -> Unit, modifier: Modifier = Modifier, glass: Boolean = false, enabled: Boolean = true, selected: Boolean? = null) {
-    Box(modifier.size(44.dp).clip(CircleShape)
-        .background(if (selected == true) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f) else if (glass) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent)
+fun SonderIcon(icon: ImageVector, label: String?, onClick: () -> Unit, modifier: Modifier = Modifier, glass: Boolean = false, enabled: Boolean = true, selected: Boolean? = null, size: androidx.compose.ui.unit.Dp = 44.dp, iconSize: androidx.compose.ui.unit.Dp = 22.dp, tint: Color? = null, selectedBackground: Boolean = true) {
+    val iconColor = tint ?: MaterialTheme.colorScheme.onSurface
+    Box(modifier.size(size).clip(CircleShape)
+        .background(if (selected == true && selectedBackground) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f) else if (glass) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent)
         .focusOutline(CircleShape).semantics { selected?.let { this.selected = it } }.clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, label, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f))
+        Icon(icon, label, Modifier.size(iconSize), tint = iconColor.copy(alpha = if (enabled) iconColor.alpha else iconColor.alpha * 0.38f))
     }
 }
 

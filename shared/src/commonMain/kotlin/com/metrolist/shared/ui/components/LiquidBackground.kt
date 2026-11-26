@@ -39,16 +39,15 @@ fun LiquidBackground(
     isPlaying: Boolean = true,
     visible: Boolean = true,
 ) {
-    val palette = rememberGlowPalette(artworkUrl)
     val dark = Settings.shared.getCurrentThemeIsDark()
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        if (palette != null) {
-            GlowMesh(
-                palette = palette,
-                modifier = Modifier.fillMaxSize().alpha(if (isLyricsVisible) 0.7f else 1f),
-                moving = animate && isPlaying && visible,
-                dark = dark,
-            )
-        }
+    val palette = rememberGlowPalette(artworkUrl) ?: com.metrolist.shared.ui.sonder.ArtworkPalettes.last
+        ?: com.metrolist.shared.ui.sonder.CoverPalette(listOf(if (dark) androidx.compose.ui.graphics.Color(0xFF121212) else androidx.compose.ui.graphics.Color(0xFFEDEDED)), listOf(1f))
+    Box(modifier.fillMaxSize()) {
+        com.metrolist.shared.ui.sonder.SonderLiquidArtwork(artworkUrl, palette, Modifier.fillMaxSize(), animate && isPlaying && visible, dark)
+        val shade = if (dark) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
+            0f to shade.copy(alpha = 0.12f), 0.55f to shade.copy(alpha = 0.18f),
+            1f to shade.copy(alpha = if (dark) 0.7f else 0.75f),
+        )))
     }
 }

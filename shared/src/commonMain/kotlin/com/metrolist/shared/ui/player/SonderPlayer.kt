@@ -99,9 +99,10 @@ internal fun SonderPlayerScreen(
             SonderPlayerAction.LYRICS_MENU -> lyricsMenu = true
             SonderPlayerAction.VIDEO -> viewModel.toggleVideoMode()
             SonderPlayerAction.SHARE -> viewModel.shareSong()
+            SonderPlayerAction.CLEAR_UPCOMING -> viewModel.removeQueueEntries(state.queueEntryKeys.drop(state.currentQueueIndex + 1).filter { it >= 0 }.toSet())
         } },
         artwork = { mod ->
-            if (state.isVideoModeActive) platform.MusicVideoSurface(mod, 18.dp, false, true, false, { viewModel.toggleFullscreen() }, null)
+            if (state.isVideoModeActive) platform.MusicVideoSurface(mod, 12.dp, false, true, false, { viewModel.toggleFullscreen() }, null)
             else Box(mod) {
                 AsyncImage(song.displayThumbnail, Modifier.fillMaxSize())
                 canvasLayers.Render(canvas, state.isPlaying && active, Modifier.fillMaxSize())
@@ -112,9 +113,10 @@ internal fun SonderPlayerScreen(
         queue = { mod -> QueueScreen(
             onClose = { pane = SonderPlayerPane.COVER }, onShowSleepTimer = { sleepTimer = true },
             onNavigateToAlbum = onAlbum, onNavigateToArtist = onArtist, onNavigateToListenTogether = onListenTogether,
-            modifier = mod, viewModel = viewModel,
+            modifier = mod, viewModel = viewModel, showBottomToolbar = false,
         ) },
         timeline = { SonderTimeline(viewModel, state.duration, !guest) },
+        onAlbum = onAlbum,
     )
     if (sleepTimer && playerSession != null) {
         val timer by playerSession.sleepTimerState.collectAsState()
@@ -133,8 +135,9 @@ internal fun SonderPlayerScreen(
 }
 
 /** Backend-independent presentation used by the Android player and rendered screen checks. */
-enum class SonderPlayerAction { CLOSE, MENU, LIKE, SHUFFLE, PREVIOUS, PLAY_PAUSE, NEXT, REPEAT, RETRY, DEVICES, LYRICS_MENU, VIDEO, SHARE }
+enum class SonderPlayerAction { CLOSE, MENU, LIKE, SHUFFLE, PREVIOUS, PLAY_PAUSE, NEXT, REPEAT, RETRY, DEVICES, LYRICS_MENU, VIDEO, SHARE, CLEAR_UPCOMING }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SonderPlayerPresentation(
     state: PlayerViewModel.PlayerUiState,
@@ -149,87 +152,129 @@ fun SonderPlayerPresentation(
     lyrics: @Composable (Modifier) -> Unit,
     queue: @Composable (Modifier) -> Unit,
     timeline: @Composable () -> Unit,
+    onAlbum: (String) -> Unit = {},
 ) {
+
     val song = state.currentSong ?: return
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        LiquidBackground(song.thumbnail, animate = Settings.shared.animatedGradient, isPlaying = state.isPlaying, visible = true)
-        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+    val colors = MaterialTheme.colorScheme
+    val dark = Settings.shared.getCurrentThemeIsDark()
+    val shadow by androidx.compose.animation.core.animateFloatAsState(if (state.isPlaying) 1f else 0.4f, androidx.compose.animation.core.tween(500))
+    val navInset = with(androidx.compose.ui.platform.LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
+    Box(modifier.fillMaxSize()) {
+        LiquidBackground(song.thumbnail, animate = Settings.shared.animatedGradient, isPlaying = state.isPlaying)
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp)) {
             val wide = maxWidth > maxHeight && maxWidth >= 600.dp
-            Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SonderIcon(MetrolistIcons.Rounded.KeyboardArrowDown, stringResource(Res.string.close), { onAction(SonderPlayerAction.CLOSE) }, glass = true)
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(stringResource(Res.string.now_playing), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        state.queueTitle?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    }
-                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.MENU) }, glass = true)
-                }
-                @Composable fun Artwork(mod: Modifier) {
-                    Box(mod.clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))) {
-                        artwork(Modifier.fillMaxSize())
-                    }
-                }
-                @Composable fun Pane(mod: Modifier) {
-                    when (pane) {
-                        SonderPlayerPane.COVER -> BoxWithConstraints(mod, contentAlignment = Alignment.Center) {
-                            Artwork(Modifier.size(minOf(maxWidth, maxHeight)))
+            val compact = maxHeight < 700.dp
+            @Composable fun Header() {
+                Box(Modifier.fillMaxWidth().height(64.dp)) {
+                    SonderIcon(MetrolistIcons.Rounded.KeyboardArrowDown, stringResource(Res.string.close), { onAction(SonderPlayerAction.CLOSE) },
+                        Modifier.align(Alignment.CenterStart), iconSize = 32.dp)
+                    Column(Modifier.align(Alignment.Center).padding(horizontal = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        val heading = when (pane) {
+                            SonderPlayerPane.COVER -> stringResource(Res.string.sonder_listening_to)
+                            SonderPlayerPane.LYRICS -> stringResource(Res.string.lyrics)
+                            SonderPlayerPane.QUEUE -> ""
                         }
-                        SonderPlayerPane.LYRICS -> lyrics(mod)
-                        SonderPlayerPane.QUEUE -> queue(mod)
+                        if (heading.isNotEmpty()) Text(heading, fontSize = 13.sp, color = colors.onSurfaceVariant, maxLines = 1)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (pane == SonderPlayerPane.COVER) { Icon(MetrolistIcons.Rounded.MusicNote, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)) }
+                            Text(when (pane) {
+                                SonderPlayerPane.COVER -> state.queueTitle ?: song.album ?: stringResource(Res.string.queue)
+                                SonderPlayerPane.LYRICS -> state.lyricsProvider ?: stringResource(Res.string.loading)
+                                SonderPlayerPane.QUEUE -> stringResource(Res.string.up_next)
+                            }, fontSize = if (pane == SonderPlayerPane.QUEUE) 18.sp else 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    if (pane == SonderPlayerPane.QUEUE) TextButton(onClick = { onAction(SonderPlayerAction.CLEAR_UPCOMING) }, enabled = !guest, modifier = Modifier.align(Alignment.CenterEnd)) { Text(stringResource(Res.string.clear)) }
+                    else if (wide && pane == SonderPlayerPane.LYRICS) SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.LYRICS_MENU) }, Modifier.align(Alignment.CenterEnd))
+                    else if (state.isVideoAvailable && Settings.shared.showPlayerVideoButton) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), { onAction(SonderPlayerAction.VIDEO) }, Modifier.align(Alignment.CenterEnd))
+                }
+            }
+            @Composable fun Artwork(mod: Modifier) {
+                var drag by remember(song.id) { mutableFloatStateOf(0f) }
+                Box(mod.sonderCoverShadow(12.dp, shadow, dark).clip(RoundedCornerShape(12.dp)).background(colors.onSurface.copy(alpha = 0.12f))
+                    .pointerInput(song.id, guest) { if (!guest) androidx.compose.foundation.gestures.detectHorizontalDragGestures(
+                        onDragEnd = { if (drag < -size.width * 0.25f) onAction(SonderPlayerAction.NEXT) else if (drag > size.width * 0.25f) onAction(SonderPlayerAction.PREVIOUS); drag = 0f },
+                        onDragCancel = { drag = 0f },
+                    ) { change, amount -> change.consume(); drag += amount } }) { artwork(Modifier.fillMaxSize()) }
+            }
+            @Composable fun Title(large: Boolean) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    if (!large) { AsyncImage(song.displayThumbnail, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp))); Spacer(Modifier.width(14.dp)) }
+                    Column(Modifier.weight(1f)) {
+                        Text(song.title, fontSize = if (large) 24.sp else 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                            modifier = Modifier.clickable(enabled = song.albumId != null) { song.albumId?.let(onAlbum) }.basicMarquee(iterations = 3))
+                        Text(com.metrolist.shared.ui.menu.artistLinksText(song.artists, onArtist) ?: androidx.compose.ui.text.AnnotatedString(""),
+                            fontSize = if (large) 17.sp else 15.sp, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    SonderIcon(if (state.isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder,
+                        stringResource(if (state.isLiked) Res.string.unlike else Res.string.action_like), { onAction(SonderPlayerAction.LIKE) }, iconSize = 24.dp)
+                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), {
+                        onAction(if (pane == SonderPlayerPane.LYRICS) SonderPlayerAction.LYRICS_MENU else SonderPlayerAction.MENU)
+                    }, iconSize = 24.dp)
+                }
+            }
+            @Composable fun Controls(small: Boolean = false) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onAction(SonderPlayerAction.SHUFFLE) }, enabled = !guest, selected = state.isShuffleOn, iconSize = 24.dp, selectedBackground = false, tint = if (state.isShuffleOn) colors.onSurface else colors.onSurfaceVariant)
+                    SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), { onAction(SonderPlayerAction.PREVIOUS) }, enabled = !guest, size = if (small) 48.dp else 56.dp, iconSize = if (small) 32.dp else 40.dp)
+                    Surface(onClick = { onAction(SonderPlayerAction.PLAY_PAUSE) }, shape = CircleShape, color = colors.primary, contentColor = colors.onPrimary,
+                        modifier = Modifier.size(if (small) 58.dp else 68.dp).focusRequester(playFocus)) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(if (state.isPlaying) MetrolistIcons.Rounded.Pause else MetrolistIcons.Rounded.PlayArrow,
+                            stringResource(if (state.isPlaying) Res.string.pause else Res.string.play), Modifier.size(if (small) 30.dp else 34.dp)) }
+                    }
+                    SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), { onAction(SonderPlayerAction.NEXT) }, enabled = !guest, size = if (small) 48.dp else 56.dp, iconSize = if (small) 32.dp else 40.dp)
+                    SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), { onAction(SonderPlayerAction.REPEAT) }, enabled = !guest, selected = state.repeatMode != 0, iconSize = 24.dp, selectedBackground = false, tint = if (state.repeatMode != 0) colors.onSurface else colors.onSurfaceVariant)
+                }
+            }
+            @Composable fun PaneBar() {
+                Row(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp)).background(colors.onSurface.copy(alpha = 0.09f)).padding(4.dp)) {
+                    @Composable fun Button(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, action: () -> Unit) {
+                        Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(9.dp)).background(if (selected) colors.primary else Color.Transparent)
+                            .semantics { this.selected = selected }.clickable(role = Role.Tab, onClick = action), contentAlignment = Alignment.Center) {
+                            Icon(icon, label, Modifier.size(22.dp), tint = if (selected) colors.onPrimary else colors.onSurface)
+                        }
+                    }
+                    Button(MetrolistIcons.AutoMirrored.Filled.QueueMusic, stringResource(Res.string.up_next), pane == SonderPlayerPane.QUEUE) { onPaneChange(if (pane == SonderPlayerPane.QUEUE) SonderPlayerPane.COVER else SonderPlayerPane.QUEUE) }
+                    Button(MetrolistIcons.Outlined.Devices, stringResource(Res.string.connected_devices), false) { onAction(SonderPlayerAction.DEVICES) }
+                    Button(MetrolistIcons.Outlined.Lyrics, stringResource(Res.string.lyrics), pane == SonderPlayerPane.LYRICS) { onPaneChange(if (pane == SonderPlayerPane.LYRICS) SonderPlayerPane.COVER else SonderPlayerPane.LYRICS) }
+                }
+            }
+            if (wide) {
+                Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    BoxWithConstraints(Modifier.weight(0.85f).fillMaxHeight(), contentAlignment = Alignment.Center) { Artwork(Modifier.size(minOf(maxWidth, maxHeight))) }
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                        Header()
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            when (pane) { SonderPlayerPane.COVER -> Title(true); SonderPlayerPane.LYRICS -> lyrics(Modifier.fillMaxSize()); SonderPlayerPane.QUEUE -> queue(Modifier.fillMaxSize()) }
+                        }
+                        timeline(); Spacer(Modifier.height(8.dp)); Controls(small = compact); Spacer(Modifier.height(12.dp)); PaneBar()
                     }
                 }
-                @Composable fun Controls(mod: Modifier) {
-                    Column(mod, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(song.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = if (wide) 1 else 2, overflow = TextOverflow.Ellipsis)
-                                Text(song.artists.joinToString { it.name }, Modifier.clickable { song.artists.firstOrNull()?.id?.let(onArtist) }.padding(top = 4.dp), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    Header()
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                        when (pane) {
+                            SonderPlayerPane.COVER -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
+                                val gap = if (compact) 16.dp else 30.dp
+                                Artwork(Modifier.size(minOf(maxWidth, (maxHeight - 56.dp - gap).coerceAtLeast(1.dp))))
+                                Spacer(Modifier.height(gap)); Title(true)
                             }
-                            SonderIcon(if (state.isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder,
-                                stringResource(if (state.isLiked) Res.string.unlike else Res.string.action_like), { onAction(SonderPlayerAction.LIKE) })
-                        }
-                        timeline()
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onAction(SonderPlayerAction.SHUFFLE) }, enabled = !guest, selected = state.isShuffleOn)
-                            SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), { onAction(SonderPlayerAction.PREVIOUS) }, enabled = !guest)
-                            Surface(onClick = { onAction(SonderPlayerAction.PLAY_PAUSE) }, shape = CircleShape, color = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(if (wide) 68.dp else 76.dp).focusRequester(playFocus)) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(if (state.isPlaying) MetrolistIcons.Rounded.Pause else MetrolistIcons.Rounded.PlayArrow,
-                                        stringResource(if (state.isPlaying) Res.string.pause else Res.string.play), Modifier.size(36.dp))
-                                }
-                            }
-                            SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), { onAction(SonderPlayerAction.NEXT) }, enabled = !guest)
-                            SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), { onAction(SonderPlayerAction.REPEAT) }, enabled = !guest, selected = state.repeatMode != 0)
-                        }
-                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.clickable { onAction(SonderPlayerAction.RETRY) }) }
-                    }
-                }
-                if (wide) {
-                    Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                            Artwork(Modifier.size(minOf(maxWidth, maxHeight)))
-                        }
-                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                            if (pane != SonderPlayerPane.COVER) Pane(Modifier.weight(1f).fillMaxWidth())
-                            Controls(Modifier.fillMaxWidth())
+                            SonderPlayerPane.LYRICS -> Column(Modifier.fillMaxSize()) { lyrics(Modifier.weight(1f).fillMaxWidth()); Spacer(Modifier.height(12.dp)); Title(false) }
+                            SonderPlayerPane.QUEUE -> queue(Modifier.fillMaxSize())
                         }
                     }
-                } else {
-                    Pane(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp))
-                    Controls(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
-                }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    SonderIcon(MetrolistIcons.Outlined.Devices, stringResource(Res.string.connected_devices), { onAction(SonderPlayerAction.DEVICES) }, glass = true)
-                    SonderPill(stringResource(Res.string.queue), pane == SonderPlayerPane.QUEUE) { onPaneChange(if (pane == SonderPlayerPane.QUEUE) SonderPlayerPane.COVER else SonderPlayerPane.QUEUE) }
-                    SonderPill(stringResource(Res.string.lyrics), pane == SonderPlayerPane.LYRICS) { onPaneChange(if (pane == SonderPlayerPane.LYRICS) SonderPlayerPane.COVER else SonderPlayerPane.LYRICS) }
-                    if (pane == SonderPlayerPane.LYRICS) SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.LYRICS_MENU) })
-                    else if (state.isVideoAvailable && Settings.shared.showPlayerVideoButton) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), { onAction(SonderPlayerAction.VIDEO) })
-                    else SonderIcon(MetrolistIcons.Outlined.Share, stringResource(Res.string.share), { onAction(SonderPlayerAction.SHARE) })
+                    Spacer(Modifier.height(if (compact) 12.dp else 26.dp)); timeline()
+                    Spacer(Modifier.height(if (compact) 12.dp else 25.dp)); Controls()
+                    state.error?.let { Text(it, Modifier.clickable { onAction(SonderPlayerAction.RETRY) }, color = colors.error, fontSize = 13.sp) }
+                    Spacer(Modifier.height(if (compact) 16.dp else 32.dp)); PaneBar()
+                    Spacer(Modifier.height(if (compact) 12.dp else (50.dp - navInset).coerceAtLeast(12.dp)))
                 }
             }
         }
     }
+
 }
 
 @Composable
@@ -245,18 +290,19 @@ fun SonderSeekBar(position: Long, duration: Long, enabled: Boolean, onSeek: (Lon
     val color = MaterialTheme.colorScheme.onSurface
     val seek: (Float) -> Unit = { f -> onSeek((f.coerceIn(0f, 1f) * duration).roundToLong()) }
     Column {
-        Canvas(Modifier.fillMaxWidth().height(28.dp)
+        Canvas(Modifier.fillMaxWidth().height(24.dp)
             .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f); setProgress { if (enabled) { seek(it); true } else false } }
             .pointerInput(duration, enabled) { if (enabled) detectTapGestures { seek(it.x / size.width) } }
             .pointerInput(duration, enabled) { if (enabled) detectDragGestures(onDragEnd = { preview?.let(seek); preview = null }, onDragCancel = { preview = null }) { change, _ -> change.consume(); preview = (change.position.x / size.width).coerceIn(0f, 1f) } }) {
             val y = size.height / 2
-            drawLine(color.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            drawLine(color, Offset(0f, y), Offset(size.width * fraction.coerceIn(0f, 1f), y), 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            drawCircle(color, 4.dp.toPx(), Offset(size.width * fraction.coerceIn(0f, 1f), y))
+            drawLine(color.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            drawLine(color, Offset(0f, y), Offset(size.width * fraction.coerceIn(0f, 1f), y), 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            val radius = if (preview != null) 9.dp.toPx() else 7.dp.toPx()
+            drawCircle(color, radius, Offset(radius + (size.width - radius * 2) * fraction.coerceIn(0f, 1f), y))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(sonderClock((fraction * duration).toLong()), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(sonderClock(duration), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(sonderClock((fraction * duration).toLong()), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (duration > 0L) "-" + sonderClock((duration - fraction * duration).toLong()) else "--:--", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

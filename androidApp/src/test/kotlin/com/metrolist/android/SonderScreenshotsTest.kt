@@ -51,6 +51,8 @@ class SonderScreenshotsTest {
     @Before fun setup() {
         Settings.replaceSharedForTest(Settings(MapSettings()))
         Settings.shared.animatedGradient = false
+        coil3.SingletonImageLoader.setUnsafe(coil3.ImageLoader.Builder(compose.activity.applicationContext)
+            .components { add(coil3.decode.BitmapFactoryDecoder.Factory()) }.build())
         val art = File(compose.activity.cacheDir, "sonder-fixture.png")
         val bitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -99,17 +101,31 @@ class SonderScreenshotsTest {
     @Test fun privacy() = settings(SettingsPageId.PRIVACY)
     @Test fun content() = settings(SettingsPageId.CONTENT)
     private fun settings(page: SettingsPageId?) = render("settings-${page?.name?.lowercase() ?: "home"}") {
-        SharedSettingsScreen(SharedSettingsHost(platform = SettingsPlatform.ANDROID, onClose = {}, initialPage = page, singlePane = true))
+        SharedSettingsScreen(SharedSettingsHost(platform = SettingsPlatform.ANDROID, onClose = {}, initialPage = page, singlePane = true,
+            lyricsPreview = { mod -> com.metrolist.shared.ui.components.lyrics.LyricsView(
+                noLyricsText = "No lyrics", autoScrollText = "Auto scroll", lyricsProvidedBy = { it },
+                lyrics = listOf(LyricsEntry(0, "Stay a little longer"), LyricsEntry(6000, "Let the evening settle in"), LyricsEntry(12000, "We have time")),
+                currentPosition = 7000, onSeek = { _, _ -> }, modifier = mod,
+                textColor = MaterialTheme.colorScheme.onSurface, isLiquidBackground = false,
+            ) },
+        ))
     }
     @Test fun player() = playerScreen()
+    @Test fun playerQueue() = playerScreen("player-queue", SonderPlayerPane.QUEUE)
+    @Test fun playerLyrics() = playerScreen("player-lyrics", SonderPlayerPane.LYRICS)
     @Test @Config(qualifiers = "w360dp-h640dp-xhdpi") fun playerSmallPhone() = playerScreen("player-small-phone")
-    @Test @Config(qualifiers = "w844dp-h390dp-xhdpi-land") fun playerLandscape() = playerScreen("player-landscape")
-    private fun playerScreen(name: String = "player-dark") = render(name) {
+    @Test @Config(qualifiers = "w844dp-h390dp-land-xhdpi") fun playerLandscape() = playerScreen("player-landscape")
+    private fun playerScreen(name: String = "player-dark", pane: SonderPlayerPane = SonderPlayerPane.COVER) = render(name) {
         val song = songs.first()
         SonderPlayerPresentation(
-            PlayerViewModel.PlayerUiState(currentSong = PlayerViewModel.SongUiModel(song.id, song.title, song.artists, song.thumbnail, song.duration), isPlaying = true, duration = 205000, queueTitle = "Quiet evenings"),
-            SonderPlayerPane.COVER, {}, false, remember { FocusRequester() }, Modifier, {}, {},
-            artwork = { AsyncImage(song.thumbnail, it) }, lyrics = {}, queue = {},
+            PlayerViewModel.PlayerUiState(currentSong = PlayerViewModel.SongUiModel(song.id, song.title, song.artists, song.thumbnail, song.duration), isPlaying = true, duration = 205000, queueTitle = "Quiet evenings", lyricsProvider = "Local"),
+            pane, {}, false, remember { FocusRequester() }, Modifier, {}, {},
+            artwork = { AsyncImage(song.thumbnail, it) },
+            lyrics = { mod -> com.metrolist.shared.ui.components.lyrics.LyricsView(
+                noLyricsText = "No lyrics", autoScrollText = "Auto scroll", lyricsProvidedBy = { it }, lyrics = listOf(LyricsEntry(0, "Stay a little longer"), LyricsEntry(6000, "Let the evening settle in"), LyricsEntry(12000, "We have time")),
+                currentPosition = 7000, onSeek = { _, _ -> }, modifier = mod, textColor = MaterialTheme.colorScheme.onSurface,
+            ) },
+            queue = { mod -> QueueScreen(QueueScreenState(playlist = PlaylistInfo("Quiet evenings", songs.size, "27 min"), tracks = songs.mapIndexed { i, item -> QueueTrack(item.id, item.title, "Luna Vale", item.thumbnail, item.duration, false, false, true, queueIndex = i, entryKey = i.toLong(), uniqueKey = i.toString()) }, currentEntryKey = 0L), {}, {}, modifier = mod, showBottomToolbar = false) },
             timeline = { SonderSeekBar(68000, 205000, true, {}) },
         )
     }

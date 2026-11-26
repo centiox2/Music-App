@@ -375,6 +375,7 @@ fun QueueScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     session: QueueSession? = null,
     isDesktopPanel: Boolean = false,
+    showBottomToolbar: Boolean = true,
     headerActions: @Composable RowScope.() -> Unit = {},
 ) {
     val lazyListState = session?.listState ?: rememberLazyListState()
@@ -890,7 +891,7 @@ fun QueueScreen(
             )
         }
 
-        if (!isTv && (hasSelection || canControlPlayback)) {
+        if (!isTv && (hasSelection || (canControlPlayback && showBottomToolbar))) {
             QueueBottomToolbar(
                 isShuffleOn = state.isShuffleOn,
                 repeatMode = state.repeatMode,
@@ -1491,6 +1492,7 @@ fun QueueScreen(
     nestedScrollConnection: NestedScrollConnection? = null,
     backHandlerEnabled: Boolean = true,
     handleDismissalBack: Boolean = true,
+    showBottomToolbar: Boolean = true,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedEntryKeys by session::selectedEntryKeys
@@ -1635,6 +1637,7 @@ fun QueueScreen(
         }
 
     QueueScreen(
+        showBottomToolbar = showBottomToolbar,
         state = state,
         session = session,
         isListenTogetherGuest = isListenTogetherGuest,
