@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
@@ -33,12 +34,10 @@ fun Material3MenuGroup(
     items: List<Material3MenuItemData>,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
+    com.metrolist.shared.ui.sonder.SonderGroup(modifier) {
         items.forEachIndexed { index, item ->
             Material3MenuGroupItem(item, index, items.size)
+            if (index < items.lastIndex) HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
         }
     }
 }
@@ -49,28 +48,7 @@ internal fun Material3MenuGroupItem(
     index: Int,
     count: Int,
 ) {
-    val shape =
-        when {
-            count == 1 -> ComponentShapes.MenuGroupShape
-            index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 5.dp, bottomEnd = 5.dp)
-            index == count - 1 -> RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-            else -> RoundedCornerShape(5.dp)
-        }
-
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-        shape = shape,
-        colors =
-            item.cardColors ?: CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Material3MenuItemRow(item = item, shape = shape)
-    }
+    Material3MenuItemRow(item, RoundedCornerShape(12.dp))
 }
 
 @Composable
@@ -86,7 +64,7 @@ private fun Material3MenuItemRow(
                 .clickable(
                     enabled = item.onClick != null,
                     onClick = { item.onClick?.invoke() },
-                ).padding(horizontal = 20.dp, vertical = 16.dp),
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         item.icon?.let { icon ->
@@ -97,7 +75,7 @@ private fun Material3MenuItemRow(
         Column(
             modifier = Modifier.weight(1f),
         ) {
-            ProvideTextStyle(MaterialTheme.typography.titleMedium) {
+            ProvideTextStyle(MaterialTheme.typography.bodyLarge) {
                 item.title()
             }
 

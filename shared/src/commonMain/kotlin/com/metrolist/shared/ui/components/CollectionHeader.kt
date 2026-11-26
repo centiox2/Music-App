@@ -2,6 +2,7 @@ package com.metrolist.shared.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -61,30 +62,20 @@ internal fun CollectionHeader(
     actions: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val headerModifier =
-        when {
-            isWide -> Modifier.fillMaxWidth()
-            isMedium -> Modifier.fillMaxWidth().padding(horizontal = CollectionHeaderHorizontalPadding, vertical = 16.dp)
-            else -> Modifier.fillMaxWidth().padding(horizontal = CollectionHeaderHorizontalPadding).padding(vertical = 8.dp)
-        }
-    Column(modifier.then(headerModifier)) {
-        if (isMedium && !isWide) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                artwork(Modifier.size(mediumArtworkSize), uiEnhanced(8.dp, 16.dp))
-                CollectionInfoCard(Modifier.weight(1f), content)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val wide = isWide || isMedium || maxWidth >= 600.dp
+        if (wide) {
+            Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                artwork(Modifier.size(220.dp), 14.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) { content(); actions?.invoke() }
             }
         } else {
-            artwork(Modifier.fillMaxWidth().aspectRatio(1f), uiEnhanced(8.dp, if (isWide) 20.dp else 28.dp))
-            Spacer(Modifier.height(16.dp))
-            CollectionInfoCard(content = content)
-        }
-        actions?.let {
-            Spacer(Modifier.height(16.dp))
-            it()
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                artwork(Modifier.size(220.dp), 14.dp)
+                Spacer(Modifier.height(24.dp))
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
+                actions?.let { Spacer(Modifier.height(18.dp)); it() }
+            }
         }
     }
 }
@@ -94,13 +85,7 @@ fun CollectionInfoCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = collectionInfoCardShape(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Column(modifier = Modifier.padding(16.dp), content = content)
-    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

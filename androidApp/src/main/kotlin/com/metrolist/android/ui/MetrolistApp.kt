@@ -131,6 +131,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.metrolist.shared.ui.sonder.sonderBackdrop
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
@@ -754,7 +756,7 @@ fun MetrolistApp(
         val useNavigationRail = !navigationSuiteType.isNavigationBar
         // Hiding navigation must not move the retained lookahead tree between scaffolds.
         val useFloatingNavBar =
-            Settings.shared.floatingNavBar && !useDesktopUi && !usesDirectionalNavigation &&
+            !useDesktopUi && !usesDirectionalNavigation &&
                 navigationSuiteType.isNavigationBar
         val isImeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
         val shouldHideMiniPlayerForIme = isLandscape && isImeVisible
@@ -766,7 +768,7 @@ fun MetrolistApp(
         val shouldShowTopBar =
             navigationState.topLevelRoute in topLevelScreens && currentRoute in topLevelScreens
 
-        val useFloatingTopBar = Settings.shared.floatingTopBar && !hasDesktopCaption
+        val useFloatingTopBar = false
         val topAppBarScrollBehavior = appBarScrollBehavior()
         val selectedRailFocusRequester = remember { FocusRequester() }
         val contentFocusRequester = remember { FocusRequester() }
@@ -810,8 +812,8 @@ fun MetrolistApp(
                 label = "navigationVisibility",
             )
         val hasBottomNavigation = navigationSuiteType.isNavigationBar
-        val isExpressiveMiniPlayer = Settings.shared.miniPlayerType == MiniPlayerType.EXPRESSIVE && !useDesktopMiniPlayer
-        val isModernMiniPlayer = Settings.shared.miniPlayerType == MiniPlayerType.MODERN && !useDesktopMiniPlayer
+        val isExpressiveMiniPlayer = false
+        val isModernMiniPlayer = false
         val miniPlayerBottomSpacing =
             when {
                 isExpressiveMiniPlayer -> ModernMiniPlayerBottomSpacing
@@ -920,7 +922,7 @@ fun MetrolistApp(
                 val updatePending = stringResource(Res.string.update_pending)
                 Box {
                     IconButton(
-                        onClick = { showAccountMenu = true },
+                        onClick = { navigator.navigate(Screen.Settings) },
                         modifier =
                             (
                                 if (hasPendingUpdate) {
@@ -1408,6 +1410,7 @@ fun MetrolistApp(
                                 Column(Modifier.fillMaxSize()) {
                                     PlaylistImportProgressCard()
                                     Scaffold(
+                                        modifier = Modifier.sonderBackdrop(playbackViewModel.currentSong.collectAsState().value?.thumbnail),
                                         containerColor = Color.Transparent,
                                         contentWindowInsets = WindowInsets(0),
                                         topBar = {
@@ -1446,7 +1449,7 @@ fun MetrolistApp(
                                                     if (navigationState.topLevelRoute == Screen.Home) {
                                                         TopBarIconButton(
                                                             floating = useFloatingTopBar,
-                                                            onClick = { navigator.navigate(Screen.History) },
+                                                            onClick = { navigator.navigate(Screen.Search) },
                                                             modifier =
                                                                 Modifier.tvFocusHighlight(
                                                                     CircleShape,
@@ -1455,7 +1458,7 @@ fun MetrolistApp(
                                                                 ),
                                                         ) {
                                                             Icon(
-                                                                MetrolistIcons.Outlined.MusicHistory,
+                                                                MetrolistIcons.Outlined.Search,
                                                                 contentDescription = stringResource(Res.string.menu_history),
                                                                 modifier = Modifier.size(24.dp),
                                                             )
@@ -1514,40 +1517,9 @@ fun MetrolistApp(
                                                         appAccountButton(if (useFloatingTopBar) Modifier.floatingBarCircle() else Modifier)
                                                     }
                                                 }
-                                                if (useFloatingTopBar) {
-                                                    FloatingTopAppBar(
-                                                        title = topBarTitle,
-                                                        subtitle = topBarSubtitle,
-                                                        actions = topBarActions,
-                                                    )
-                                                } else {
-                                                    TopAppBar(
-                                                        expandedHeight = TabTopBarHeight,
-                                                        navigationIcon = {
-                                                        },
-                                                        title = topBarTitle,
-                                                        subtitle = topBarSubtitle,
-                                                        actions = topBarActions,
-                                                        scrollBehavior = topAppBarScrollBehavior,
-                                                        colors =
-                                                            TopAppBarDefaults.topAppBarColors(
-                                                                containerColor =
-                                                                    if (pureBlack) {
-                                                                        Color.Black
-                                                                    } else {
-                                                                        MaterialTheme.colorScheme.surfaceContainer
-                                                                    },
-                                                                scrolledContainerColor =
-                                                                    if (pureBlack) {
-                                                                        Color.Black
-                                                                    } else {
-                                                                        MaterialTheme.colorScheme.surfaceContainer
-                                                                    },
-                                                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                                                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            ),
-                                                    )
+                                                Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(Modifier.weight(1f)) { topBarTitle() }
+                                                    topBarActions()
                                                 }
                                             }
                                         },
@@ -2127,7 +2099,7 @@ private fun AppTitleWithUpdateWarning(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLargeEmphasized,
+            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
         )
         if (showWarning) {
             Text(

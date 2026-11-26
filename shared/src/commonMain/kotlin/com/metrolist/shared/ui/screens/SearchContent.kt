@@ -249,86 +249,12 @@ fun SearchContent(
     itemContainer: @Composable (YTItem, @Composable () -> Unit) -> Unit = { _, content -> content() },
     onAlbumPlay: ((AlbumItem) -> Unit)? = null,
 ) {
-    val query = uiState.query
-    val isQuerySubmitted = uiState.isQuerySubmitted
-    val searchSuggestions = uiState.searchSuggestions
-
-    val motion = rememberNavigationMotion()
-    val contentState = searchPresentation(query, isQuerySubmitted)
-
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val isWide = maxWidth >= 960.dp
-
-        AnimatedContent(
-            targetState = contentState,
-            modifier = Modifier.fillMaxSize(),
-            transitionSpec = { motion.transition() },
-            label = "Search content transition",
-        ) { state ->
-            Box(modifier = Modifier.fillMaxSize().blockInput(!transition.acceptsInput(EnterExitState.Visible))) {
-                when (state) {
-                    SearchPresentation.SUGGESTIONS -> {
-                        SearchSuggestionsList(
-                            query = query,
-                            suggestions = searchSuggestions,
-                            onSuggestionClick = onHistoryItemClick,
-                            onSuggestionInsert = onHistoryItemInsert,
-                            onItemClick = onItemClick,
-                            text = text,
-                            bottomContentPadding = contentPadding.calculateBottomPadding(),
-                            isWide = isWide,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    SearchPresentation.IDLE -> {
-                        SearchEmptyState(
-                            recentSearchItems = if (Settings.shared.hideRecentSearches) emptyList() else uiState.recentSearchItems,
-                            searchHistory = uiState.searchHistory,
-                            onRecentItemClick = onItemClick,
-                            onVideoItemClick = onVideoItemClick,
-                            onHistoryItemClick = onHistoryItemClick,
-                            onHistoryItemInsert = onHistoryItemInsert,
-                            onRemoveHistoryItem = onRemoveHistoryItem,
-                            onClearHistory = onClearHistory,
-                            onRemoveRecentItem = onRemoveRecentItem,
-                            onClearRecentItems = onClearRecentItems,
-                            text = text,
-                            bottomContentPadding = contentPadding.calculateBottomPadding(),
-                            isWide = isWide,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    SearchPresentation.RESULTS -> {
-                        SearchResultsList(
-                            uiState = uiState,
-                            onFilterSelected = onFilterSelected,
-                            onItemClick = if (uiState.selectedFilter == SearchFilter.VIDEO) onVideoItemClick else onItemClick,
-                            onVideoItemClick = onVideoItemClick,
-                            onItemLongClick = onItemLongClick,
-                            onSongSave = onSongSave,
-                            onLoadMore = onLoadMore,
-                            onRetryLoadMore = onRetryLoadMore,
-                            currentSongId = currentSongId,
-                            isPlaying = isPlaying,
-                            text = text,
-                            listState = listState,
-                            bottomContentPadding = contentPadding.calculateBottomPadding(),
-                            isWide = isWide,
-                            onArtistClick = onArtistClick,
-                            onAlbumClick = onAlbumClick,
-                            onShuffleClick = onShuffleClick,
-                            onMixClick = onMixClick,
-                            itemContainer = itemContainer,
-                            onAlbumPlay = onAlbumPlay,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            }
-        }
-    }
+    com.metrolist.shared.ui.sonder.SonderSearchResults(
+        state = uiState, text = text, onItem = onItemClick, onMore = onItemLongClick,
+        onHistory = onHistoryItemClick, onClearHistory = onClearHistory,
+        onFilter = onFilterSelected, onLoadMore = onLoadMore, currentSongId = currentSongId,
+        modifier = modifier, listState = listState, padding = contentPadding,
+    )
 }
 
 @Composable

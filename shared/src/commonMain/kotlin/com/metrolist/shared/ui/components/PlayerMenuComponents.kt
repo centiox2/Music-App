@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,65 +54,17 @@ fun PlayerMenuActionGroup(
     modifier: Modifier = Modifier,
 ) {
     if (actions.isEmpty()) return
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
+    com.metrolist.shared.ui.sonder.SonderGroup(modifier) {
         actions.forEachIndexed { index, action ->
-            val shape =
-                when {
-                    actions.size == 1 -> RoundedCornerShape(28.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-                    index == actions.lastIndex -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 28.dp, bottomEnd = 28.dp)
-                    else -> RoundedCornerShape(6.dp)
-                }
-            Card(
-                onClick = action.onClick,
-                enabled = action.enabled,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .animateContentSize()
-                        .alpha(if (action.enabled) 1f else 0.6f)
-                        .tvFocusHighlight(shape)
-                        .navigationPopupSource(shape),
-                shape = shape,
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PlayerMenuActionIcon(action, Modifier.size(24.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = action.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        action.description?.let { description ->
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(enabled = action.enabled, onClick = action.onClick).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                PlayerMenuActionIcon(action, Modifier.size(22.dp))
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(action.title, style = MaterialTheme.typography.bodyLarge)
+                    action.description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
+            if (index < actions.lastIndex) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
         }
     }
 }
@@ -123,61 +76,12 @@ fun PlayerMenuPrimaryActions(
     modifier: Modifier = Modifier,
 ) {
     if (actions.isEmpty()) return
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        actions.forEachIndexed { index, action ->
-            val shape =
-                when {
-                    actions.size == 1 -> RoundedCornerShape(28.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp)
-                    index == actions.lastIndex -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 28.dp, bottomEnd = 28.dp)
-                    else -> RoundedCornerShape(6.dp)
-                }
-            Surface(
-                shape = shape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(86.dp)
-                        .semantics { role = Role.Button }
-                        .tvFocusHighlight(shape)
-                        .navigationPopupSource(shape)
-                        .clip(shape)
-                        .then(
-                            if (action.enabled) {
-                                if (action.onLongClick != null) {
-                                    Modifier.combinedClickable(
-                                        onClick = action.onClick,
-                                        onLongClick = {
-                                            action.onLongClick.invoke()
-                                        },
-                                    )
-                                } else {
-                                    Modifier.clickable(onClick = action.onClick)
-                                }
-                            } else {
-                                Modifier
-                            },
-                        ),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    PlayerMenuActionIcon(action, Modifier.size(28.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = action.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        actions.forEach { action ->
+            Surface(onClick = action.onClick, enabled = action.enabled, shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f), modifier = Modifier.weight(1f)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    PlayerMenuActionIcon(action, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                    Text(action.title, style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

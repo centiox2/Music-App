@@ -104,29 +104,7 @@ private fun ShelfChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val containerHeight = ButtonDefaults.ExtraSmallContainerHeight
-    val chipDescription = stringResource(Res.string.chip_content_description, text)
-    ExpressiveFilterChip(
-        selected = selected,
-        onClick = onClick,
-        modifier =
-            Modifier.height(containerHeight).clearAndSetSemantics {
-                contentDescription = chipDescription
-                role = Role.Button
-                this.selected = selected
-                onClick {
-                    onClick()
-                    true
-                }
-            },
-        label = {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-            )
-        },
-    )
+    com.metrolist.shared.ui.sonder.SonderPill(text, selected, onClick)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

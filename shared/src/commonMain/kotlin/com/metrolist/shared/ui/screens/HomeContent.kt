@@ -215,82 +215,16 @@ fun HomeContent(
     onPlaySongs: ((List<SongItem>) -> Unit)? = null,
     sonderLayout: Boolean = false,
 ) {
-    val activeSongId =
-        remember(currentSongId) {
-            derivedStateOf { currentSongId.value.takeUnless { Settings.shared.uiEnhancements } }
-        }
-    val localShelfCache = remember { HomeShelfCache() }
-    val paginationScrollConnection = rememberHomePagination(uiState, listState, onLoadMore)
-    BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        val isWide = maxWidth > 840.dp
-        val effectiveShelves =
-            shelves ?: (shelfCache ?: localShelfCache).build(uiState, text, maxWidth)
-
-        DragScrollableColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().nestedScroll(paginationScrollConnection).desktopArrowScroll(listState),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(if (isWide) 16.dp else 8.dp),
-        ) {
-            header?.invoke(this)
-
-            if (sonderLayout) {
-                val featured = effectiveShelves.firstNotNullOfOrNull { shelf ->
-                    shelf.items.firstOrNull { (it is PlaylistItem || it is AlbumItem) && it.thumbnail != null && isItemEnabled(it) }
-                        ?.let { shelf.title to it }
-                }
-                if (featured != null) {
-                    item(key = "sonder_featured") {
-                        SonderFeaturedCard(featured.first, featured.second) { onItemClick(featured.second) }
-                    }
-                }
-            }
-
-            renderHomeShelves(
-                shelves = effectiveShelves,
-                shuffleLabel = text.shuffle,
-                onItemClick = onItemClick,
-                onVideoItemClick = onVideoItemClick,
-                onItemLongClick = onItemLongClick,
-                onShuffleSongs = onShuffleSongs,
-                onPlaySongs = onPlaySongs,
-                onLibraryClick = onLibraryClick,
-                onLocalShelfClick = onLocalShelfClick,
-                onSpeedDialItemLongClick = onSpeedDialItemLongClick,
-                onSpeedDialItemSecondaryClick = onSpeedDialItemSecondaryClick,
-                onArtistClick = onArtistClick,
-                onAlbumClick = onAlbumClick,
-                onPlayAlbum = onPlayAlbum,
-                currentSongId = activeSongId,
-                isPlaying = isPlaying,
-                isItemEnabled = isItemEnabled,
-                onShowSurpriseMenu = onShowSurpriseMenu,
-                onShowSurpriseSecondaryMenu = onShowSurpriseSecondaryMenu,
-                isLandscape = isLandscape,
-                speedDialSurpriseAtEndOfFirstPage = speedDialSurpriseAtEndOfFirstPage,
-                isWide = isWide,
-            )
-
-            if (uiState.isContentLoading || uiState.isLoadingMore) {
-                item(key = "home_content_loading") {
-                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        ContainedLoadingIndicator(Modifier.semantics { contentDescription = text.loading })
-                    }
-                }
-            }
-
-            if (!uiState.isLoading && uiState.error.isNullOrBlank() && uiState.loadMoreError && onLoadMore != null) {
-                item(key = "home_load_more_retry") {
-                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        TextButton(onClick = onLoadMore, shapes = ButtonDefaults.shapes()) { Text(text.tryAgain) }
-                    }
-                }
-            }
-        }
-
-        HomeRevalidationIndicator(
-            visible = uiState.isRevalidating,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = contentPadding.calculateTopPadding()),
+    val cache = remember { HomeShelfCache() }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val visibleShelves = shelves ?: (shelfCache ?: cache).build(uiState, text, maxWidth)
+        com.metrolist.shared.ui.sonder.SonderHome(
+            shelves = visibleShelves, text = text, onItemClick = onItemClick,
+            onItemLongClick = onItemLongClick, onPlaySongs = onPlaySongs,
+            currentSongId = currentSongId, enabled = isItemEnabled, listState = listState,
+            contentPadding = contentPadding, modifier = Modifier.fillMaxSize(),
+            onLoadMore = onLoadMore, loading = uiState.isContentLoading || uiState.isLoadingMore,
+            header = header,
         )
     }
 }

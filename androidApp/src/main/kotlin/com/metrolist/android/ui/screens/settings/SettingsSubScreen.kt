@@ -95,44 +95,8 @@ fun SettingsSubScreen(
         modifier = scrollBehavior?.let { modifier.nestedScroll(it.nestedScrollConnection) } ?: modifier,
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            if (LocalSettingsPageHasTopBar.current) {
-                Row(content = actions)
-            } else if (compactTopBar) {
-                TopAppBar(
-                    title = {},
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
-                        }
-                    },
-                    actions = actions,
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                )
-            } else {
-                LargeFlexibleTopAppBar(
-                    title = {
-                        Text(
-                            text = title,
-                            fontWeight = MaterialTheme.typography.titleLargeEmphasized.fontWeight,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
-                        }
-                    },
-                    actions = actions,
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
-                    scrollBehavior = scrollBehavior,
-                )
-            }
+            if (LocalSettingsPageHasTopBar.current) Row(content = actions)
+            else com.metrolist.shared.ui.sonder.SonderTopBar(title, onNavigateBack, actions)
         },
         floatingActionButton = {
             Box(modifier = Modifier.padding(bottom = miniPlayerInset)) {
@@ -251,9 +215,9 @@ internal fun SettingsSubScreenItemRow(
     val backgroundColor by animateColorAsState(
         targetValue =
             if (isPressed) {
-                MaterialTheme.colorScheme.surfaceContainerHigh
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)High
             } else {
-                MaterialTheme.colorScheme.surfaceContainer
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
             },
         label = "backgroundColor",
     )

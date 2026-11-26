@@ -360,74 +360,10 @@ private fun CompactSettingsHome(
     onPageSelected: (SettingsPageId) -> Unit,
     onSearchResultSelected: (SettingsPageId, String?) -> Unit,
 ) {
-    val isTv = LocalIsTv.current
-    val contentFocusRequester = remember { FocusRequester() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = {
-                    when {
-                        host.title != null -> {
-                            Text(host.title, fontWeight = MaterialTheme.typography.titleLargeEmphasized.fontWeight)
-                        }
-
-                        host.platform != SettingsPlatform.DESKTOP -> {
-                            Text(
-                                stringResource(Res.string.settings),
-                                fontWeight = MaterialTheme.typography.titleLargeEmphasized.fontWeight,
-                            )
-                        }
-
-                        else -> {}
-                    }
-                },
-                navigationIcon = {
-                    if (host.platform != SettingsPlatform.DESKTOP) {
-                        IconButton(
-                            onClick = host.onClose,
-                            modifier =
-                                Modifier.focusProperties {
-                                    if (isTv) down = contentFocusRequester
-                                },
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back))
-                        }
-                    }
-                },
-                actions = {
-                    if (host.platform == SettingsPlatform.DESKTOP) {
-                        IconButton(onClick = host.onClose, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.Default.Close, stringResource(Res.string.close))
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                scrollBehavior = scrollBehavior,
-            )
-        },
-    ) { padding ->
-        Box(if (isTv) Modifier.focusRequester(contentFocusRequester).focusGroup() else Modifier) {
-            SettingsHomeList(
-                registry = registry,
-                listState = listState,
-                customPageIcons = host.customPageIcons,
-                onPageSelected = onPageSelected,
-                onSearchResultSelected = onSearchResultSelected,
-                contentPadding =
-                    PaddingValues(
-                        top = padding.calculateTopPadding() + 12.dp,
-                        bottom = 24.dp + host.bottomContentPadding,
-                    ),
-            )
-        }
+    Column(Modifier.fillMaxSize()) {
+        com.metrolist.shared.ui.sonder.SonderTopBar(host.title ?: stringResource(Res.string.settings), host.onClose)
+        SettingsHomeList(registry, listState, host.customPageIcons, onPageSelected, onSearchResultSelected,
+            PaddingValues(top = 8.dp, bottom = 24.dp + host.bottomContentPadding))
     }
 }
 
@@ -461,66 +397,15 @@ private fun CompactSettingsDetail(
     onNavigate: (SettingsPageId) -> Unit,
     onSettingValueChanged: () -> Unit,
 ) {
-    val isTv = LocalIsTv.current
-    val contentFocusRequester = remember { FocusRequester() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(page.title, fontWeight = MaterialTheme.typography.titleLargeEmphasized.fontWeight) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier =
-                            Modifier.focusProperties {
-                                if (isTv) down = contentFocusRequester
-                            },
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back))
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                scrollBehavior = scrollBehavior,
-            )
-        },
-    ) { padding ->
-        Box(if (isTv) Modifier.focusRequester(contentFocusRequester).focusGroup() else Modifier) {
-            if (page.custom) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding()),
-                ) {
-                    CompositionLocalProvider(
-                        LocalSettingsPageBottomPadding provides bottomContentPadding,
-                        LocalSettingsPageHasTopBar provides true,
-                    ) {
-                        pageContent(page.id, onBack, onNavigate)
-                    }
-                }
-            } else {
-                SettingsPageList(
-                    page = page,
-                    listState = listState,
-                    lyricsPreview = lyricsPreview,
-                    highlightedItemId = highlightedItemId,
-                    onNavigate = onNavigate,
-                    onSettingValueChanged = onSettingValueChanged,
-                    contentPadding =
-                        PaddingValues(
-                            top = padding.calculateTopPadding() + 12.dp,
-                            bottom = 24.dp + bottomContentPadding,
-                        ),
-                )
+    Column(Modifier.fillMaxSize()) {
+        com.metrolist.shared.ui.sonder.SonderTopBar(page.title, onBack)
+        if (page.custom) {
+            CompositionLocalProvider(LocalSettingsPageBottomPadding provides bottomContentPadding, LocalSettingsPageHasTopBar provides true) {
+                pageContent(page.id, onBack, onNavigate)
             }
+        } else {
+            SettingsPageList(page, lyricsPreview, listState, highlightedItemId, onNavigate, onSettingValueChanged,
+                PaddingValues(top = 8.dp, bottom = 24.dp + bottomContentPadding))
         }
     }
 }
@@ -887,29 +772,14 @@ private fun SettingsRootGroup(
     customPageIcons: Map<SettingsPageId, @Composable (Color) -> Unit>,
     onPageSelected: (SettingsPageId) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = group.title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(start = 16.dp, end = 32.dp, top = 8.dp, bottom = 12.dp),
-        )
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Text(group.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 10.dp))
+        com.metrolist.shared.ui.sonder.SonderGroup {
             group.pages.forEachIndexed { index, pageId ->
                 registry[pageId]?.let { page ->
-                    SettingsNavigationRow(
-                        title = page.title,
-                        subtitle = page.subtitle,
-                        icon = page.icon,
-                        customIcon = customPageIcons[pageId],
-                        first = index == 0,
-                        last = index == group.pages.lastIndex,
-                        onClick = { onPageSelected(pageId) },
-                    )
+                    SettingsNavigationRow(page.title, page.icon, index == 0, index == group.pages.lastIndex,
+                        { onPageSelected(pageId) }, subtitle = page.subtitle, customIcon = customPageIcons[pageId])
+                    if (index < group.pages.lastIndex) HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
                 }
             }
         }
@@ -936,22 +806,22 @@ internal fun SettingsNavigationRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val shape = segmentedGroupShape(first, last, pressed)
+    val shape = RoundedCornerShape(8.dp)
     val containerColor by animateColorAsState(
-        if (pressed) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer,
+        if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f) else Color.Transparent,
         label = "settingsRootRow",
     )
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp)
+                .heightIn(min = 60.dp)
                 .then(focusModifier(shape))
                 .clip(shape)
                 .background(containerColor)
                 .focusOutline(shape)
                 .clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val resolvedIconTint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
@@ -1005,7 +875,7 @@ internal fun SettingsItemGroup(
                 Text(
                     text = group.title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.semantics { heading() },
                 )
@@ -1018,10 +888,7 @@ internal fun SettingsItemGroup(
                 }
             }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+        com.metrolist.shared.ui.sonder.SonderGroup(Modifier.padding(horizontal = horizontalPadding)) {
             group.items.forEachIndexed { index, item ->
                 SettingsItemRow(
                     item = if (group.enabled) item else item.copy(enabled = false),
@@ -1080,10 +947,10 @@ private fun SettingsItemRow(
     }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val shape = segmentedGroupShape(first, last, pressed)
+    val shape = RoundedCornerShape(8.dp)
     val background by animateColorAsState(
         targetValue =
-            if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.settingsRowContainerColor(pressed),
+            if (highlighted) MaterialTheme.colorScheme.primaryContainer else if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f) else Color.Transparent,
         label = "settingsItemRow",
     )
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -1102,7 +969,7 @@ private fun SettingsItemRow(
                 Modifier
                     .bringIntoViewRequester(bringIntoViewRequester)
                     .fillMaxWidth()
-                    .heightIn(min = 72.dp)
+                    .heightIn(min = 60.dp)
                     .clip(shape)
                     .background(background)
                     .focusOutline(shape)
@@ -1133,7 +1000,7 @@ private fun SettingsItemRow(
                                     },
                             )
                         },
-                    ).padding(horizontal = 16.dp, vertical = 16.dp),
+                    ).padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

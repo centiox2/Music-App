@@ -206,7 +206,7 @@ fun MetrolistNavigationScaffold(
         navigationVisible = navigationVisible,
         floatingNavigation = useFloatingNavigation,
         onFloatingNavigationOccupiedHeightChanged = onFloatingNavigationOccupiedHeightChanged,
-        floatingSeparateKey = Screen.Search.takeIf { it in screens },
+        floatingSeparateKey = null,
         navigationSuiteType = navigationSuiteType,
         navigationSuiteColors =
             NavigationSuiteDefaults.colors(
@@ -253,8 +253,8 @@ fun MetrolistNavigationScaffold(
 private fun floatingNavigationItems(): List<Screen> =
     buildList {
         if (Settings.shared.showBottomNavHome) add(Screen.Home)
-        if (Settings.shared.showBottomNavLibrary) add(Screen.Library)
         if (Settings.shared.showBottomNavSearch) add(Screen.Search)
+        if (Settings.shared.showBottomNavLibrary) add(Screen.Library)
         if (isEmpty()) add(Screen.EasterEgg)
     }
 

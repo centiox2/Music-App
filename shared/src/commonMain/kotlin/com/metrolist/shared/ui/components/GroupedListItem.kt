@@ -20,31 +20,5 @@ fun GroupedListItem(
     isCurrent: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val topRadius = if (index == 0) 16.dp else 4.dp
-    val bottomRadius = if (index == count - 1) 16.dp else 4.dp
-
-    val colors =
-        animateCurrentSongColors(
-            isCurrent = isCurrent,
-            container = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-        )
-
-    Box(modifier.padding(bottom = if (index < count - 1) 3.dp else 0.dp)) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape =
-                if (isCurrent) {
-                    CircleShape
-                } else {
-                    RoundedCornerShape(
-                        topStart = topRadius,
-                        topEnd = topRadius,
-                        bottomStart = bottomRadius,
-                        bottomEnd = bottomRadius,
-                    )
-                },
-            color = colors.container,
-            content = content,
-        )
-    }
+    Box(modifier) { content() }
 }
