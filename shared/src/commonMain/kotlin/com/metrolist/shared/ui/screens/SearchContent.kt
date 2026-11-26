@@ -254,6 +254,8 @@ fun SearchContent(
         onHistory = onHistoryItemClick, onClearHistory = onClearHistory,
         onFilter = onFilterSelected, onLoadMore = onLoadMore, currentSongId = currentSongId,
         modifier = modifier, listState = listState, padding = contentPadding,
+        onRemoveHistory = onRemoveHistoryItem, onRemoveRecent = onRemoveRecentItem,
+        onClearRecent = onClearRecentItems, onRetryLoadMore = onRetryLoadMore, itemContainer = itemContainer,
     )
 }
 

@@ -7,6 +7,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
+import com.metrolist.shared.generated.resources.*
+import com.metrolist.shared.ui.icons.MetrolistIcons
+import org.jetbrains.compose.resources.stringResource
 import com.metrolist.shared.ui.screens.SearchContentText
 import com.metrolist.shared.viewmodels.SearchViewModel.SearchUiState
 
@@ -16,6 +19,9 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
     onHistory: (String) -> Unit, onClearHistory: () -> Unit,
     onFilter: (SearchFilter?) -> Unit, onLoadMore: () -> Unit,
     currentSongId: String?, modifier: Modifier, listState: LazyListState, padding: PaddingValues,
+    onRemoveHistory: (String) -> Unit = {}, onRemoveRecent: (YTItem) -> Unit = {},
+    onClearRecent: () -> Unit = {}, onRetryLoadMore: () -> Unit = {},
+    itemContainer: @Composable (YTItem, @Composable () -> Unit) -> Unit = { _, content -> content() },
 ) {
     val results = state.filteredResults?.items ?: state.searchSummary?.summaries?.flatMap { it.items } ?: state.unfilteredResults?.items.orEmpty()
     val filters = listOf(null to text.filterAll, SearchFilter.SONG to text.filterSongs, SearchFilter.ALBUM to text.filterAlbums, SearchFilter.ARTIST to text.filterArtists, SearchFilter.FEATURED_PLAYLIST to text.filterPlaylists, SearchFilter.VIDEO to text.filterVideos, SearchFilter.COMMUNITY_PLAYLIST to text.filterCommunityPlaylists, SearchFilter.PODCAST to text.filterPodcasts, SearchFilter.EPISODE to text.filterEpisodes, SearchFilter.PROFILE to text.filterProfiles)
@@ -33,8 +39,8 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
                 }
             }
             if (state.isSearching && results.isEmpty()) item("loading") { Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) } }
-            if (!state.isSearching && results.isEmpty()) item("empty") { Text(if (state.searchFailed) text.startTypingToSearch else text.noResultsFound, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            itemsIndexed(results, key = { index, item -> "search_${index}_${item.id}" }) { _, item -> SonderMediaRow(item, { onItem(item) }, { onMore(item) }, current = item.id == currentSongId) }
+            if (!state.isSearching && results.isEmpty()) item("empty") { Text(if (state.searchFailed) stringResource(Res.string.search_online_failed) else text.noResultsFound, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            itemsIndexed(results, key = { index, item -> "search_${index}_${item.id}" }) { _, item -> itemContainer(item) { SonderMediaRow(item, { onItem(item) }, { onMore(item) }, current = item.id == currentSongId) } }
         } else if (state.query.isNotBlank()) {
             val suggestions = state.searchSuggestions?.queries.orEmpty()
             item("suggestions") { SonderSection(text.suggestions) }
@@ -45,12 +51,22 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
         } else {
             if (state.searchHistory.isNotEmpty()) {
                 item("recent_title") { SonderSection(text.recentSearches, text.clear, onClearHistory) }
-                items(state.searchHistory.distinct()) { query -> TextButton(onClick = { onHistory(query) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) { Text(query, Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) } }
+                items(state.searchHistory.distinct()) { query ->
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        TextButton(onClick = { onHistory(query) }, modifier = Modifier.weight(1f)) { Text(query, Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
+                        SonderIcon(MetrolistIcons.Outlined.Close, text.removeRecentSearchAction, { onRemoveHistory(query) })
+                    }
+                }
             }
-            if (state.recentSearchItems.isNotEmpty()) item("recent_music") { SonderSection(text.recentFromSearches) }
-            itemsIndexed(state.recentSearchItems) { _, item -> SonderMediaRow(item, { onItem(item) }, { onMore(item) }) }
+            if (state.recentSearchItems.isNotEmpty()) item("recent_music") { SonderSection(text.recentFromSearches, text.clear, onClearRecent) }
+            itemsIndexed(state.recentSearchItems) { _, item -> itemContainer(item) {
+                SonderMediaRow(item, { onItem(item) }, { onMore(item) }, trailing = {
+                    SonderIcon(MetrolistIcons.Outlined.Close, text.removeRecentSearchItemAction, { onRemoveRecent(item) })
+                })
+            } }
             if (state.searchHistory.isEmpty() && state.recentSearchItems.isEmpty()) item("start") { Text(text.startTypingToSearch, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
+        if (state.loadMoreFailed) item("retry") { TextButton(onClick = onRetryLoadMore, modifier = Modifier.padding(20.dp)) { Text(stringResource(Res.string.retry)) } }
         if (state.isLoadingMore) item("more") { Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) } }
     }
 }

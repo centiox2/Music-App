@@ -18,6 +18,11 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
 import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.player.*
+import com.metrolist.shared.ui.menu.*
+import com.metrolist.shared.ui.components.PlayerMenuAction
+import com.metrolist.shared.ui.components.MiniPlayer
+import com.metrolist.shared.ui.icons.MetrolistIcons
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.ui.components.images.AsyncImage
 import androidx.compose.ui.focus.FocusRequester
@@ -104,6 +109,31 @@ class SonderScreenshotsTest {
             artwork = { AsyncImage(song.thumbnail, it) }, lyrics = {}, queue = {},
             timeline = { SonderSeekBar(68000, 205000, true, {}) },
         )
+    }
+    @Test fun libraryList() = library(false)
+    @Test fun libraryGrid() = library(true)
+    private fun library(grid: Boolean) = render("library-${if (grid) "grid" else "list"}") {
+        Column {
+            SonderTopBar("Your library")
+            LibraryContent(
+                text = LibraryContentText(LibraryFilter.entries.associateWith { it.name.lowercase().replaceFirstChar(Char::uppercase) }, LibrarySortType.entries.associateWith { it.name.lowercase().replace('_', ' ') }, "Empty", "Sort", "Grid", "List", "Artist", "Loading", "Search", "Search your library", "No results"),
+                items = songs + album, autoPlaylists = listOf(LibraryAutoPlaylist("liked", "Liked songs", "8 songs", MetrolistIcons.Rounded.Favorite), LibraryAutoPlaylist("downloaded", "Downloads", "Ready offline", MetrolistIcons.Filled.Download)),
+                hiddenItemKeys = emptySet(), isLoading = false, isGridView = grid, selectedFilter = null, manualOrder = "", topPadding = 0.dp, compactGrid = false,
+                onFilterChange = {}, onGridViewChange = {}, onManualOrderChange = {}, onItemClick = {}, onPlaySongs = { _, _ -> }, currentSongId = null, isPlaying = false, onAutoPlaylistClick = {},
+                itemContainer = { _, _, _, _, content -> content() }, scrollState = rememberLazyGridState(),
+            )
+        }
+    }
+    @Test fun mediaMenu() = render("media-menu") {
+        Column(Modifier.padding(top = 24.dp)) { MediaMenuSheetContent(MediaMenuModel(songs.first().title, "Luna Vale", album.thumbnail,
+            primaryActions = listOf(PlayerMenuAction(MetrolistIcons.Rounded.PlayArrow, "Play next", onClick = {}), PlayerMenuAction(MetrolistIcons.Filled.Add, "Add to queue", onClick = {})),
+            actionGroups = listOf(listOf(PlayerMenuAction(MetrolistIcons.Rounded.FavoriteBorder, "Like", onClick = {}), PlayerMenuAction(MetrolistIcons.Filled.Download, "Download", onClick = {}), PlayerMenuAction(MetrolistIcons.Outlined.Share, "Share", onClick = {}))))) }
+    }
+    @Test fun miniPlayer() = render("mini-player") {
+        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) { MiniPlayer(songs.first(), true, false, { 68000 }, 205000, {}, {}, {}, {}, isLiked = true, onLike = {}) }
+    }
+    @Test fun statistics() = render("statistics") {
+        StatisticsScreen(StatisticsUiState(totalPlays = 120, totalTimeMs = 36000000, artistCount = 18, albumCount = 9), {}, {}, {}, {}, null, "Share", { true }, onNavigateBack = {})
     }
     @Test fun rowsAndControls() = render("rows-and-controls") {
         Column { SonderTopBar("Your library", {}); Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { SonderPill("Songs", true) {}; SonderPill("Albums", false) {}; SonderPill("Playlists", false) {} }; songs.forEach { SonderMediaRow(it, {}, {}) }; SonderGroup(Modifier.padding(20.dp)) { Text("Playback", Modifier.padding(16.dp)); Row(Modifier.padding(16.dp)) { Text("Autoplay", Modifier.weight(1f)); com.metrolist.shared.ui.components.ExpressiveSwitch(true, {}) } } }
