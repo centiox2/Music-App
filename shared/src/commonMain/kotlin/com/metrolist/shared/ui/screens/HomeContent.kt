@@ -241,6 +241,8 @@ fun HomeContent(
                 HomeShelfHeaderAction.SHUFFLE -> text.shuffle
                 else -> null
             } },
+            genres = uiState.moodsAndGenres,
+            onGenreClick = { genre -> onItemClick(BrowseItem(genre.id, genre.name, genre.thumbnail, genre.params)) },
         )
     }
 }

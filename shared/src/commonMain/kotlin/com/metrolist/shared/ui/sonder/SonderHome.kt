@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
+import com.metrolist.shared.viewmodels.HomeViewModel
 import com.metrolist.shared.ui.screens.HomeShelf
 import com.metrolist.shared.ui.screens.HomeContentText
 import com.metrolist.shared.generated.resources.Res
@@ -24,6 +25,8 @@ fun SonderHome(
     onLoadMore: (() -> Unit)?, loading: Boolean, header: (LazyListScope.() -> Unit)?,
     shelfAction: (HomeShelf) -> (() -> Unit)? = { null },
     shelfActionLabel: (HomeShelf) -> String? = { null },
+    genres: List<HomeViewModel.Genre> = emptyList(),
+    onGenreClick: (HomeViewModel.Genre) -> Unit = {},
 ) {
     val featured = shelves.firstNotNullOfOrNull { shelf ->
         shelf.items.firstOrNull { (it is PlaylistItem || it is AlbumItem) && it.thumbnail != null && enabled(it) }?.let { shelf to it }
@@ -36,6 +39,14 @@ fun SonderHome(
     LaunchedEffect(nearEnd, shelves.size) { if (nearEnd) onLoadMore?.invoke() }
     LazyColumn(modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
         header?.invoke(this)
+        if (genres.isNotEmpty()) item("sonder_moods") {
+            LazyRow(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { SonderPill("For you", selected = true, onClick = {}) }
+                items(genres, key = { "sonder_genre_${it.id}" }) { genre ->
+                    SonderPill(genre.name, onClick = { onGenreClick(genre) })
+                }
+            }
+        }
         if (featured != null) item("sonder_featured") {
             SonderFeaturedCard(featured.first.title, featured.second) { onItemClick(featured.second) }
         }

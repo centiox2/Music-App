@@ -85,7 +85,10 @@ class SonderScreenshotsTest {
         val text = HomeContentText("Moods & genres", "For you", "New releases", "Similar to", "Podcasts", "Charts", "Albums", "Made for you", "Recap", "Shuffle", "Play all", "Keep listening", "Quick picks", "Favorites", "Loading", "Try again", "Unavailable")
         SonderHome(listOf(HomeShelf("featured", "Made for you", listOf(album), HomeShelfStyle.CAROUSEL), HomeShelf("quick", "Quick picks", songs, HomeShelfStyle.SONG_LIST)),
             text, {}, {}, {}, remember { mutableStateOf(null) }, { true }, rememberLazyListState(), PaddingValues(bottom = 12.dp), Modifier,
-            null, false, { item { SonderTopBar("Home"); Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { SonderPill("For you", true) {}; SonderPill("Relax", false) {}; SonderPill("Focus", false) {} } } })
+            null, false, { item { SonderTopBar("Home") } }, genres = listOf(
+                com.metrolist.shared.viewmodels.HomeViewModel.Genre("Relax", "genre-relax"),
+                com.metrolist.shared.viewmodels.HomeViewModel.Genre("Focus", "genre-focus"),
+            ))
     }
     @Test fun album() = render("album-dark") {
         Column { SonderTopBar("Album", {}); AlbumHeader(album, songs, false, onArtistClick = {}, description = "A little room to slow down.", showMoreLabel = "More", showLessLabel = "Less"); songs.take(3).forEach { SonderMediaRow(it, {}, {}) } }
