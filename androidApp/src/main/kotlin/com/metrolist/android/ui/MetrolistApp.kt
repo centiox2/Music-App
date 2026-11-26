@@ -1459,7 +1459,7 @@ fun MetrolistApp(
                                                         ) {
                                                             Icon(
                                                                 MetrolistIcons.Outlined.Search,
-                                                                contentDescription = stringResource(Res.string.menu_history),
+                                                                contentDescription = stringResource(Res.string.search),
                                                                 modifier = Modifier.size(24.dp),
                                                             )
                                                         }

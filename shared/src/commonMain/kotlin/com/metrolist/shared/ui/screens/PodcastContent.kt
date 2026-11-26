@@ -481,7 +481,7 @@ private fun EpisodeRow(
             progress >= 1f -> 0.24f
             else -> 0.12f
         }
-    val shape = segmentedGroupShape(isFirst, isLast, isPressed)
+    val shape = RoundedCornerShape(12.dp)
     Card(
         modifier =
             Modifier
@@ -496,7 +496,7 @@ private fun EpisodeRow(
                 .onSecondaryClick { showMenu = true },
         colors =
             CardDefaults.cardColors(
-                containerColor = lerp(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.primary, primaryTint),
+                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isActive) 0.08f else 0f),
             ),
         shape = shape,
     ) {
@@ -507,7 +507,7 @@ private fun EpisodeRow(
                         url = episode.thumbnail,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(64.dp).clip(gridCellShape()),
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)),
                     )
                     SongThumbnailPlayingIndicator(
                         isActive = isActive && !Settings.shared.uiEnhancements,

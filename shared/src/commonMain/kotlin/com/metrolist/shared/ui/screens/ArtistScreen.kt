@@ -2,6 +2,7 @@
 
 package com.metrolist.shared.ui.screens
 
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState

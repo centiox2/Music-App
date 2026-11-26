@@ -48,9 +48,10 @@ internal fun SonderPlayerScreen(
     val state by viewModel.uiState.collectWhilePlayerActive(active)
     val song = state.currentSong ?: return
     val platform = LocalPlayerPlatform.current
-    val session = LocalPlayerSession.current
     var pane by remember { mutableStateOf(SonderPlayerPane.COVER) }
     var menu by remember { mutableStateOf(false) }
+    var queueMenu by remember { mutableStateOf<Long?>(null) }
+    val download = platform.rememberSongDownloader()
     var details by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf(false) }
     var lyricsMenu by remember { mutableStateOf(false) }
@@ -64,7 +65,13 @@ internal fun SonderPlayerScreen(
     DisposableEffect(Unit) { onDispose { onLyricsVisible(false) } }
     LaunchedEffect(active, requestFocus) { if (active && requestFocus) { playFocus.requestFocus(); onFocusRequested() } }
     if (!active) return
-    platform.PlayerWindowEffects(hideSystemBars = false, lockLandscape = false)
+    platform.PlayerWindowEffects(hideSystemBars = state.isFullscreen && state.isVideoModeActive, lockLandscape = state.isFullscreen && state.isVideoModeActive)
+    if (state.isFullscreen && state.isVideoModeActive) {
+        platform.MusicVideoSurface(modifier.fillMaxSize(), 0.dp, true, true, true,
+            { viewModel.toggleFullscreen() },
+            if (platform.supportsPictureInPicture) ({ platform.enterPictureInPicture(state.isPlaying, true) }) else null)
+        return
+    }
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         LiquidBackground(song.thumbnail, animate = Settings.shared.animatedGradient, isPlaying = state.isPlaying, visible = active)
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -92,7 +99,7 @@ internal fun SonderPlayerScreen(
                         SonderPlayerPane.QUEUE -> LazyColumn(mod) {
                             itemsIndexed(state.queueEntryKeys, key = { _, key -> key }) { index, key ->
                                 viewModel.getQueueSong(key)?.let { entry ->
-                                    SonderMediaRow(entry, { viewModel.playQueueEntry(key) }, { viewModel.removeQueueEntry(key) }, current = index == state.currentQueueIndex)
+                                    SonderMediaRow(entry, { viewModel.playQueueEntry(key) }, { queueMenu = key }, current = index == state.currentQueueIndex)
                                 }
                             }
                         }
@@ -148,6 +155,24 @@ internal fun SonderPlayerScreen(
             }
         }
     }
+    queueMenu?.let { key ->
+        viewModel.getQueueSong(key)?.let { entry ->
+            val index = state.queueEntryKeys.indexOf(key)
+            platform.QueueMenu(
+                song = entry, durationText = null,
+                isLiked = state.queueItems.getOrNull(index)?.isLiked == true,
+                onDismiss = { queueMenu = null },
+                onRemoveFromQueue = if (guest) null else ({ viewModel.removeQueueEntry(key) }),
+                onPlayNext = { viewModel.playNextQueueEntry(key) },
+                onStartRadio = { viewModel.startRadio(entry) },
+                onAddToQueue = { viewModel.addQueueEntry(key) },
+                onLike = { viewModel.toggleLikeQueueEntry(key) },
+                onGoToAlbum = entry.album?.id?.let { id -> { onAlbum(id) } },
+                onGoToArtist = onArtist, onShare = { viewModel.shareSong(entry) },
+                onDownload = { download(listOf(entry)) }, onNavigateToListenTogether = onListenTogether,
+            )
+        }
+    }
     if (menu) platform.PlayerMenu(viewModel, { menu = false }, onAlbum, onArtist, onListenTogether, { details = true })
     if (details) platform.SongDetailsSheet(viewModel, { details = false })
     if (devices) platform.DeviceConnectSheet({ devices = false }, onIntegrations)
@@ -168,7 +193,7 @@ private fun SonderTimeline(viewModel: PlayerViewModel, duration: Long, enabled: 
     val seek: (Float) -> Unit = { f -> viewModel.seekToPosition((f.coerceIn(0f, 1f) * duration).roundToLong()) }
     Column {
         Canvas(Modifier.fillMaxWidth().height(28.dp)
-            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f); setProgress { seek(it); true } }
+            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f); setProgress { if (enabled) { seek(it); true } else false } }
             .pointerInput(duration, enabled) { if (enabled) detectTapGestures { seek(it.x / size.width) } }
             .pointerInput(duration, enabled) { if (enabled) detectDragGestures(onDragEnd = { preview?.let(seek); preview = null }, onDragCancel = { preview = null }) { change, _ -> change.consume(); preview = (change.position.x / size.width).coerceIn(0f, 1f) } }) {
             val y = size.height / 2
