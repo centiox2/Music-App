@@ -198,7 +198,7 @@ fun SonderPlayerPresentation(
                         }
                         timeline()
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onAction(SonderPlayerAction.SHUFFLE) }, enabled = !guest)
+                            SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onAction(SonderPlayerAction.SHUFFLE) }, enabled = !guest, selected = state.isShuffleOn)
                             SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), { onAction(SonderPlayerAction.PREVIOUS) }, enabled = !guest)
                             Surface(onClick = { onAction(SonderPlayerAction.PLAY_PAUSE) }, shape = CircleShape, color = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(if (wide) 68.dp else 76.dp).focusRequester(playFocus)) {
@@ -208,7 +208,7 @@ fun SonderPlayerPresentation(
                                 }
                             }
                             SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), { onAction(SonderPlayerAction.NEXT) }, enabled = !guest)
-                            SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), { onAction(SonderPlayerAction.REPEAT) }, enabled = !guest)
+                            SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), { onAction(SonderPlayerAction.REPEAT) }, enabled = !guest, selected = state.repeatMode != 0)
                         }
                         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.clickable { onAction(SonderPlayerAction.RETRY) }) }
                     }

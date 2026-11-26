@@ -48,6 +48,7 @@ data class PlayerMenuAction(
     val onClick: () -> Unit,
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerMenuActionGroup(
     actions: List<PlayerMenuAction>,
@@ -56,7 +57,7 @@ fun PlayerMenuActionGroup(
     if (actions.isEmpty()) return
     com.metrolist.shared.ui.sonder.SonderGroup(modifier) {
         actions.forEachIndexed { index, action ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(enabled = action.enabled, onClick = action.onClick).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = action.enabled, onClick = action.onClick, onLongClick = action.onLongClick).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                 PlayerMenuActionIcon(action, Modifier.size(22.dp))
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {

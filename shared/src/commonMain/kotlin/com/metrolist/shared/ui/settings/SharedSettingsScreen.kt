@@ -176,9 +176,9 @@ internal fun SharedSettingsRegistryScreen(
     var highlightedItemId by rememberSaveable { mutableStateOf<String?>(null) }
     val originalRegistry = registryFactory(settingsRevision)
     val registry = remember(originalRegistry) {
-        val retiredDesigns = setOf("appLayout", "floatingNavBar", "slimNavBar", "floatingTopBar", "miniPlayerType", "playerType", "playerThumbnailStyle", "useRoundedRectPlayButton", "miniplayerFocusMode", "slimNavigation", "floatingNavigation", "roundedPlayButton", "playerBackground", "sliderStyle", "sliderThickness", "miniPlayerBackground", "playVideosInMiniPlayer", "swipeThumbnail", "showMiniPlayerPlaylistButton", "showMiniPlayerSubscribeButton", "materialYou", "themeColor", "dynamicTheme", "paletteStyle", "uiEnhancements", "showPlayerCastButton")
+        val retiredDesigns = setOf("appLayout", "floatingNavBar", "slimNavBar", "floatingTopBar", "miniPlayerType", "playerType", "playerThumbnailStyle", "useRoundedRectPlayButton", "miniplayerFocusMode", "slimNavigation", "floatingNavigation", "roundedPlayButton", "playerBackground", "sliderStyle", "sliderThickness", "miniPlayerBackground", "playVideosInMiniPlayer", "swipeThumbnail", "showMiniPlayerPlaylistButton", "showMiniPlayerSubscribeButton", "materialYou", "themeColor", "dynamicTheme", "paletteStyle", "uiEnhancements", "showPlayerCastButton", "showHomeTab", "showSearchTab", "showLibraryTab")
         originalRegistry.copy(pages = originalRegistry.pages.map { page ->
-            page.copy(groups = page.groups.map { group -> group.copy(items = group.items.filterNot { it.id in retiredDesigns || it.id.contains("expressiveMiniPlayer", ignoreCase = true) }) })
+            page.copy(groups = page.groups.map { group -> group.copy(items = group.items.filterNot { it.id in retiredDesigns || it.id.contains("expressiveMiniPlayer", ignoreCase = true) }) }.filter { it.items.isNotEmpty() })
         })
     }
     LaunchedEffect(host.initialPage, registry) {

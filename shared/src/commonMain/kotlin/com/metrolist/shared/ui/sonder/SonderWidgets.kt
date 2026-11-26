@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,10 +33,10 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Presentation primitives ported from Sonder's ui/glow, independent of playback and networking. */
 @Composable
-fun SonderIcon(icon: ImageVector, label: String?, onClick: () -> Unit, modifier: Modifier = Modifier, glass: Boolean = false, enabled: Boolean = true) {
+fun SonderIcon(icon: ImageVector, label: String?, onClick: () -> Unit, modifier: Modifier = Modifier, glass: Boolean = false, enabled: Boolean = true, selected: Boolean? = null) {
     Box(modifier.size(44.dp).clip(CircleShape)
-        .background(if (glass) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent)
-        .focusOutline(CircleShape).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        .background(if (selected == true) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f) else if (glass) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent)
+        .focusOutline(CircleShape).semantics { selected?.let { this.selected = it } }.clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(icon, label, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f))
     }
 }
@@ -60,7 +62,7 @@ fun SonderSection(title: String, action: String? = null, onAction: (() -> Unit)?
 fun SonderPill(text: String, selected: Boolean = false, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(Modifier.clip(CircleShape).background(if (selected) colors.primary else colors.onSurface.copy(alpha = 0.09f))
-        .focusOutline(CircleShape).clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 18.dp, vertical = 10.dp)) {
+        .focusOutline(CircleShape).semantics { this.selected = selected }.clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 18.dp, vertical = 10.dp)) {
         Text(text, color = if (selected) colors.onPrimary else colors.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
     }
 }
