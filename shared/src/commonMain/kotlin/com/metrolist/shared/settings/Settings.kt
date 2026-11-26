@@ -311,7 +311,7 @@ class Settings(
     var selectedThemeColor by preference(0L)
     var themePaletteStyle by preference(ThemePaletteStyle.TONAL_SPOT)
 
-    var appFont by preference(FontOption.SYSTEM)
+    var appFont by preference(FontOption.INTER)
     var androidCustomFontFile by preference(AndroidCustomFontFileKey, "")
     var androidCustomFontName by preference(AndroidCustomFontNameKey, "")
     var androidActiveFontId by preference(AndroidActiveFontIdKey, "")
@@ -349,7 +349,7 @@ class Settings(
 
     val isPlayerCastButtonVisible: Boolean
         get() = castEnabled && showPlayerCastButton
-    var playerBackgroundStyle by preference(PlayerBackgroundStyle.SOLID)
+    var playerBackgroundStyle by preference(PlayerBackgroundStyle.LIQUID)
     var sliderStyle by preference(SliderStyle.DEFAULT)
     var sliderTrackThicknessDp by preference(SliderTrackThicknessDpKey, 5f)
     var playbackSpeed by preference(PlaybackSpeedKey, 1f)
@@ -380,7 +380,7 @@ class Settings(
     var equalizerEnabled by preference(EqualizerEnabledKey, false)
     var audioBoostDb by preference(AudioBoostDbKey, 0f)
     var playerType by preference(PlayerType.MODERN)
-    var miniPlayerType by preference(MiniPlayerType.EXPRESSIVE)
+    var miniPlayerType by preference(MiniPlayerType.VINTAGE)
     var useRoundedRectPlayButton by preference(false)
     var cropAlbumArt by preference(true)
     var swapPlayerControls by preference(false)
@@ -390,7 +390,7 @@ class Settings(
     var enableLandscapeScaling by preference(EnableLandscapeScalingKey, false)
     var forceBottomNavBar by preference(ForceBottomNavBarKey, false)
     var slimNavBar by preference(SlimNavBarKey, false)
-    var floatingNavBar by preference(FloatingNavBarKey, false)
+    var floatingNavBar by preference(FloatingNavBarKey, true)
     var floatingTopBar by preference(FloatingTopBarKey, false)
     var floatingSearch by preference(false)
     var voiceSearchEnabled by preference(VoiceSearchEnabledKey, true)

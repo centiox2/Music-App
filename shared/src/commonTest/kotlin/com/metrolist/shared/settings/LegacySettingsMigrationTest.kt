@@ -296,7 +296,7 @@ class LegacySettingsMigrationTest {
             )
         repeat(2) {
             val settings = Settings(StrictTypedSettings(backing))
-            assertEquals(PlayerBackgroundStyle.SOLID, settings.playerBackgroundStyle)
+            assertEquals(PlayerBackgroundStyle.LIQUID, settings.playerBackgroundStyle)
             assertFalse(backing.hasKey("playerBackgroundStyle"))
             assertEquals(ThemeMode.DARK, settings.themeMode)
             assertEquals(LibraryFilterType.PLAYLISTS, settings.libraryFilter)

@@ -11,6 +11,15 @@ import androidx.compose.ui.platform.LocalLocaleList
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import com.metrolist.shared.settings.FontOption
+import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.inter_regular
+import com.metrolist.shared.generated.resources.inter_italic
+import com.metrolist.shared.generated.resources.inter_medium
+import com.metrolist.shared.generated.resources.inter_semibold
+import com.metrolist.shared.generated.resources.inter_bold
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.sp
 import com.metrolist.shared.settings.Settings
@@ -37,7 +46,17 @@ expect fun localeAwareSystemFontFamily(languageTag: String): FontFamily
 
 @Composable
 fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typography {
-    val font = localeAwareSystemFontFamily(localeList[0].toLanguageTag())
+    val font = if (Settings.shared.appFont == FontOption.INTER) {
+        FontFamily(
+            Font(Res.font.inter_regular, FontWeight.Normal),
+            Font(Res.font.inter_italic, FontWeight.Normal, FontStyle.Italic),
+            Font(Res.font.inter_medium, FontWeight.Medium),
+            Font(Res.font.inter_semibold, FontWeight.SemiBold),
+            Font(Res.font.inter_bold, FontWeight.Bold),
+        )
+    } else {
+        localeAwareSystemFontFamily(localeList[0].toLanguageTag())
+    }
 
     return Typography(
         fontFamily = font,
@@ -100,7 +119,7 @@ fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typogr
                 fontFamily = font,
                 fontWeight = FontWeight.SemiBold,
                 localeList = localeList,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 lineHeight = 28.sp,
                 letterSpacing = 0.sp,
             ),
@@ -129,7 +148,7 @@ fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typogr
                 fontSize = 16.sp,
                 localeList = localeList,
                 lineHeight = 24.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.sp,
             ),
         bodyMedium =
             TextStyle(
@@ -138,7 +157,7 @@ fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typogr
                 fontSize = 14.sp,
                 localeList = localeList,
                 lineHeight = 20.sp,
-                letterSpacing = 0.25.sp,
+                letterSpacing = 0.sp,
             ),
         bodySmall =
             TextStyle(
@@ -165,7 +184,7 @@ fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typogr
                 fontSize = 12.sp,
                 localeList = localeList,
                 lineHeight = 16.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.sp,
             ),
         labelSmall =
             TextStyle(
@@ -174,7 +193,7 @@ fun MetrolistTypography(localeList: LocaleList = currentAppLocaleList()): Typogr
                 fontSize = 11.sp,
                 localeList = localeList,
                 lineHeight = 16.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.sp,
             ),
     )
 }

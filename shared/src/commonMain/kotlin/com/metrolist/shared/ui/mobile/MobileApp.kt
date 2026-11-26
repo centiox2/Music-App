@@ -262,6 +262,7 @@ import com.metrolist.shared.ui.settings.rememberIosAppIconActions
 import com.metrolist.shared.ui.settings.rememberIosFontActions
 import com.metrolist.shared.ui.settings.rememberIosLogExportAction
 import com.metrolist.shared.ui.theme.MdSpacing
+import com.metrolist.shared.ui.sonder.sonderBackdrop
 import com.metrolist.shared.ui.theme.MetrolistTheme
 import com.metrolist.shared.ui.theme.rememberArtworkSeedColor
 import com.metrolist.shared.ui.theme.resolveThemeSeedColor
@@ -812,7 +813,7 @@ fun MobileApp(
                 onSelect = ::selectTab,
                 navigationVisible = routeStack.isEmpty(),
                 floatingNavigation = useFloatingNavBar,
-                floatingSeparateKey = MobileRoute.Search.takeIf { it in visibleTabRoutes },
+                floatingSeparateKey = null,
                 onFloatingNavigationHeightChanged = { floatingNavBarHeight = it },
                 navigationSuiteType = adaptiveLayout.navigationSuiteType,
                 navigationItemVerticalArrangement = Arrangement.Center,
@@ -826,8 +827,9 @@ fun MobileApp(
                         }
                     },
                     // The floating bar already reserves the bottom system inset.
-                    modifier = Modifier.consumeWindowInsets(PaddingValues(bottom = floatingContentInset)),
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.sonderBackdrop(playbackState.currentSong?.thumbnail)
+                        .consumeWindowInsets(PaddingValues(bottom = floatingContentInset)),
+                    containerColor = Color.Transparent,
                     topBar = {
                         if (isTopLevelRoute) {
                             TopAppBar(
@@ -851,7 +853,7 @@ fun MobileApp(
                                                     ""
                                                 }
                                             },
-                                        style = MaterialTheme.typography.titleLargeEmphasized,
+                                        style = MaterialTheme.typography.headlineLarge,
                                     )
                                 },
                                 subtitle = {
@@ -933,12 +935,8 @@ fun MobileApp(
                                 },
                                 colors =
                                     TopAppBarDefaults.topAppBarColors(
-                                        containerColor =
-                                            if (pureBlack) {
-                                                Color.Black
-                                            } else {
-                                                MaterialTheme.colorScheme.surfaceContainer
-                                            },
+                                        containerColor = Color.Transparent,
+                                        scrolledContainerColor = Color.Transparent,
                                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                                         actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     ),

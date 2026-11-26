@@ -47,6 +47,7 @@ import com.metrolist.shared.ui.theme.animateColorScheme
 import com.metrolist.shared.ui.theme.orIfIllegible
 import com.metrolist.shared.ui.theme.pureBlack
 import com.metrolist.shared.ui.theme.themeColorScheme
+import com.metrolist.shared.ui.theme.sonder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -118,9 +119,9 @@ fun MetrolistTheme(
     val colorScheme =
         remember(baseColorScheme, pureBlack, darkTheme) {
             if (darkTheme && pureBlack) {
-                baseColorScheme.pureBlack()
+                baseColorScheme.sonder(darkTheme).pureBlack()
             } else {
-                baseColorScheme
+                baseColorScheme.sonder(darkTheme)
             }
         }
 

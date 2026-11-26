@@ -45,13 +45,13 @@ fun MetrolistTheme(
     useDarkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (useDarkTheme) DarkColors else LightColors
+    val colors = (if (useDarkTheme) DarkColors else LightColors).sonder(useDarkTheme)
 
     val motionScheme = remember { MotionScheme.expressive() }
     MaterialExpressiveTheme(
         colorScheme = animateColorScheme(colors, motionScheme),
         motionScheme = motionScheme,
-        typography = Typography(),
+        typography = MetrolistTypography(),
         content = { MetrolistHapticsProvider(content) },
     )
 }

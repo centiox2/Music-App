@@ -85,7 +85,7 @@ fun SectionTitle(
     onShuffleClick: (() -> Unit)? = null,
     isWide: Boolean = false,
 ) {
-    val titleStyle = if (isWide) MaterialTheme.typography.headlineMediumEmphasized else MaterialTheme.typography.headlineSmallEmphasized
+    val titleStyle = if (isWide) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge
     val rowHeight = if (isWide || label != null) 60.dp else 50.dp
 
     Row(
@@ -138,7 +138,7 @@ fun SectionTitle(
                 style = titleStyle,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
 

@@ -9,8 +9,8 @@ import kotlin.test.assertTrue
 
 class NavigationTabPreferencesTest {
     @Test
-    fun floatingNavigationBarIsOffByDefault() {
-        assertFalse(Settings(MapSettings()).floatingNavBar)
+    fun sonderFloatingNavigationBarIsOnByDefault() {
+        assertTrue(Settings(MapSettings()).floatingNavBar)
     }
 
     @Test

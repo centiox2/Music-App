@@ -30,6 +30,7 @@ fun getAppTypography(): Typography {
         value = withContext(Dispatchers.IO) { resolveFontFamily(context, appFont, customFontFile, activeFontId) }
     }
     val typography = MetrolistTypography()
+    if (appFont == FontOption.INTER && activeFontId.isBlank() && customFontFile.isBlank()) return typography
 
     return Typography(
         fontFamily = font,

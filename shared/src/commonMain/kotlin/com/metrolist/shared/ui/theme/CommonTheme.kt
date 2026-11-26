@@ -37,7 +37,7 @@ import com.metrolist.shared.utils.artworkColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-val DefaultThemeColor = Color(0xFF6750A4)
+val DefaultThemeColor = Color(0xFF9CC9BA)
 
 // Official material-color-utilities Score fallback (Google Blue), used when the artwork has no usable colour.
 val ArtworkFallbackSeedColor = Color(0xFF4285F4)
@@ -87,7 +87,8 @@ fun MetrolistTheme(
     pureBlack: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val baseColorScheme = rememberDynamicColorScheme(seedColor, darkTheme)
+    val generatedScheme = rememberDynamicColorScheme(seedColor, darkTheme)
+    val baseColorScheme = remember(generatedScheme, darkTheme) { generatedScheme.sonder(darkTheme) }
 
     val colorScheme =
         remember(baseColorScheme, pureBlack, darkTheme) {

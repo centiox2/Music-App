@@ -76,7 +76,7 @@ class ExpressiveMiniPlayerSettingsTest {
             assertFalse(loaded.expressiveMiniPlayerCookieArtwork)
             assertFalse(loaded.expressiveMiniPlayerShapeMotion)
             assertEquals(transportButtons, loaded.expressiveMiniPlayerButtons)
-            assertEquals(MiniPlayerType.EXPRESSIVE, loaded.miniPlayerType)
+            assertEquals(MiniPlayerType.VINTAGE, loaded.miniPlayerType)
         }
     }
 }

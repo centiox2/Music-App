@@ -83,6 +83,9 @@ import com.metrolist.shared.constants.MiniPlayerHeight
 import com.metrolist.shared.constants.ModernMiniPlayerHorizontalPadding
 import com.metrolist.shared.constants.modernMiniPlayerHeight
 import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.action_like
+import com.metrolist.shared.generated.resources.unlike
+import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.generated.resources.loading
 import com.metrolist.shared.generated.resources.next
 import com.metrolist.shared.generated.resources.pause
@@ -99,6 +102,8 @@ import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.design.expressive.components.ExpressiveMiniPlayer
 import com.metrolist.shared.ui.haptics.rememberMetrolistHaptics
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.rememberGlowPalette
+import com.metrolist.shared.ui.sonder.miniPlayerTint
 import com.metrolist.shared.ui.theme.getGradientColors
 import com.metrolist.shared.ui.theme.rememberArtworkSeedColor
 import com.metrolist.shared.ui.utils.artworkBlur
@@ -169,7 +174,7 @@ fun MiniPlayer(
     }
     val isModern = Settings.shared.miniPlayerType == MiniPlayerType.MODERN
     val isVideoSong = song.isVideoSong
-    val cornerRadius = if (isModern) modernMiniPlayerHeight(LocalDensity.current) / 2 else 16.dp
+    val cornerRadius = if (isModern) modernMiniPlayerHeight(LocalDensity.current) / 2 else 18.dp
 
     val bgStyle = Settings.shared.miniPlayerBackgroundStyle
     val useSolidBlack = bgStyle == "SOLID_BLACK"
@@ -180,7 +185,10 @@ fun MiniPlayer(
     val effectiveSeedColor = artworkSeedColor ?: baseSeedColor
     val gradientColors = remember(effectiveSeedColor) { getGradientColors(effectiveSeedColor) }
 
-    val backgroundColor = if (useSolidBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val palette = rememberGlowPalette(song.thumbnail)
+    val backgroundColor = if (useSolidBlack) Color.Black else miniPlayerTint(
+        palette, MaterialTheme.colorScheme.primaryContainer, Settings.shared.getCurrentThemeIsDark(),
+    )
     val contentColor = if (useSolidBlack || useBlur || useGradient) Color.White else MaterialTheme.colorScheme.onSurface
     val secondaryContentColor = if (useBlur) contentColor else contentColor.copy(alpha = 0.7f)
     val buttonBorderColor = contentColor.copy(alpha = 0.25f)
@@ -199,7 +207,7 @@ fun MiniPlayer(
             modifier
                 .fillMaxWidth()
                 .height(if (isModern) modernMiniPlayerHeight(LocalDensity.current) else MiniPlayerHeight)
-                .padding(horizontal = if (isModern) ModernMiniPlayerHorizontalPadding else 0.dp)
+                .padding(horizontal = ModernMiniPlayerHorizontalPadding)
                 .graphicsLayer {
                     translationX = dragOffsetX
                 }.pointerInput(canSkipNext, canSkipPrevious, layoutDirection, swipeThreshold) {
@@ -440,7 +448,7 @@ fun MiniPlayer(
                     AsyncImage(
                         url = song.previewThumbnailUrl,
                         contentDescription = null,
-                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(4.dp)),
+                        modifier = Modifier.size(46.dp).clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Crop,
                     )
 
@@ -496,20 +504,25 @@ fun MiniPlayer(
                             }
                         }
 
+                        val showLike = onLike != null && !LocalIsTv.current
                         IconButton(
-                            onClick = onSkipNext,
-                            enabled = canSkipNext,
+                            onClick = if (showLike) ({ onLike?.invoke() }) else onSkipNext,
+                            enabled = if (showLike) playbackEnabled else canSkipNext,
                             colors =
                                 IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    containerColor = Color.Transparent,
+                                    contentColor = contentColor,
                                 ),
                             shapes = IconButtonDefaults.shapes(),
                         ) {
                             Icon(
-                                imageVector = MetrolistIcons.Rounded.SkipNext,
-                                contentDescription = stringResource(Res.string.next),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                imageVector = if (showLike) {
+                                    if (isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Outlined.FavoriteBorder
+                                } else MetrolistIcons.Rounded.SkipNext,
+                                contentDescription = stringResource(if (showLike) {
+                                    if (isLiked) Res.string.unlike else Res.string.action_like
+                                } else Res.string.next),
+                                tint = contentColor,
                             )
                         }
                     }
@@ -521,7 +534,7 @@ fun MiniPlayer(
                         Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .height(3.dp)
+                            .height(2.dp)
                             .background(contentColor.copy(alpha = 0.1f))
                             .drawWithContent {
                                 drawContent()

@@ -48,6 +48,14 @@ jobs:
             echo "KEY_PASSWORD=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
           } >> "$GITHUB_ENV"
 
+      - name: Verify Sonder appearance and settings
+        run: >-
+          ./gradlew :shared:testAndroidHostTest --no-daemon --no-configuration-cache
+          --tests 'com.metrolist.shared.ui.sonder.SonderAppearanceTest'
+          --tests 'com.metrolist.shared.settings.NavigationTabPreferencesTest'
+          --tests 'com.metrolist.shared.settings.ExpressiveMiniPlayerSettingsTest'
+          --tests 'com.metrolist.shared.settings.LegacySettingsMigrationTest'
+
       - name: Build
         run: ./gradlew :androidApp:assembleRelease --no-daemon --no-configuration-cache -x :androidApp:lintVitalRelease
 

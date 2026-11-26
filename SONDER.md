@@ -19,3 +19,20 @@ playback, downloads, lyrics, sync, Listen Together) with Sonder's own interface 
 3. Home, Search, Library, album/artist/playlist pages on Metrolist's view models.
 4. Lyrics (Sonder's lyrics view on Metrolist's providers), settings, TV remote support.
 5. App id back to `com.coverglow.music`, data migration from the BitChord build, widget.
+
+## Current integration
+
+The running app uses only Metrolist KMP's models, view models, playback, database,
+downloads, authentication, lyrics and sync. No BitChord or legacy Metrolist runtime
+module is included. Sonder's original artwork palette extraction and weighted mesh
+have been ported to common Kotlin UI code, along with its dark/light surfaces,
+bundled Inter fonts, floating three-tab navigation, inset mini player and circular
+transport controls. Phone, landscape and TV layouts use the same KMP player actions.
+Browsing and detail pages use Metrolist's shared workflows with Sonder's theme;
+menus, account management and settings remain Metrolist's implementations.
+
+The build workflow verifies the artwork palette, contrast, navigation preferences
+and settings restore before assembling and publishing the signed Android APK.
+This remains the parallel-install `com.coverglow.music.next` build. Importing data
+from the older BitChord app and switching back to its application ID remain a
+separate migration phase; this build does not read the older app's private storage.
