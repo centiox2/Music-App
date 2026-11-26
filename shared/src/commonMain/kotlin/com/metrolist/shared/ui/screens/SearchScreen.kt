@@ -7,6 +7,10 @@
 
 package com.metrolist.shared.ui.screens
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -240,7 +244,7 @@ fun SearchBar(
     onRemoveHistoryItem: (String) -> Unit = {},
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
-    Column(modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+    Column(modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).padding(horizontal = 20.dp, vertical = 12.dp)) {
         Text(stringResource(Res.string.search), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             com.metrolist.shared.ui.sonder.SonderSearchField(

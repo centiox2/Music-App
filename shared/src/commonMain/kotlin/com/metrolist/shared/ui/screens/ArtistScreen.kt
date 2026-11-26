@@ -2,6 +2,8 @@
 
 package com.metrolist.shared.ui.screens
 
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.animateColorAsState
@@ -454,7 +456,7 @@ private fun ArtistScreenContent(
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surface))))
                         Text(artist.displayTitle.uppercase(), Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                             fontFamily = FontFamily(org.jetbrains.compose.resources.Font(com.metrolist.shared.generated.resources.Res.font.archivo_condensed_black, FontWeight.Black)),
-                            fontWeight = FontWeight.Black, fontSize = 50.sp, lineHeight = 47.sp, textAlign = TextAlign.Center)
+                            fontWeight = FontWeight.Black, fontSize = 50.sp, lineHeight = 47.sp, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                     artist.monthlyListeners?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp)) }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
@@ -501,7 +503,7 @@ private fun ArtistScreenContent(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth().windowInsetsPadding(headerWindowInsets.only(WindowInsetsSides.Top)).padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             if (onBackClick != null) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), onBackClick, glass = true)
             if (onMenuClick != null) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), onMenuClick, glass = true)
         }

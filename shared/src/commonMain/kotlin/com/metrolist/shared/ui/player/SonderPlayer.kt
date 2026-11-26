@@ -171,7 +171,9 @@ fun SonderPlayerPresentation(
                 }
                 @Composable fun Pane(mod: Modifier) {
                     when (pane) {
-                        SonderPlayerPane.COVER -> Box(mod, contentAlignment = Alignment.Center) { Artwork(Modifier.fillMaxWidth().aspectRatio(1f)) }
+                        SonderPlayerPane.COVER -> BoxWithConstraints(mod, contentAlignment = Alignment.Center) {
+                            Artwork(Modifier.size(minOf(maxWidth, maxHeight)))
+                        }
                         SonderPlayerPane.LYRICS -> lyrics(mod)
                         SonderPlayerPane.QUEUE -> queue(mod)
                     }
@@ -180,7 +182,7 @@ fun SonderPlayerPresentation(
                     Column(mod, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(song.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(song.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = if (wide) 1 else 2, overflow = TextOverflow.Ellipsis)
                                 Text(song.artists.joinToString { it.name }, Modifier.clickable { song.artists.firstOrNull()?.id?.let(onArtist) }.padding(top = 4.dp), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             SonderIcon(if (state.isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder,
@@ -205,7 +207,9 @@ fun SonderPlayerPresentation(
                 }
                 if (wide) {
                     Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Artwork(Modifier.weight(1f).aspectRatio(1f))
+                        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                            Artwork(Modifier.size(minOf(maxWidth, maxHeight)))
+                        }
                         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                             if (pane != SonderPlayerPane.COVER) Pane(Modifier.weight(1f).fillMaxWidth())
                             Controls(Modifier.fillMaxWidth())

@@ -102,6 +102,7 @@ class SonderScreenshotsTest {
         SharedSettingsScreen(SharedSettingsHost(platform = SettingsPlatform.ANDROID, onClose = {}, initialPage = page, singlePane = true))
     }
     @Test fun player() = playerScreen()
+    @Test @Config(qualifiers = "w360dp-h640dp-xhdpi") fun playerSmallPhone() = playerScreen("player-small-phone")
     @Test @Config(qualifiers = "w844dp-h390dp-xhdpi-land") fun playerLandscape() = playerScreen("player-landscape")
     private fun playerScreen(name: String = "player-dark") = render(name) {
         val song = songs.first()

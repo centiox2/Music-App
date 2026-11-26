@@ -1517,7 +1517,7 @@ fun MetrolistApp(
                                                         appAccountButton(if (useFloatingTopBar) Modifier.floatingBarCircle() else Modifier)
                                                     }
                                                 }
-                                                Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).height(TabTopBarHeight).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                                                     Column(Modifier.weight(1f)) { topBarTitle(); topBarSubtitle() }
                                                     topBarActions()
                                                 }

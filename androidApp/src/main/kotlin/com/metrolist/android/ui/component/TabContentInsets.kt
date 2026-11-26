@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-val TabTopBarHeight = 64.dp
+val TabTopBarHeight = 76.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
