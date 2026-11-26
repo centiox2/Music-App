@@ -128,6 +128,7 @@ fun PlayerPrimaryControls(
 ) {
     val haptics = rememberMetrolistHaptics()
     val playSize = buttonHeight.coerceIn(48.dp, 88.dp)
+    val playShape = if (useRoundedRect) RoundedCornerShape(16.dp) else CircleShape
     val sideSize = (sideButtonHeight ?: 56.dp).coerceIn(44.dp, 64.dp)
     Row(
         modifier = modifier,
@@ -151,11 +152,11 @@ fun PlayerPrimaryControls(
                 haptics.toggle(!isPlaying)
                 onTogglePlay()
             },
-            shape = CircleShape,
+            shape = playShape,
             color = centerButtonContainerColor,
             contentColor = centerButtonContentColor,
             modifier = Modifier.size(playSize)
-                .tvFocusHighlight(CircleShape, scale = 1f, color = centerButtonContentColor)
+                .tvFocusHighlight(playShape, scale = 1f, color = centerButtonContentColor)
                 .then(if (playPauseFocusRequester != null) Modifier.focusRequester(playPauseFocusRequester) else Modifier),
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
