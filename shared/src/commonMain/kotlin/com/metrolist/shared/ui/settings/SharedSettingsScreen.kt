@@ -369,9 +369,10 @@ private fun CompactSettingsHome(
     onSearchResultSelected: (SettingsPageId, String?) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        com.metrolist.shared.ui.sonder.SonderTopBar(host.title ?: stringResource(Res.string.settings), host.onClose)
+        com.metrolist.shared.ui.sonder.SonderTopBar("", host.onClose)
         SettingsHomeList(registry, listState, host.customPageIcons, onPageSelected, onSearchResultSelected,
-            PaddingValues(top = 8.dp, bottom = 24.dp + host.bottomContentPadding), rootHeader = host.rootHeader)
+            PaddingValues(top = 4.dp, bottom = 24.dp + host.bottomContentPadding),
+            rootHeader = host.rootHeader, rootTitle = host.title ?: stringResource(Res.string.settings))
     }
 }
 
@@ -483,6 +484,7 @@ private fun SettingsHomeList(
     onSearchResultSelected: (SettingsPageId, String?) -> Unit,
     contentPadding: PaddingValues,
     rootHeader: @Composable () -> Unit = {},
+    rootTitle: String,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val searchResults = rememberSettingsSearchResults(registry, query)
@@ -490,16 +492,24 @@ private fun SettingsHomeList(
         state = listState,
         modifier = Modifier.fillMaxSize().desktopArrowScroll(listState),
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(if (query.isBlank()) 16.dp else 4.dp),
+        verticalArrangement = Arrangement.spacedBy(if (query.isBlank()) 10.dp else 4.dp),
     ) {
-        item("sonder_account") { rootHeader() }
+        item("root_title") {
+            Text(
+                rootTitle,
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 34.sp, fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp).semantics { heading() },
+            )
+        }
         item("search") {
             SettingsSearchField(
                 query = query,
                 onQueryChange = { query = it },
-                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = if (query.isBlank()) 0.dp else 12.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp).padding(bottom = if (query.isBlank()) 0.dp else 8.dp),
+                height = 42.dp,
             )
         }
+        item("sonder_account") { rootHeader() }
         if (query.isBlank()) {
             registry.rootGroups.filter { it.pages.isNotEmpty() }.forEach { group ->
                 item(group.title) {

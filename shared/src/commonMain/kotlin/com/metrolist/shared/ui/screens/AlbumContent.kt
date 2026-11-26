@@ -6,6 +6,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -26,6 +29,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +41,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -44,7 +55,9 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.archivo_condensed_black
 import com.metrolist.shared.generated.resources.album_order_original
 import com.metrolist.shared.generated.resources.search_no_results
 import com.metrolist.shared.model.AlbumItem
@@ -55,6 +68,7 @@ import com.metrolist.shared.model.filterForPlaylistSearch
 import com.metrolist.shared.model.indexOfPlaylistOccurrence
 import com.metrolist.shared.model.sortedForPlaylist
 import com.metrolist.shared.ui.components.AlbumHeader
+import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.components.CollectionHeaderHorizontalPadding
 import com.metrolist.shared.ui.components.CollectionHeaderNavigation
 import com.metrolist.shared.ui.components.GroupedListItem
@@ -67,12 +81,14 @@ import com.metrolist.shared.ui.components.SongListItem
 import com.metrolist.shared.ui.components.mediumCollectionArtworkSize
 import com.metrolist.shared.ui.components.rememberItemPlayback
 import com.metrolist.shared.ui.menu.onSecondaryClick
+import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.navigation.NavigationBackHandler
 import com.metrolist.shared.ui.utils.DragScrollableColumn
 import com.metrolist.shared.ui.utils.carouselScroll
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
 import com.metrolist.shared.utils.isDesktop
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.Font
 
 private val AlbumSortOptions =
     setOf(PlaylistSongSort.ORIGINAL, PlaylistSongSort.TITLE, PlaylistSongSort.ARTIST, PlaylistSongSort.DURATION)
@@ -97,6 +113,8 @@ fun AlbumContent(
     onMoreOptions: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onFavorite: (() -> Unit)? = null,
+    onDownload: (List<SongItem>) -> Unit = {},
+    immersiveHeader: Boolean = false,
     onArtistClick: (String) -> Unit,
     onTrackClick: (SongItem, List<SongItem>, Int) -> Unit,
     onTrackMenuClick: (SongItem) -> Unit,
@@ -201,6 +219,7 @@ fun AlbumContent(
                 }
             },
             selectionControls = selectionControls.takeIf { selectionActive },
+            topContentPadding = if (immersiveHeader) 0.dp else 64.dp,
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val isWide = maxWidth >= 960.dp
@@ -442,7 +461,19 @@ fun AlbumContent(
 
                             item(key = "header") {
                                 Box(itemModifier) {
-                                    AlbumHeader(
+                                    if (immersiveHeader && !isWide) {
+                                        SonderAlbumHero(
+                                            album = album,
+                                            songs = songs,
+                                            description = description,
+                                            isFavorite = isFavorite,
+                                            onFavorite = onFavorite,
+                                            onPlay = { onPlayAll(songs) },
+                                            onShuffle = { onShuffle(songs) },
+                                            onDownload = { onDownload(songs) },
+                                            onMore = onMoreOptions,
+                                        )
+                                    } else AlbumHeader(
                                         modifier = Modifier.onSecondaryClick(onMoreOptions),
                                         titleModifier =
                                             Modifier.onGloballyPositioned {
@@ -586,5 +617,48 @@ fun AlbumContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SonderAlbumHero(
+    album: AlbumItem,
+    songs: List<SongItem>,
+    description: String?,
+    isFavorite: Boolean,
+    onFavorite: (() -> Unit)?,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    onDownload: () -> Unit,
+    onMore: (() -> Unit)?,
+) {
+    val artists = album.artists.joinToString(", ") { it.name }
+    Box(Modifier.fillMaxWidth().height(620.dp)) {
+        AsyncImage(album.thumbnail.orEmpty(), Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.06f), Color.Transparent, Color.Black.copy(alpha = 0.42f), Color.Black.copy(alpha = 0.94f)))))
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(album.title.uppercase(), fontFamily = FontFamily(Font(Res.font.archivo_condensed_black, FontWeight.Black)), fontSize = 40.sp, lineHeight = 42.sp, color = Color.White, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(artists, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(listOfNotNull(album.type ?: "Album", album.year, "${album.songCount ?: songs.size} songs").joinToString(" · "), color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                AlbumHeroAction(MetrolistIcons.Filled.Download, "Download", onDownload)
+                AlbumHeroAction(if (isFavorite) MetrolistIcons.Filled.Favorite else MetrolistIcons.Rounded.FavoriteBorder, "Like", { onFavorite?.invoke() })
+                Box(Modifier.size(76.dp).clip(CircleShape).background(Color.White).clickable(onClick = onPlay), contentAlignment = Alignment.Center) { Icon(MetrolistIcons.Rounded.PlayArrow, "Play", Modifier.size(34.dp), tint = Color.Black) }
+                AlbumHeroAction(MetrolistIcons.Rounded.Shuffle, "Shuffle", onShuffle)
+                AlbumHeroAction(MetrolistIcons.Filled.MoreHoriz, "More options", { onMore?.invoke() })
+            }
+            if (!description.isNullOrBlank()) Text(description, Modifier.fillMaxWidth().padding(top = 12.dp), color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun AlbumHeroAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Box(Modifier.size(54.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.14f)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(icon, label, Modifier.size(24.dp), tint = Color.White)
     }
 }

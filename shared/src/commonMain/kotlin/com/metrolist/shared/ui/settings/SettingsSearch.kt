@@ -73,6 +73,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.generated.resources.*
 import com.metrolist.shared.settings.Settings
@@ -88,6 +89,7 @@ internal fun SettingsSearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 48.dp,
 ) {
     val textFieldState = rememberTextFieldState(initialText = query)
     val latestValue by rememberUpdatedState(query)
@@ -114,7 +116,7 @@ internal fun SettingsSearchField(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(height)
                 .focusOutline(RoundedCornerShape(14.dp), focused = isFocused),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),

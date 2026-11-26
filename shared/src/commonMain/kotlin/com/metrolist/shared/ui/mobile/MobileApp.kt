@@ -1158,6 +1158,7 @@ fun MobileApp(
                                         if (item is SongItem) SongSwipeActions(item, onSwipeFeedback, content = content) else content()
                                     },
                                     uiState = searchState,
+                                    moodsAndGenres = homeState.moodsAndGenres,
                                     text = searchScreenText(),
                                     onQueryChange = { query ->
                                         cancelVideoLookup()

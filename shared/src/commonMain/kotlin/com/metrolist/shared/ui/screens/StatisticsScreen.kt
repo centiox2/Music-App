@@ -704,7 +704,7 @@ fun StatisticsDetailScreen(
 }
 
 @Composable
-private fun periodLabel(period: StatisticsPeriod): String =
+internal fun periodLabel(period: StatisticsPeriod): String =
     when (period) {
         StatisticsPeriod.WEEK -> pluralStringResource(Res.plurals.n_week, 1, 1)
         StatisticsPeriod.MONTH -> pluralStringResource(Res.plurals.n_month, 1, 1)

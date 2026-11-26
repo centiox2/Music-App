@@ -90,6 +90,7 @@ import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.viewmodels.SearchViewModel
+import com.metrolist.shared.viewmodels.HomeViewModel
 import org.jetbrains.compose.resources.stringResource
 
 data class SearchScreenText(
@@ -135,6 +136,7 @@ fun SearchScreen(
     showSearchBar: Boolean = true,
     searchBarEndPadding: Dp = 0.dp,
     onAlbumPlay: ((AlbumItem) -> Unit)? = null,
+    moodsAndGenres: List<HomeViewModel.Genre> = emptyList(),
 ) {
     val query = uiState.query
     val isQuerySubmitted = uiState.isQuerySubmitted
@@ -217,6 +219,7 @@ fun SearchScreen(
                     contentPadding = contentPadding,
                     modifier = Modifier.weight(1f),
                     onAlbumPlay = onAlbumPlay,
+                    moodsAndGenres = moodsAndGenres,
                 )
             }
         }

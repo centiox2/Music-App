@@ -187,6 +187,8 @@ internal fun MobileAlbumScreen(
                         if (result.isFailure) onSwipeFeedback(favoriteErrorText)
                     }
                 },
+                onDownload = onDownload,
+                immersiveHeader = true,
                 onArtistClick = onArtistClick,
                 onAlbumClick = onAlbumClick,
                 onTrackClick = { song, queue, index ->

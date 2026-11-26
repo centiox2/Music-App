@@ -114,6 +114,7 @@ fun CollectionHeaderNavigation(
     onMoreOptions: (() -> Unit)? = null,
     title: (@Composable () -> Unit)? = null,
     selectionControls: (@Composable () -> Unit)? = null,
+    topContentPadding: Dp = 64.dp,
     content: @Composable () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -123,7 +124,7 @@ fun CollectionHeaderNavigation(
                 Box(Modifier.weight(1f).fillMaxWidth()) { content() }
             }
         } else {
-            Box(Modifier.padding(top = if (onBackClick != null) 64.dp else 0.dp)) { content() }
+            Box(Modifier.padding(top = if (onBackClick != null) topContentPadding else 0.dp)) { content() }
             if (onBackClick != null) {
                 if (title != null) {
                     Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.CenterStart) { title() }

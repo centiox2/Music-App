@@ -39,7 +39,7 @@ fun SonderHome(
     LaunchedEffect(nearEnd, shelves.size) { if (nearEnd) onLoadMore?.invoke() }
     LazyColumn(modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
         header?.invoke(this)
-        if (genres.isNotEmpty()) item("sonder_moods") {
+        item("sonder_moods") {
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { SonderPill("For you", selected = true, onClick = {}) }
                 items(genres, key = { "sonder_genre_${it.id}" }) { genre ->

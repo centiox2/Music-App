@@ -28,6 +28,7 @@ import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.ui.components.images.AsyncImage
 import androidx.compose.ui.focus.FocusRequester
 import com.metrolist.shared.ui.components.AlbumHeader
+import com.metrolist.shared.ui.mobile.SonderStatisticsScreen
 import com.metrolist.shared.ui.screens.*
 import com.metrolist.shared.ui.settings.*
 import com.metrolist.shared.ui.sonder.*
@@ -155,7 +156,12 @@ class SonderScreenshotsTest {
         Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) { MiniPlayer(songs.first(), true, false, { 68000 }, 205000, {}, {}, {}, {}, isLiked = true, onLike = {}) }
     }
     @Test fun statistics() = render("statistics") {
-        StatisticsScreen(StatisticsUiState(totalPlays = 120, totalTimeMs = 36000000, artistCount = 18, albumCount = 9), {}, {}, {}, {}, null, "Share", { true }, onNavigateBack = {})
+        SonderStatisticsScreen(
+            state = StatisticsUiState(totalPlays = 120, totalTimeMs = 36000000, artistCount = 18, albumCount = 9),
+            onPeriodSelected = {}, onModeSelected = {}, onDateRangeSelected = {}, onPlayAll = {}, onRefresh = null,
+            exportLabel = "Share", onExport = { true }, onItemClick = {}, onItemMenu = null,
+            onNavigateBack = {}, bottomContentPadding = 0.dp,
+        )
     }
     @Test fun search() = render("search-results") {
         val text = SearchContentText(

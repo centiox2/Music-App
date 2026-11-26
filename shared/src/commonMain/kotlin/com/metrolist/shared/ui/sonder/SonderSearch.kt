@@ -2,11 +2,19 @@ package com.metrolist.shared.ui.sonder
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.metrolist.shared.model.*
+import com.metrolist.shared.viewmodels.HomeViewModel
 import com.metrolist.shared.generated.resources.*
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import org.jetbrains.compose.resources.stringResource
@@ -21,6 +29,7 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
     currentSongId: String?, modifier: Modifier, listState: LazyListState, padding: PaddingValues,
     onRemoveHistory: (String) -> Unit = {}, onRemoveRecent: (YTItem) -> Unit = {},
     onClearRecent: () -> Unit = {}, onRetryLoadMore: () -> Unit = {},
+    moodsAndGenres: List<HomeViewModel.Genre> = emptyList(),
     itemContainer: @Composable (YTItem, @Composable () -> Unit) -> Unit = { _, content -> content() },
 ) {
     val results = state.filteredResults?.items ?: state.searchSummary?.summaries?.flatMap { it.items } ?: state.unfilteredResults?.items.orEmpty()
@@ -64,9 +73,40 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
                     SonderIcon(MetrolistIcons.Outlined.Close, text.removeRecentSearchItemAction, { onRemoveRecent(item) })
                 })
             } }
-            if (state.searchHistory.isEmpty() && state.recentSearchItems.isEmpty()) item("start") { Text(text.startTypingToSearch, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (moodsAndGenres.isNotEmpty()) {
+                item("mood_title") { SonderSection("Moods & genres") }
+                itemsIndexed(moodsAndGenres.chunked(2)) { rowIndex, row ->
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEachIndexed { columnIndex, genre ->
+                            SonderMoodTile(genre.name, rowIndex * 2 + columnIndex, Modifier.weight(1f)) {
+                                onItem(BrowseItem(genre.id, genre.name, genre.thumbnail, genre.params))
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            } else if (state.searchHistory.isEmpty() && state.recentSearchItems.isEmpty()) {
+                item("start") { Text(text.startTypingToSearch, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
         }
         if (state.loadMoreFailed) item("retry") { TextButton(onClick = onRetryLoadMore, modifier = Modifier.padding(20.dp)) { Text(stringResource(Res.string.retry)) } }
         if (state.isLoadingMore) item("more") { Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) } }
+    }
+}
+
+@Composable
+private fun SonderMoodTile(title: String, index: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = listOf(0xFF2F5A55, 0xFFB5441B, 0xFF1F3A63, 0xFF8E1C17, 0xFF5B2A86, 0xFF344A63, 0xFF3D5A2A, 0xFF7A4A12)
+    val color = Color(colors[index % colors.size])
+    val tileColor = color.copy(red = color.red + (1f - color.red) * 0.25f, green = color.green + (1f - color.green) * 0.25f, blue = color.blue + (1f - color.blue) * 0.25f)
+    androidx.compose.foundation.layout.Box(
+        modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(12.dp))
+            .background(color.copy(red = (color.red * 0.55f + 0.02f).coerceAtMost(1f), green = (color.green * 0.55f + 0.02f).coerceAtMost(1f), blue = (color.blue * 0.55f + 0.02f).coerceAtMost(1f)))
+            .clickable(onClick = onClick),
+    ) {
+        androidx.compose.foundation.layout.Box(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).offset(x = 14.dp, y = 18.dp).size(58.dp).rotate(20f)
+            .clip(RoundedCornerShape(10.dp)).background(tileColor))
+        Text(title, Modifier.padding(12.dp).padding(end = 30.dp), color = Color.White,
+            fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 2)
     }
 }

@@ -27,7 +27,6 @@ import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.ui.playback.PlaybackController
 import com.metrolist.shared.ui.screens.StatisticsItem
 import com.metrolist.shared.ui.screens.StatisticsPeriod
-import com.metrolist.shared.ui.screens.StatisticsScreen
 import com.metrolist.shared.ui.screens.StatisticsUiState
 import com.metrolist.shared.ui.screens.statisticsPlayCountDuration
 import com.metrolist.shared.ui.statistics.StatisticsDateRange
@@ -85,7 +84,7 @@ internal fun MobileStatisticsScreen(
     val topArtists = snapshot?.artists.orEmpty()
     val topAlbums = snapshot?.albums.orEmpty()
 
-    StatisticsScreen(
+    SonderStatisticsScreen(
         exportLabel = stringResource(Res.string.share),
         onExport = onExport,
         state =
@@ -248,7 +247,6 @@ internal fun MobileStatisticsScreen(
         },
         onNavigateBack = onBack,
         bottomContentPadding = bottomContentPadding,
-        modifier = modifier,
     )
 }
 

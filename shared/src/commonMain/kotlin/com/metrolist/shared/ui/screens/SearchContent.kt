@@ -162,6 +162,7 @@ import com.metrolist.shared.utils.monthlyAudienceText
 import com.metrolist.shared.utils.withoutPlaybackCountLabel
 import com.metrolist.shared.viewmodels.SearchPresentation
 import com.metrolist.shared.viewmodels.SearchViewModel.SearchUiState
+import com.metrolist.shared.viewmodels.HomeViewModel
 import com.metrolist.shared.viewmodels.searchPresentation
 import com.valentinilk.shimmer.shimmer
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -248,6 +249,7 @@ fun SearchContent(
     onMixClick: (YTItem) -> Unit = {},
     itemContainer: @Composable (YTItem, @Composable () -> Unit) -> Unit = { _, content -> content() },
     onAlbumPlay: ((AlbumItem) -> Unit)? = null,
+    moodsAndGenres: List<HomeViewModel.Genre> = emptyList(),
 ) {
     com.metrolist.shared.ui.sonder.SonderSearchResults(
         state = uiState, text = text, onItem = onItemClick, onMore = onItemLongClick,
@@ -256,6 +258,7 @@ fun SearchContent(
         modifier = modifier, listState = listState, padding = contentPadding,
         onRemoveHistory = onRemoveHistoryItem, onRemoveRecent = onRemoveRecentItem,
         onClearRecent = onClearRecentItems, onRetryLoadMore = onRetryLoadMore, itemContainer = itemContainer,
+        moodsAndGenres = moodsAndGenres,
     )
 }
 
