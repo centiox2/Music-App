@@ -2,6 +2,7 @@ package com.metrolist.shared.ui.player
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -193,7 +194,7 @@ fun SonderPlayerPresentation(
             @Composable fun Artwork(mod: Modifier) {
                 var drag by remember(song.id) { mutableFloatStateOf(0f) }
                 Box(mod.sonderCoverShadow(12.dp, shadow, dark).clip(RoundedCornerShape(12.dp)).background(colors.onSurface.copy(alpha = 0.12f))
-                    .pointerInput(song.id, guest) { if (!guest) androidx.compose.foundation.gestures.detectHorizontalDragGestures(
+                    .pointerInput(song.id, guest) { if (!guest) detectHorizontalDragGestures(
                         onDragEnd = { if (drag < -size.width * 0.25f) onAction(SonderPlayerAction.NEXT) else if (drag > size.width * 0.25f) onAction(SonderPlayerAction.PREVIOUS); drag = 0f },
                         onDragCancel = { drag = 0f },
                     ) { change, amount -> change.consume(); drag += amount } }) { artwork(Modifier.fillMaxSize()) }
