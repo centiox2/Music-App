@@ -51,6 +51,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -118,11 +119,11 @@ import com.metrolist.shared.ui.navigation.rememberNavigationMotion
 import com.metrolist.shared.ui.utils.DragScrollableColumn
 import com.metrolist.shared.ui.utils.desktopArrowScroll
 import com.metrolist.shared.ui.utils.segmentedGroupShape
-import kotlinx.coroutines.delay
-import org.jetbrains.compose.resources.stringResource
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SharedSettingsScreen(
@@ -173,7 +174,13 @@ internal fun SharedSettingsRegistryScreen(
         mutableStateOf(host.initialPage?.let { listOf(it.name) }.orEmpty())
     }
     var highlightedItemId by rememberSaveable { mutableStateOf<String?>(null) }
-    val registry = registryFactory(settingsRevision)
+    val originalRegistry = registryFactory(settingsRevision)
+    val registry = remember(originalRegistry) {
+        val retiredDesigns = setOf("appLayout", "floatingNavBar", "slimNavBar", "floatingTopBar", "miniPlayerType", "playerType", "playerThumbnailStyle", "useRoundedRectPlayButton", "miniplayerFocusMode")
+        originalRegistry.copy(pages = originalRegistry.pages.map { page ->
+            page.copy(groups = page.groups.map { group -> group.copy(items = group.items.filterNot { it.id in retiredDesigns || it.id.contains("expressiveMiniPlayer", ignoreCase = true) }) })
+        })
+    }
     LaunchedEffect(host.initialPage, registry) {
         val initialPage = host.initialPage
         if (initialPage != null && pageStack == listOf(initialPage.name)) {
@@ -363,7 +370,7 @@ private fun CompactSettingsHome(
     Column(Modifier.fillMaxSize()) {
         com.metrolist.shared.ui.sonder.SonderTopBar(host.title ?: stringResource(Res.string.settings), host.onClose)
         SettingsHomeList(registry, listState, host.customPageIcons, onPageSelected, onSearchResultSelected,
-            PaddingValues(top = 8.dp, bottom = 24.dp + host.bottomContentPadding))
+            PaddingValues(top = 8.dp, bottom = 24.dp + host.bottomContentPadding), rootHeader = host.rootHeader)
     }
 }
 
@@ -474,6 +481,7 @@ private fun SettingsHomeList(
     onPageSelected: (SettingsPageId) -> Unit,
     onSearchResultSelected: (SettingsPageId, String?) -> Unit,
     contentPadding: PaddingValues,
+    rootHeader: @Composable () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val searchResults = rememberSettingsSearchResults(registry, query)
@@ -483,6 +491,7 @@ private fun SettingsHomeList(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(if (query.isBlank()) 16.dp else 4.dp),
     ) {
+        item("sonder_account") { rootHeader() }
         item("search") {
             SettingsSearchField(
                 query = query,

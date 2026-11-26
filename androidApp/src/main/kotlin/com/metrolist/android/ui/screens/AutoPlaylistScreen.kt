@@ -178,9 +178,11 @@ import com.metrolist.shared.ui.screens.playlistContentText
 import com.metrolist.shared.ui.screens.playlistOrderControlsText
 import com.metrolist.shared.ui.selection.rememberSelectionState
 import com.metrolist.shared.ui.settings.StorageConfirmationDialog
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.valentinilk.shimmer.shimmer
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import kotlin.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -194,7 +196,6 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -641,7 +642,7 @@ fun AutoPlaylistScreen(
             if (selection.active) {
                 selectionBar()
             } else {
-                TopAppBar(
+                SonderToolbar(
                     title = {},
                     navigationIcon = {
                         IconButton(

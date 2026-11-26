@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,29 +79,7 @@ fun HistoryEntryRow(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    val shape =
-        when (groupPosition) {
-            HistoryEntryGroupPosition.SINGLE -> {
-                ComponentShapes.MenuGroupShape
-            }
-
-            HistoryEntryGroupPosition.FIRST -> {
-                RoundedCornerShape(
-                    topStart = 20.dp,
-                    topEnd = 20.dp,
-                    bottomStart = 5.dp,
-                    bottomEnd = 5.dp,
-                )
-            }
-
-            HistoryEntryGroupPosition.MIDDLE -> {
-                RoundedCornerShape(5.dp)
-            }
-
-            HistoryEntryGroupPosition.LAST -> {
-                RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-            }
-        }
+    val shape = RoundedCornerShape(12.dp)
 
     Surface(
         modifier =
@@ -120,7 +99,7 @@ fun HistoryEntryRow(
             when {
                 isSelected -> MaterialTheme.colorScheme.primaryContainer
                 isSelectMode -> MaterialTheme.colorScheme.surfaceContainerLow
-                else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
             },
     ) {
         Row(
@@ -168,7 +147,7 @@ fun HistoryEntryRow(
                         shapes = IconButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            MetrolistIcons.Outlined.MoreVert,
+                            MetrolistIcons.Filled.MoreHoriz,
                             contentDescription = stringResource(Res.string.more_options),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

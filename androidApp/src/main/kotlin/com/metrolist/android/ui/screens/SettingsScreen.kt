@@ -93,6 +93,7 @@ import com.metrolist.shared.generated.resources.settings_updates_available_descr
 import com.metrolist.shared.generated.resources.spotify_import_error_sign_in_failed
 import com.metrolist.shared.generated.resources.updates_no_updates
 import com.metrolist.shared.settings.FontOption
+import com.metrolist.shared.settings.Settings as SharedPreferences
 import com.metrolist.shared.state.GlobalYouTube
 import com.metrolist.shared.state.applyContentRegion
 import com.metrolist.shared.state.contentCountryCodes
@@ -107,6 +108,8 @@ import com.metrolist.shared.ui.settings.SharedSettingsHost
 import com.metrolist.shared.ui.settings.SharedSettingsScreen
 import com.metrolist.shared.ui.utils.rememberFileSizeFormatter
 import com.metrolist.shared.viewmodels.PlayerViewModel
+import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -115,9 +118,6 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import java.io.File
-import java.util.Locale
-import com.metrolist.shared.settings.Settings as SharedPreferences
 
 @Composable
 fun SettingsScreen(
@@ -125,6 +125,7 @@ fun SettingsScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToArtist: (String) -> Unit = {},
     initialPage: SettingsPageId? = null,
+    accountContent: @Composable () -> Unit = {},
 ) {
     val pageViewModels = rememberViewModelStoreProvider()
     var currentPage by remember { mutableStateOf<SettingsPageId?>(null) }
@@ -375,6 +376,8 @@ fun SettingsScreen(
             host =
                 SharedSettingsHost(
                     platform = SettingsPlatform.ANDROID,
+                    rootHeader = accountContent,
+                    singlePane = true,
                     lyricsPreview = { modifier ->
                         val viewModel: PlayerViewModel = koinInject()
                         val castState = playerConnection?.castState?.collectAsState()?.value

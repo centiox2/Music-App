@@ -100,7 +100,7 @@ fun Material3SettingsGroup(
             if (currentItems.isNotEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     currentItems.forEachIndexed { index, item ->
                         AnimatedVisibility(
@@ -132,7 +132,7 @@ private fun Material3SettingsItemRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val shape = segmentedGroupShape(isFirst, isLast, isPressed)
+    val shape = RoundedCornerShape(10.dp)
     val isFocused by interactionSource.collectIsFocusedAsState()
     val hapticManager = rememberMetrolistHaptics()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -142,7 +142,7 @@ private fun Material3SettingsItemRow(
     }
 
     val backgroundColor by animateColorAsState(
-        targetValue = MaterialTheme.colorScheme.settingsRowContainerColor(isPressed),
+        targetValue = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isPressed) 0.1f else 0.055f),
         label = "backgroundColor",
     )
     val badgeDescription = item.badgeDescription ?: stringResource(Res.string.update_available_title)

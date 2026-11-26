@@ -53,6 +53,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -175,153 +176,21 @@ private fun OnboardingPageLayout(
     paused: Boolean,
     onPausedChange: (Boolean) -> Unit,
 ) {
-    val welcome = content.page == OnboardingPage.WELCOME
-    val stepDescription = stringResource(Res.string.onboarding_step_of, content.step, content.stepCount)
-
-    Box(
-        modifier.fillMaxSize().clipToBounds().semantics {
-            paneTitle = content.title
-            stateDescription = stepDescription
-        },
-    ) {
-        AnimatedVisibility(visible = welcome, enter = fadeIn(tween(320)), exit = fadeOut(tween(320))) {
-            WelcomeBackdrop(paused, onFinished = { onPausedChange(true) })
+    Column(modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(24.dp)) {
+        content.onBack?.let { back -> com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, content.backLabel, back, glass = true) }
+        Spacer(Modifier.weight(1f))
+        Box(Modifier.size(72.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f)), contentAlignment = Alignment.Center) {
+            Icon(content.icon, null, Modifier.size(34.dp))
         }
-        BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            val wide = maxWidth >= 840.dp && maxWidth > maxHeight
-            val gutter = if (wide) 56.dp else 24.dp
-            val stageWidth = minOf(maxWidth, 600.dp)
-            val availableHeight = maxHeight
-            Column(Modifier.width(stageWidth).fillMaxHeight().align(Alignment.Center)) {
-                Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-                    val pageContent = content
-                    val pageWelcome = pageContent.page == OnboardingPage.WELCOME
-                    val scrollState = rememberScrollState()
-                    Column(
-                        Modifier.fillMaxSize().background(if (pageWelcome) Color.Transparent else MaterialTheme.colorScheme.surface),
-                    ) {
-                        if (pageWelcome) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(start = gutter, end = gutter - 12.dp, top = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                welcomeContent(Modifier.size(24.dp))
-                                Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium)
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { onPausedChange(!paused) }, shapes = IconButtonDefaults.shapes()) {
-                                    Icon(
-                                        if (paused) MetrolistIcons.Filled.PlayArrow else MetrolistIcons.Filled.Pause,
-                                        contentDescription = stringResource(if (paused) Res.string.play else Res.string.pause),
-                                    )
-                                }
-                            }
-                        }
-                        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                            val viewportHeight = maxHeight
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .verticalScrollWithDrag(scrollState)
-                                    .heightIn(min = viewportHeight)
-                                    .padding(horizontal = gutter, vertical = if (availableHeight < 500.dp) 16.dp else 32.dp),
-                                verticalArrangement = if (pageWelcome) Arrangement.Bottom else Arrangement.Top,
-                            ) {
-                                if (!pageWelcome) {
-                                    Icon(
-                                        pageContent.icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(32.dp),
-                                    )
-                                    Spacer(Modifier.height(24.dp))
-                                }
-                                Text(
-                                    stringResource(Res.string.onboarding_step_of, pageContent.step, pageContent.stepCount),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 8.dp),
-                                )
-                                Text(
-                                    pageContent.title,
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 32.sp,
-                                    lineHeight = 40.sp,
-                                    modifier = Modifier.widthIn(max = 540.dp).semantics { heading() },
-                                )
-                                Text(
-                                    pageContent.description,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 16.dp).widthIn(max = 540.dp),
-                                )
-                                val details =
-                                    when (pageContent.page) {
-                                        OnboardingPage.CRASH_REPORTS -> {
-                                            listOf(
-                                                MetrolistIcons.Outlined.Tune to stringResource(Res.string.onboarding_sentry_opt_in),
-                                                MetrolistIcons.Outlined.Info to stringResource(Res.string.onboarding_sentry_diagnostics),
-                                                MetrolistIcons.Rounded.Lock to stringResource(Res.string.onboarding_sentry_private),
-                                            )
-                                        }
-
-                                        OnboardingPage.NOTIFICATIONS -> {
-                                            listOf(
-                                                MetrolistIcons.Outlined.PlayArrow to
-                                                    stringResource(Res.string.onboarding_notification_playback),
-                                                MetrolistIcons.Outlined.Download to
-                                                    stringResource(Res.string.onboarding_notification_downloads),
-                                            )
-                                        }
-
-                                        else -> {
-                                            emptyList()
-                                        }
-                                    }
-                                if (details.isNotEmpty()) {
-                                    Column(Modifier.fillMaxWidth().padding(top = 32.dp)) {
-                                        details.forEachIndexed { index, (icon, label) ->
-                                            GroupedListItem(index = index, count = details.size) {
-                                                Row(
-                                                    Modifier.fillMaxWidth().padding(16.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                                ) {
-                                                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                    Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                if (pageContent.page == OnboardingPage.CRASH_REPORTS || pageWelcome) {
-                                    Spacer(Modifier.height(16.dp))
-                                    PrivacyLink()
-                                }
-                                featureContent(pageContent.page)
-                                pageContent.error?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.padding(top = 16.dp).semantics { liveRegion = LiveRegionMode.Polite },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                OnboardingBottomActions(
-                    content,
-                    preferredActionModifier,
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = availableHeight * 0.45f)
-                        .verticalScrollWithDrag(rememberScrollState())
-                        .padding(horizontal = gutter, vertical = 16.dp),
-                )
-            }
-        }
+        Spacer(Modifier.height(24.dp))
+        Text(content.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(12.dp))
+        Text(content.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (content.page != OnboardingPage.WELCOME) featureContent(content.page)
+        content.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
+        Spacer(Modifier.weight(1f))
+        Button(onClick = content.onPrimary, enabled = !content.isWorking, modifier = preferredActionModifier.fillMaxWidth().height(52.dp), shape = androidx.compose.foundation.shape.CircleShape) { Text(content.primaryLabel) }
+        if (content.secondaryLabel != null && content.onSecondary != null) TextButton(onClick = content.onSecondary, enabled = !content.isWorking, modifier = Modifier.fillMaxWidth()) { Text(content.secondaryLabel) }
     }
 }
 

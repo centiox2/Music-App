@@ -128,3 +128,25 @@ fun SonderCard(item: YTItem, onClick: () -> Unit, onMore: (() -> Unit)? = null, 
 fun SonderGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)), content = content)
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SonderToolbar(
+    title: @Composable () -> Unit, modifier: Modifier = Modifier,
+    navigationIcon: @Composable () -> Unit = {}, actions: @Composable RowScope.() -> Unit = {},
+    subtitle: (@Composable () -> Unit)? = null,
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    expandedHeight: androidx.compose.ui.unit.Dp = 64.dp,
+    collapsedHeight: androidx.compose.ui.unit.Dp = 64.dp,
+    windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
+) {
+    Row(modifier.fillMaxWidth().windowInsetsPadding(windowInsets).height(64.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        navigationIcon()
+        Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+            ProvideTextStyle(MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) { title() }
+            subtitle?.let { ProvideTextStyle(MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) { it() } }
+        }
+        actions()
+    }
+}

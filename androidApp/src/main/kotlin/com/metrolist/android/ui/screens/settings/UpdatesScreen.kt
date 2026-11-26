@@ -125,14 +125,20 @@ import com.metrolist.shared.generated.resources.updates_size
 import com.metrolist.shared.generated.resources.updates_status_current
 import com.metrolist.shared.generated.resources.updates_title
 import com.metrolist.shared.generated.resources.updates_version
+import com.metrolist.shared.settings.Settings as AppSettings
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.settings.LocalSettingsPageHasTopBar
 import com.metrolist.shared.ui.settings.settingsPageSubtitle
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.update.GitHubMarkdown
 import com.metrolist.shared.ui.update.UpdateInfo
 import com.metrolist.shared.ui.utils.rememberFileSizeFormatter
 import com.metrolist.shared.utils.FileSizeUnits
 import com.metrolist.shared.utils.formatFileSize
+import java.io.File
+import java.text.DateFormat
+import java.time.Instant
+import java.util.Date
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -140,11 +146,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import java.io.File
-import java.text.DateFormat
-import java.time.Instant
-import java.util.Date
-import com.metrolist.shared.settings.Settings as AppSettings
 
 @Composable
 fun UpdatesScreen(
@@ -476,7 +477,7 @@ fun UpdateDetailsScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             if (!LocalSettingsPageHasTopBar.current) {
-                TopAppBar(
+                SonderToolbar(
                     title = {},
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {

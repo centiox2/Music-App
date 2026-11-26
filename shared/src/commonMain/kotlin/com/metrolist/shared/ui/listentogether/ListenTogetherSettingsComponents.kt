@@ -46,6 +46,7 @@ import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.back
 import com.metrolist.shared.ui.components.focusOutline
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.utils.segmentedGroupShape
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
 import org.jetbrains.compose.resources.stringResource
@@ -64,7 +65,7 @@ fun SettingsSubScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeFlexibleTopAppBar(
+            SonderToolbar(
                 title = { Text(title) },
                 navigationIcon = {
                     if (onNavigateBack != null) {
@@ -115,7 +116,7 @@ internal fun SettingsSubScreenGroup(
             Text(
                 text = it,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 16.dp, end = 32.dp, top = 24.dp, bottom = 12.dp),
             )
         }

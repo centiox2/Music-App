@@ -92,6 +92,7 @@ import com.metrolist.shared.ui.components.BasicAlertDialog
 import com.metrolist.shared.ui.components.PopupVisibility
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.playback.LocalPlaybackController
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.utils.setText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -225,7 +226,7 @@ fun LyricsEditorScreen(
                     }
                 },
             topBar = {
-                TopAppBar(
+                SonderToolbar(
                     title = {
                         Text(
                             stringResource(Res.string.lyrics_editor_title, songTitle),

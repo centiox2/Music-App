@@ -264,6 +264,7 @@ import com.metrolist.shared.ui.settings.SettingsTone
 import com.metrolist.shared.ui.settings.SettingsUiRegistryBuilder
 import com.metrolist.shared.ui.settings.integrationStatus
 import com.metrolist.shared.ui.settings.settingsPageSubtitle
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.ui.utils.DragScrollableColumn
 import com.metrolist.shared.ui.utils.carouselScroll
@@ -1843,7 +1844,7 @@ private fun ListenTogetherScaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             if (onNavigateBack != null || title.isNotBlank() || actions != null) {
-                TopAppBar(
+                SonderToolbar(
                     title = { Text(title, fontWeight = FontWeight.SemiBold) },
                     navigationIcon = navigationIcon,
                     actions = actions ?: {},

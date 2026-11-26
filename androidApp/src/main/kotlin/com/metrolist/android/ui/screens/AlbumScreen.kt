@@ -93,6 +93,7 @@ import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.screens.AlbumContent
 import com.metrolist.shared.ui.screens.albumContentText
 import com.metrolist.shared.ui.selection.rememberSelectionState
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.utils.ShareUrls
 import kotlinx.coroutines.CancellationException
@@ -255,7 +256,7 @@ fun AlbumScreen(
             if (selection.active) {
                 selectionBar()
             } else {
-                TopAppBar(
+                SonderToolbar(
                     title = {
                         Text(
                             text = albumInfo?.title ?: "",

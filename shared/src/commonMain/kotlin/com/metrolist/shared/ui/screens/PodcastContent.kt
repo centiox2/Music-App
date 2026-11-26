@@ -109,12 +109,14 @@ import com.metrolist.shared.ui.components.SongThumbnailPlayingIndicator
 import com.metrolist.shared.ui.components.episodeProgressFraction
 import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.components.loadingShimmer
+import com.metrolist.shared.ui.components.rememberModalSheetState as rememberBottomSheetState
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.menu.CursorDropdownMenu
 import com.metrolist.shared.ui.menu.contextMenuAnchor
 import com.metrolist.shared.ui.menu.onSecondaryClick
 import com.metrolist.shared.ui.menu.rememberCursorContextMenuState
 import com.metrolist.shared.ui.navigation.navigationPopupSource
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.theme.gridCellShape
 import com.metrolist.shared.ui.theme.uiEnhanced
 import com.metrolist.shared.ui.utils.DragScrollableColumn
@@ -124,7 +126,6 @@ import com.metrolist.shared.ui.utils.verticalScrollWithDrag
 import com.metrolist.shared.utils.isDesktop
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import com.metrolist.shared.ui.components.rememberModalSheetState as rememberBottomSheetState
 
 @Composable
 fun PodcastContent(
@@ -183,7 +184,7 @@ fun PodcastContent(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            SonderToolbar(
                 title = {
                     Text(
                         page?.podcast?.title ?: stringResource(Res.string.podcast),

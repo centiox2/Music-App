@@ -26,6 +26,7 @@ import com.metrolist.shared.generated.resources.n_selected
 import com.metrolist.shared.generated.resources.select_all
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.navigation.navigationPopupSource
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -49,7 +50,7 @@ fun SelectionTopBar(
     val selectedLabel = pluralStringResource(Res.plurals.n_selected, count, count)
     val selectAllChecked = allSelected && count > 0
     val selectAllLabel = stringResource(if (selectAllChecked) Res.string.deselect_all else Res.string.select_all)
-    TopAppBar(
+    SonderToolbar(
         modifier = modifier,
         title = {
             Text(

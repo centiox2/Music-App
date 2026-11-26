@@ -187,7 +187,7 @@ fun SettingsSubScreenGroup(
         if (items.isNotEmpty()) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
                 items.forEachIndexed { index, item ->
                     SettingsSubScreenItemRow(
@@ -211,11 +211,11 @@ internal fun SettingsSubScreenItemRow(
     val isTv = LocalIsTv.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val shape = segmentedGroupShape(isFirst, isLast, isPressed)
+    val shape = RoundedCornerShape(10.dp)
     val backgroundColor by animateColorAsState(
         targetValue =
             if (isPressed) {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)High
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f)
             } else {
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
             },

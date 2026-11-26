@@ -131,9 +131,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.metrolist.shared.ui.sonder.sonderBackdrop
 import androidx.compose.ui.unit.offset
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -155,6 +154,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationEventDispatcherOwnerHostDefaultKey
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
+import coil3.compose.AsyncImage as CoilAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.metrolist.android.App
@@ -218,6 +218,7 @@ import com.metrolist.android.ui.screens.settings.AndroidAboutScreen
 import com.metrolist.android.ui.screens.settings.AndroidAutoScreen
 import com.metrolist.android.ui.screens.settings.BackupRestoreScreen
 import com.metrolist.android.ui.screens.settings.DevtoolsSettingsScreen
+import com.metrolist.android.ui.screens.settings.IntegrationsScreen as SettingsIntegrationsScreen
 import com.metrolist.android.ui.screens.settings.ListenTogetherBlockedUsersScreen
 import com.metrolist.android.ui.screens.settings.ListenTogetherLogsScreen
 import com.metrolist.android.ui.screens.settings.ListenTogetherScreen
@@ -360,6 +361,7 @@ import com.metrolist.shared.ui.player.shouldShowMusicVideoSurface
 import com.metrolist.shared.ui.screens.pageKey
 import com.metrolist.shared.ui.screens.toHomeSection
 import com.metrolist.shared.ui.settings.SettingsPageId
+import com.metrolist.shared.ui.sonder.sonderBackdrop
 import com.metrolist.shared.ui.theme.resolveThemeSeedColor
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.ui.utils.LocalMouseScrollFactors
@@ -370,6 +372,7 @@ import com.metrolist.shared.utils.parseYouTubeStartPositionMs
 import com.metrolist.shared.utils.parseYouTubeUrl
 import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -386,9 +389,6 @@ import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.time.Duration.Companion.milliseconds
-import coil3.compose.AsyncImage as CoilAsyncImage
-import com.metrolist.android.ui.screens.settings.IntegrationsScreen as SettingsIntegrationsScreen
 
 private const val NAVIGATION_ROUTE_METADATA_KEY = "metrolist:route"
 
@@ -2685,6 +2685,26 @@ fun getEntryProvider(
 
         entry<Screen.Settings>(metadata = navTabMetadata) {
             SettingsScreen(
+                accountContent = {
+                    var showAccount by remember { mutableStateOf(false) }
+                    com.metrolist.shared.ui.sonder.SonderGroup(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                        Row(Modifier.fillMaxWidth().clickable { showAccount = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TopBarProfileAvatar(authManager.accountName, authManager.accountThumbnail, false)
+                            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                                Text(authManager.accountName.ifBlank { stringResource(Res.string.account_sign_in) }, fontWeight = FontWeight.SemiBold)
+                                Text(authManager.accountEmail, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Icon(MetrolistIcons.Outlined.ChevronRight, null)
+                        }
+                    }
+                    if (showAccount) AccountMenu(
+                        onClose = { showAccount = false }, onNavigateToLogin = { navigator.navigate(Screen.Login) },
+                        onNavigateToTokenLogin = { navigator.navigate(Screen.TokenLogin) }, onNavigateToSwitchChannel = { navigator.navigate(Screen.SwitchChannel) },
+                        onNavigateToHistory = { navigator.navigate(Screen.History) }, onNavigateToStatistics = { navigator.navigate(Screen.Statistics) },
+                        onNavigateToIntegrations = { navigator.navigate(Screen.Integrations) }, onNavigateToSettings = { showAccount = false },
+                        onLogout = { scope.launch { authManager.clearAllCredentials(); libraryViewModel.refresh() } },
+                    )
+                },
                 onNavigateBack = {
                     val target = resolveAndPersistStartupScreen()
                     navigator.state.startRoute = target
@@ -2698,6 +2718,26 @@ fun getEntryProvider(
 
         entry<Screen.SettingsPage>(metadata = navTabMetadata) { route ->
             SettingsScreen(
+                accountContent = {
+                    var showAccount by remember { mutableStateOf(false) }
+                    com.metrolist.shared.ui.sonder.SonderGroup(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                        Row(Modifier.fillMaxWidth().clickable { showAccount = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TopBarProfileAvatar(authManager.accountName, authManager.accountThumbnail, false)
+                            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                                Text(authManager.accountName.ifBlank { stringResource(Res.string.account_sign_in) }, fontWeight = FontWeight.SemiBold)
+                                Text(authManager.accountEmail, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Icon(MetrolistIcons.Outlined.ChevronRight, null)
+                        }
+                    }
+                    if (showAccount) AccountMenu(
+                        onClose = { showAccount = false }, onNavigateToLogin = { navigator.navigate(Screen.Login) },
+                        onNavigateToTokenLogin = { navigator.navigate(Screen.TokenLogin) }, onNavigateToSwitchChannel = { navigator.navigate(Screen.SwitchChannel) },
+                        onNavigateToHistory = { navigator.navigate(Screen.History) }, onNavigateToStatistics = { navigator.navigate(Screen.Statistics) },
+                        onNavigateToIntegrations = { navigator.navigate(Screen.Integrations) }, onNavigateToSettings = { showAccount = false },
+                        onLogout = { scope.launch { authManager.clearAllCredentials(); libraryViewModel.refresh() } },
+                    )
+                },
                 initialPage = route.page,
                 onNavigateBack = {
                     val target = resolveAndPersistStartupScreen()

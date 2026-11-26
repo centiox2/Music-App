@@ -160,11 +160,11 @@ import com.metrolist.shared.ui.utils.segmentedGroupShape
 import com.metrolist.shared.ui.utils.toPolygonShape
 import com.metrolist.shared.utils.formatDuration
 import com.metrolist.shared.utils.isPullToRefreshSupported
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.roundToInt
 
 enum class StatisticsPeriod {
     WEEK,
@@ -496,103 +496,18 @@ private fun PeriodButtons(
     onModeSelected: (StatisticsPeriodMode) -> Unit,
     onDateRangeSelected: (StatisticsDateRange) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var showDates by remember { mutableStateOf(false) }
-    if (showDates) StatisticsDateRangePicker(state.dateRange, onDateRangeSelected, onDismiss = { showDates = false })
-    val scrollState = rememberScrollState()
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .carouselScroll(scrollState)
-                .horizontalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    var menu by remember { mutableStateOf(false) }
+    var dates by remember { mutableStateOf(false) }
+    if (dates) StatisticsDateRangePicker(state.dateRange, onDateRangeSelected, onDismiss = { dates = false })
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box {
-            ExpressiveFilterChip(selected = false, onClick = { expanded = true }, label = {
-                Text(
-                    stringResource(
-                        if (state.dateRange !=
-                            null
-                        ) {
-                            Res.string.statistics_custom_dates
-                        } else if (state.mode ==
-                            StatisticsPeriodMode.CALENDAR
-                        ) {
-                            Res.string.statistics_calendar_mode
-                        } else {
-                            Res.string.statistics_continuous_mode
-                        },
-                    ),
-                )
-                Icon(MetrolistIcons.Outlined.KeyboardArrowDown, null)
-            })
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                StatisticsPeriodMode.entries.forEach { mode ->
-                    DropdownMenuItem(
-                        modifier = Modifier.tvFocusHighlight(RoundedCornerShape(4.dp)),
-                        text = {
-                            Text(
-                                stringResource(
-                                    if (mode ==
-                                        StatisticsPeriodMode.CALENDAR
-                                    ) {
-                                        Res.string.statistics_calendar_mode
-                                    } else {
-                                        Res.string.statistics_continuous_mode
-                                    },
-                                ),
-                            )
-                        },
-                        onClick = {
-                            expanded = false
-                            onModeSelected(mode)
-                        },
-                    )
-                }
-                DropdownMenuItem(modifier = Modifier.tvFocusHighlight(RoundedCornerShape(4.dp)), text = {
-                    Text(stringResource(Res.string.statistics_choose_dates))
-                }, onClick = {
-                    expanded = false
-                    showDates =
-                        true
-                })
+            com.metrolist.shared.ui.sonder.SonderPill(stringResource(if (state.mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode)) { menu = true }
+            DropdownMenu(menu, { menu = false }) {
+                StatisticsPeriodMode.entries.forEach { mode -> DropdownMenuItem(text = { Text(stringResource(if (mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode)) }, onClick = { menu = false; onModeSelected(mode) }) }
+                DropdownMenuItem(text = { Text(stringResource(Res.string.statistics_custom_dates)) }, onClick = { menu = false; dates = true })
             }
         }
-        val labels = StatisticsPeriod.entries.map { periodLabel(it) }
-        ButtonGroup(
-            overflowIndicator = { ButtonGroupDefaults.OverflowIndicator(it) },
-            modifier = Modifier.selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            StatisticsPeriod.entries.forEachIndexed { index, period ->
-                customItem(
-                    buttonGroupContent = {
-                        val interactions = remember { MutableInteractionSource() }
-                        val shapes =
-                            when (index) {
-                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                StatisticsPeriod.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                            }.withStaticCorners()
-                        ToggleButton(
-                            checked = state.dateRange == null && state.period == period,
-                            onCheckedChange = { onSelected(period) },
-                            interactionSource = interactions,
-                            shapes = shapes,
-                            modifier = Modifier.animateWidth(interactions).tvFocusHighlight(shapes.shape),
-                        ) {
-                            Text(labels[index], maxLines = 1, softWrap = false)
-                        }
-                    },
-                    menuContent = {
-                        DropdownMenuItem(text = { Text(labels[index]) }, onClick = { onSelected(period) })
-                    },
-                )
-            }
-        }
+        StatisticsPeriod.entries.forEach { period -> com.metrolist.shared.ui.sonder.SonderPill(periodLabel(period), state.dateRange == null && state.period == period) { onSelected(period) } }
     }
 }
 
@@ -604,8 +519,8 @@ private fun StatisticsCard(
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             title,
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier =
                 Modifier
                     .semantics {
@@ -667,7 +582,7 @@ private fun SummaryCard(
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraSmall,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)),
     ) {
         Column(Modifier.padding(14.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -892,8 +807,8 @@ private fun StatisticsCarousel(
                     Modifier.weight(1f).semantics {
                         heading()
                     },
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             FilledIconButton(onClick = onOpenDetail, shapes = IconButtonDefaults.shapes()) {
                 Icon(MetrolistIcons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(Res.string.see_all))

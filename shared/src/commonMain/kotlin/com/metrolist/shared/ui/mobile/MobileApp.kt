@@ -257,6 +257,7 @@ import com.metrolist.shared.ui.settings.applyIosAppLanguage
 import com.metrolist.shared.ui.settings.rememberIosAppIconActions
 import com.metrolist.shared.ui.settings.rememberIosFontActions
 import com.metrolist.shared.ui.settings.rememberIosLogExportAction
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.sonder.sonderBackdrop
 import com.metrolist.shared.ui.theme.MdSpacing
 import com.metrolist.shared.ui.theme.MetrolistTheme
@@ -828,7 +829,7 @@ fun MobileApp(
                     containerColor = Color.Transparent,
                     topBar = {
                         if (isTopLevelRoute) {
-                            TopAppBar(
+                            SonderToolbar(
                                 title = {
                                     Text(
                                         text =

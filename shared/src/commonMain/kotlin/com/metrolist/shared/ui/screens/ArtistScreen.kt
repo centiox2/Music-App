@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -105,8 +106,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -119,6 +122,7 @@ import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.about
 import com.metrolist.shared.generated.resources.action_like
 import com.metrolist.shared.generated.resources.album_type
+import com.metrolist.shared.generated.resources.archivo_condensed_black
 import com.metrolist.shared.generated.resources.artist_actions
 import com.metrolist.shared.generated.resources.artist_latest_release
 import com.metrolist.shared.generated.resources.artist_play_all
@@ -435,208 +439,58 @@ private fun ArtistScreenContent(
     headerVideoLayer: (@Composable (Modifier) -> Unit)? = null,
     onAppBarVisibleChange: (Boolean) -> Unit = {},
 ) {
-    val page = remember(sections, sectionBrowseIds) { ArtistPageResult(sections, sectionBrowseIds) }
-    val loadingText = stringResource(Res.string.loading)
-    val topTracksSection = remember(page) { page.topTracksSection }
-    val videoSections = remember(page) { page.videoSections }
-    val librarySection = remember(page) { page.librarySection }
-    BoxWithConstraints(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        val isWide = maxWidth >= 960.dp
-        val isMedium = maxWidth >= 600.dp && !isWide
-        // Phones show the whole square profile picture; wider layouts keep the banner strip.
-        val squareHeader = !isWide && !isMedium
-        val headerImageHeight =
-            if (squareHeader) {
-                minOf(maxWidth, maxHeight * 0.6f)
-            } else {
-                minOf(maxHeight / 2, if (isWide) 260.dp else 360.dp)
-            }
-        val actionSize =
-            when {
-                maxWidth >= 840.dp -> ArtistActionSize.Expanded
-                maxWidth >= 600.dp -> ArtistActionSize.Medium
-                else -> ArtistActionSize.Compact
-            }
-
-        val titleBottom = remember { mutableFloatStateOf(Float.POSITIVE_INFINITY) }
-        val surface = MaterialTheme.colorScheme.surface
-        val headerTop = contentPadding.calculateTopPadding()
-        // The picture stays put while the list scrolls; the page content slides up over it.
-        ArtistHeaderImage(
-            imageUrl = if (squareHeader) artist.thumbnail ?: artist.banner else artist.banner ?: artist.thumbnail,
-            square = squareHeader,
-            headerVideoLayer = headerVideoLayer,
-            modifier =
-                Modifier.padding(top = headerTop).fillMaxWidth().height(headerImageHeight).clipToBounds().then(
-                    if (isPlaceholder && artist.banner == null && artist.thumbnail == null) {
-                        Modifier.loadingShimmer().background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    } else {
-                        Modifier
-                    },
-                ),
-        )
-        DragScrollableColumn(
-            state = listState,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .drawBehind {
-                        // Items below the header gap are transparent, so paint the page behind them.
-                        val coverTop =
-                            if (listState.firstVisibleItemIndex == 0) {
-                                (headerTop + headerImageHeight).toPx() - listState.firstVisibleItemScrollOffset
-                            } else {
-                                0f
-                            }
-                        val top = coverTop.coerceAtLeast(0f)
-                        // Rounded like a sheet over the picture, flattening as it reaches the top edge.
-                        val radius = minOf(28.dp.toPx(), top)
-                        drawRoundRect(
-                            color = surface,
-                            topLeft = Offset(0f, top),
-                            size = Size(size.width, size.height - top + radius),
-                            cornerRadius = CornerRadius(radius),
-                        )
-                    }.desktopArrowScroll(listState)
-                    .then(
-                        if (isPlaceholder) {
-                            Modifier.semantics {
-                                contentDescription = loadingText
-                                liveRegion = LiveRegionMode.Polite
-                            }
-                        } else {
-                            Modifier
-                        },
-                    ),
-            contentPadding = contentPadding,
-        ) {
-            item(key = "artist_header", contentType = "header") {
-                ArtistHeader(
-                    artist = artist,
-                    isPlaceholder = isPlaceholder,
-                    imageHeight = headerImageHeight,
-                    isWide = isWide,
-                    isMedium = isMedium,
-                    actionSize = actionSize,
-                    isSubscribed = isSubscribed,
-                    subscribeSuccessCount = subscribeSuccessCount,
-                    showSubscribe = showSubscribe,
-                    onMenuClick = onMenuClick,
-                    onTitleBottom = { titleBottom.floatValue = it },
-                    onPlayAllClick = onPlayAllClick,
-                    onShuffleClick = onShuffleClick,
-                    onMixClick = onMixClick,
-                    onSubscribeClick = onSubscribeClick,
-                    onUnblockClick = onUnblockClick,
-                    description = description.takeIf { onAboutClick == null },
-                )
-            }
-
-            if (isPlaceholder) {
-                item(key = "artist_loading_sections", contentType = "loading") {
-                    ArtistLoadingSections(isWide, isMedium)
+    LaunchedEffect(sections) { onItemsVisible?.invoke(sections.values.flatten()) }
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
+            item("sonder_artist_hero") {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.fillMaxWidth().height(320.dp)) {
+                        AsyncImage(artist.banner ?: artist.thumbnail, Modifier.fillMaxSize())
+                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surface))))
+                        Text(artist.displayTitle.uppercase(), Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                            fontFamily = FontFamily(org.jetbrains.compose.resources.Font(com.metrolist.shared.generated.resources.Res.font.archivo_condensed_black, FontWeight.Black)),
+                            fontWeight = FontWeight.Black, fontSize = 50.sp, lineHeight = 47.sp, textAlign = TextAlign.Center)
+                    }
+                    artist.monthlyListeners?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp)) }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                        com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.shuffle), onClick = onShuffleClick)
+                        Surface(onClick = onPlayAllClick, shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp)) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(MetrolistIcons.Rounded.PlayArrow, stringResource(Res.string.play), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(28.dp)) }
+                        }
+                        if (showSubscribe) com.metrolist.shared.ui.sonder.SonderPill(stringResource(if (isSubscribed) Res.string.subscribed else Res.string.subscribe), isSubscribed, onSubscribeClick)
+                        else com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.radio), onClick = onMixClick)
+                    }
                 }
-            } else {
-                renderArtistSections(
-                    artistId = artist.id,
-                    topTracksSection = topTracksSection,
-                    videoSections = videoSections,
-                    librarySection = librarySection,
-                    currentSongId = currentSongId,
-                    isPlaying = isPlaying,
-                    onItemsVisible = onItemsVisible,
-                    sections = sections,
-                    sectionBrowseIds = sectionBrowseIds,
-                    loadableSections = loadableSections,
-                    sectionContinuation = sectionContinuation,
-                    onItemClick = onItemClick,
-                    onVideoItemClick = onVideoItemClick,
-                    onAlbumArtworkClick = onAlbumArtworkClick,
-                    onItemLongClick = onItemLongClick,
-                    songContainer = songContainer,
-                    onSectionClick = onSectionClick,
-                    onVideoSectionClick = onVideoSectionClick,
-                    onPlayItem = onPlayItem,
-                    isSongLiked = isSongLiked,
-                    onLikeSong = onLikeSong,
-                    isWide = isWide,
-                    isMedium = isMedium,
-                    about =
-                        onAboutClick?.let { onClick ->
-                            {
-                                item(key = "artist_about", contentType = "about") {
-                                    ArtistAboutCard(
-                                        artist = artist,
-                                        description = description,
-                                        imageUrl = aboutImageUrl,
-                                        isWide = isWide,
-                                        descriptionLines = if (isWide || isMedium) 2 else 4,
-                                        onClick = onClick,
-                                    )
-                                }
+            }
+            sections.entries.forEachIndexed { sectionIndex, (title, entries) ->
+                if (entries.isNotEmpty()) {
+                    item("artist_section_${sectionIndex}") {
+                        com.metrolist.shared.ui.sonder.SonderSection(title, stringResource(Res.string.see_all), onSectionClick?.let { navigate -> { val destination = sectionBrowseIds[title]; navigate(destination?.first ?: artist.id, destination?.second, title) } })
+                    }
+                    if (entries.all { it is SongItem }) {
+                        items(entries.size, key = { index -> "artist_${sectionIndex}_${index}_${entries[index].id}" }) { index ->
+                            val song = entries[index] as SongItem
+                            songContainer(song) { com.metrolist.shared.ui.sonder.SonderMediaRow(song, { onItemClick(song) }, { onItemLongClick(song) }, current = song.id == currentSongId) }
+                        }
+                    } else {
+                        item("artist_cards_${sectionIndex}") {
+                            LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                items(entries.size) { index -> val entry = entries[index]; com.metrolist.shared.ui.sonder.SonderCard(entry, { onItemClick(entry) }, { onItemLongClick(entry) }) }
                             }
-                        },
-                )
+                        }
+                    }
+                    if (title in loadableSections) item("artist_more_${sectionIndex}") { sectionContinuation?.invoke(title) }
+                }
             }
-
-            item(key = "artist_footer_space", contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
+            if (!description.isNullOrBlank()) item("artist_about") {
+                com.metrolist.shared.ui.sonder.SonderGroup(Modifier.padding(20.dp).clickable { onAboutClick?.invoke() }) {
+                    Text(description, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 5, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
-        val barMenuClick = onMenuClick.takeIf { actionSize == ArtistActionSize.Compact }
-        if (onBackClick != null || barMenuClick != null || onRefreshClick != null) {
-            val appBarBottom = remember { mutableFloatStateOf(0f) }
-            val showAppBar by remember(listState) {
-                derivedStateOf { listState.firstVisibleItemIndex > 0 || titleBottom.floatValue <= appBarBottom.floatValue }
-            }
-            LaunchedEffect(showAppBar) { onAppBarVisibleChange(showAppBar) }
-            val progress by animateFloatAsState(if (showAppBar) 1f else 0f, MaterialTheme.motionScheme.fastEffectsSpec())
-            val surface = MaterialTheme.colorScheme.surface
-            val iconColor = lerp(Color.White, MaterialTheme.colorScheme.onSurface, progress)
-            val buttonModifier = Modifier.drawBehind { drawCircle(Color.Black, alpha = 0.4f * (1f - progress)) }
-            TopAppBar(
-                title = {
-                    Text(
-                        artist.displayTitle,
-                        modifier =
-                            Modifier
-                                .graphicsLayer { alpha = progress }
-                                .then(if (isPlaceholder) Modifier.clearAndSetSemantics {} else Modifier),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    if (onBackClick != null) {
-                        IconButton(onClick = onBackClick, modifier = buttonModifier, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), tint = iconColor)
-                        }
-                    }
-                },
-                actions = {
-                    if (onRefreshClick != null) {
-                        IconButton(onClick = onRefreshClick, modifier = buttonModifier, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.Outlined.Refresh, stringResource(Res.string.artist_refresh), tint = iconColor)
-                        }
-                    }
-                    if (barMenuClick != null) {
-                        IconButton(
-                            onClick = barMenuClick,
-                            modifier = buttonModifier.navigationPopupSource(),
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(MetrolistIcons.Default.MoreVert, stringResource(Res.string.artist_actions), tint = iconColor)
-                        }
-                    }
-                },
-                modifier =
-                    Modifier
-                        .onGloballyPositioned { appBarBottom.floatValue = it.boundsInWindow().bottom }
-                        .drawBehind { drawRect(surface, alpha = progress) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                windowInsets = headerWindowInsets,
-            )
+        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (onBackClick != null) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), onBackClick, glass = true)
+            if (onMenuClick != null) com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), onMenuClick, glass = true)
         }
     }
 }

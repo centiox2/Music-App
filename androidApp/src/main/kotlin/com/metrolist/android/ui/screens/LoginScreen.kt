@@ -96,9 +96,11 @@ import com.metrolist.shared.ui.components.ContainedLoadingIndicator
 import com.metrolist.shared.ui.components.PopupVisibility
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.sanitizeDataSyncId
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.utils.BlockScreenshots
 import com.metrolist.shared.utils.Logger
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -110,7 +112,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import timber.log.Timber
-import kotlin.time.Duration.Companion.milliseconds
 
 private enum class LoginStage {
     Authenticating,
@@ -427,7 +428,7 @@ fun LoginScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            SonderToolbar(
                 title = {
                     Text(
                         stringResource(if (isSwitchingChannel) Res.string.switch_youtube_channel else Res.string.sign_in_to_youtube_music),

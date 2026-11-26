@@ -123,19 +123,20 @@ import com.metrolist.shared.ui.crash.CrashLogsScreen
 import com.metrolist.shared.ui.crash.CrashScreenshotHint
 import com.metrolist.shared.ui.crash.CrashScreenshotHintText
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.tvHorizontalScrollFocus
 import com.metrolist.shared.ui.tv.tvVerticalScrollFocus
 import com.metrolist.shared.ui.utils.setText
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import timber.log.Timber
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class CrashActivity : ComponentActivity() {
     private val crashLog by lazy {
@@ -302,7 +303,7 @@ private fun CrashScreen(
     CrashScreenshotHint(onCopy = onCopy, onShare = { onShare(paste) })
     Scaffold(
         topBar = {
-            TopAppBar(
+            SonderToolbar(
                 title = {
                     Text(
                         text = stringResource(Res.string.crash_title),

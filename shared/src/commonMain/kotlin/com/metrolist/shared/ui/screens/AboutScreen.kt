@@ -87,6 +87,7 @@ import com.metrolist.shared.generated.resources.stands_with_palestine
 import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.utils.toPolygonShape
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
 import com.metrolist.shared.utils.getAppArchitecture
@@ -163,7 +164,7 @@ fun AboutScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             if (onNavigateBack != null) {
-                LargeFlexibleTopAppBar(
+                SonderToolbar(
                     title = { Text(text.title) },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {

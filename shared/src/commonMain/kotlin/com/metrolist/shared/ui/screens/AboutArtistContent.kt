@@ -115,6 +115,7 @@ import com.metrolist.shared.ui.components.ExpandableText
 import com.metrolist.shared.ui.components.images.AsyncImage
 import com.metrolist.shared.ui.components.loadingShimmer
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.utils.carouselScroll
 import com.metrolist.shared.utils.Logger
 import com.metrolist.shared.utils.parseAudienceCount
@@ -520,7 +521,7 @@ fun AboutArtistContent(
         Box(Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
-                    TopAppBar(
+                    SonderToolbar(
                         title = { Text(artistName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         navigationIcon = {
                             IconButton(onClick = onBackClick, shapes = IconButtonDefaults.shapes()) {

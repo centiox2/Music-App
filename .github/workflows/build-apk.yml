@@ -50,7 +50,7 @@ jobs:
 
       - name: Verify Sonder appearance and settings
         run: >-
-          ./gradlew :shared:testAndroidHostTest --no-daemon --no-configuration-cache
+          ./gradlew :androidApp:compileDebugKotlin :shared:testAndroidHostTest --no-daemon --no-configuration-cache
           --tests 'com.metrolist.shared.ui.sonder.SonderAppearanceTest'
           --tests 'com.metrolist.shared.settings.NavigationTabPreferencesTest'
           --tests 'com.metrolist.shared.settings.ExpressiveMiniPlayerSettingsTest'

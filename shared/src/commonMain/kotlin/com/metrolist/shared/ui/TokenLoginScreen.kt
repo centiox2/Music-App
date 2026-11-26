@@ -83,6 +83,7 @@ import com.metrolist.shared.state.GlobalInnerTube
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.ui.components.ExpressiveSwitch
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.tv.RequestTvFocus
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
@@ -402,7 +403,7 @@ fun TokenLoginScreen(
     Scaffold(
         modifier = Modifier.imePadding(),
         topBar = {
-            LargeTopAppBar(
+            SonderToolbar(
                 title = { Text(stringResource(Res.string.token_login_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, enabled = !isSaving, shapes = IconButtonDefaults.shapes()) {

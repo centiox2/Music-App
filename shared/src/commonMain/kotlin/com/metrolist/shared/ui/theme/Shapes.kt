@@ -14,21 +14,21 @@ import com.metrolist.shared.settings.Settings
 
 val MetrolistShapes =
     Shapes(
-        extraSmall = RoundedCornerShape(16.dp),
-        small = RoundedCornerShape(20.dp),
-        medium = RoundedCornerShape(24.dp),
-        large = RoundedCornerShape(28.dp),
-        extraLarge = RoundedCornerShape(32.dp),
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(14.dp),
+        large = RoundedCornerShape(18.dp),
+        extraLarge = RoundedCornerShape(24.dp),
     )
 
 object ComponentShapes {
-    val CardShape = RoundedCornerShape(20.dp)
-    val BottomSheetShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    val CardShape = RoundedCornerShape(14.dp)
+    val BottomSheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     val SmallThumbnailShape get() = RoundedCornerShape(uiEnhanced(4.dp, 8.dp))
     val ThumbnailShape get() = RoundedCornerShape(uiEnhanced(6.dp, 12.dp))
     val AlbumArtShape get() = RoundedCornerShape(uiEnhanced(16.dp, 32.dp))
-    val MenuExteriorShape = RoundedCornerShape(28.dp)
-    val MenuGroupShape = RoundedCornerShape(20.dp)
+    val MenuExteriorShape = RoundedCornerShape(24.dp)
+    val MenuGroupShape = RoundedCornerShape(16.dp)
     val MenuItemShape = RoundedCornerShape(8.dp)
     val SearchExteriorCornerRadius = 24.dp
     val SearchItemCornerRadius = 6.dp

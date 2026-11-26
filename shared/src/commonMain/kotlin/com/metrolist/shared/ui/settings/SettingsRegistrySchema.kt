@@ -101,6 +101,7 @@ data class SettingsHostAction(
 data class SharedSettingsHost(
     val platform: SettingsPlatform,
     val onClose: () -> Unit,
+    val rootHeader: @Composable () -> Unit = {},
     val onOpenArtist: (String) -> Unit = {},
     val title: String? = null,
     val bottomContentPadding: Dp = 0.dp,

@@ -150,10 +150,12 @@ import com.metrolist.shared.ui.screens.PlaylistContent
 import com.metrolist.shared.ui.screens.playlistContentText
 import com.metrolist.shared.ui.screens.playlistOrderControlsText
 import com.metrolist.shared.ui.selection.rememberSelectionState
+import com.metrolist.shared.ui.sonder.SonderToolbar
 import com.metrolist.shared.ui.theme.uiEnhanced
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.utils.ArtworkPrefetchWindow
 import com.metrolist.shared.utils.ShareUrls
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -165,7 +167,6 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @UnstableApi
@@ -549,7 +550,7 @@ fun PlaylistScreen(
             if (selection.active) {
                 selectionBar()
             } else {
-                TopAppBar(
+                SonderToolbar(
                     title = {
                         if (isTopBarCollapsed) {
                             Text(
