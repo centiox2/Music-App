@@ -255,6 +255,7 @@ import com.metrolist.shared.db.MusicDatabase
 import com.metrolist.shared.db.entities.KIND_DOWNLOAD
 import com.metrolist.shared.db.isHistoryPlaylistId
 import com.metrolist.shared.deviceconnect.DeviceConnectPairingHost
+import com.metrolist.shared.generated.resources.account_sign_in
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.action_login
 import com.metrolist.shared.generated.resources.action_not_now
@@ -1410,7 +1411,6 @@ fun MetrolistApp(
                                 Column(Modifier.fillMaxSize()) {
                                     PlaylistImportProgressCard()
                                     Scaffold(
-                                        modifier = Modifier.sonderBackdrop(playbackViewModel.currentSong.collectAsState().value?.thumbnail),
                                         containerColor = Color.Transparent,
                                         contentWindowInsets = WindowInsets(0),
                                         topBar = {
@@ -1518,13 +1518,14 @@ fun MetrolistApp(
                                                     }
                                                 }
                                                 Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                    Box(Modifier.weight(1f)) { topBarTitle() }
+                                                    Column(Modifier.weight(1f)) { topBarTitle(); topBarSubtitle() }
                                                     topBarActions()
                                                 }
                                             }
                                         },
                                         modifier =
                                             Modifier
+                                                .sonderBackdrop(playbackViewModel.currentSong.collectAsState().value?.thumbnail)
                                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                                                 .onSizeChanged { size ->
                                                     if (hasBottomNavigation && !useFloatingNavBar) {

@@ -440,6 +440,9 @@ private fun ArtistScreenContent(
     headerVideoLayer: (@Composable (Modifier) -> Unit)? = null,
     onAppBarVisibleChange: (Boolean) -> Unit = {},
 ) {
+    val page = remember(sections, sectionBrowseIds) { ArtistPageResult(sections, sectionBrowseIds) }
+    val topTracksSection = page.topTracksSection
+    val videoSections = page.videoSections
     LaunchedEffect(sections) { onItemsVisible?.invoke(sections.values.flatten()) }
     Box(modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
