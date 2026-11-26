@@ -1245,6 +1245,9 @@ fun MobileApp(
                                     onAutoPlaylistClick = { type, title -> open(MobileRoute.SongCollection(type, title)) },
                                     onCreatePlaylist = playlistWorkflow::showCreate,
                                     onPlayAlbum = ::playAlbum,
+                                    onOpenStatistics = { open(MobileRoute.Statistics) },
+                                    onOpenHistory = { open(MobileRoute.History) },
+                                    onOpenSettings = { open(MobileRoute.Settings()) },
                                     modifier = Modifier.fillMaxSize().padding(routePadding),
                                 )
                             }

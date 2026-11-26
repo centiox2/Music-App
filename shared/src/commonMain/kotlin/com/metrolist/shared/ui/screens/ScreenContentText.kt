@@ -158,7 +158,7 @@ fun libraryContentText() =
     LibraryContentText(
         filterLabels =
             mapOf(
-                LibraryFilter.TRACKS to stringResource(Res.string.tracks),
+                LibraryFilter.TRACKS to stringResource(Res.string.songs),
                 LibraryFilter.PLAYLISTS to stringResource(Res.string.playlists),
                 LibraryFilter.ARTISTS to stringResource(Res.string.artists),
                 LibraryFilter.ALBUMS to stringResource(Res.string.albums),

@@ -24,7 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
+import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -179,6 +179,9 @@ internal fun MobileLibrary(
     onItemLongClick: ((YTItem) -> Unit)? = null,
     onCreatePlaylist: (() -> Unit)? = null,
     onPlayAlbum: ((AlbumItem) -> Unit)? = null,
+    onOpenStatistics: (() -> Unit)? = null,
+    onOpenHistory: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
     bottomContentPadding: Dp = 0.dp,
 ) {
     val playbackState by remember(playbackController) {
@@ -356,6 +359,11 @@ internal fun MobileLibrary(
                 },
                 scrollState = libraryGridState,
                 onPlayAlbum = onPlayAlbum,
+                headerActions = {
+                    onOpenStatistics?.let { com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Filled.BarChart, "Statistics", it, glass = true) }
+                    onOpenHistory?.let { com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Outlined.History, "History", it, glass = true) }
+                    onOpenSettings?.let { com.metrolist.shared.ui.sonder.SonderIcon(MetrolistIcons.Filled.Settings, "Settings", it, glass = true) }
+                },
                 modifier = Modifier.fillMaxSize(),
             )
         }

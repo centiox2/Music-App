@@ -83,6 +83,7 @@ import com.metrolist.shared.ui.components.mediumCollectionArtworkSize
 import com.metrolist.shared.ui.components.rememberItemPlayback
 import com.metrolist.shared.ui.menu.onSecondaryClick
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.navigation.NavigationBackHandler
 import com.metrolist.shared.ui.utils.DragScrollableColumn
 import com.metrolist.shared.ui.utils.carouselScroll
@@ -200,8 +201,8 @@ fun AlbumContent(
 
     Box(modifier.fillMaxSize()) {
         CollectionHeaderNavigation(
-            if (isSearchOpen) toggleSearch else onBackClick,
-            onMoreOptions,
+            onBackClick = if (isSearchOpen) toggleSearch else onBackClick,
+            onMoreOptions = onMoreOptions.takeUnless { immersiveHeader },
             title = {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     AnimatedVisibility(
@@ -221,6 +222,9 @@ fun AlbumContent(
             },
             selectionControls = selectionControls.takeIf { selectionActive },
             topContentPadding = if (immersiveHeader) 0.dp else 64.dp,
+            topEndContent = if (immersiveHeader && searchAvailable) {
+                { SonderIcon(MetrolistIcons.Outlined.Search, "Search", toggleSearch, glass = true) }
+            } else null,
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val isWide = maxWidth >= 960.dp

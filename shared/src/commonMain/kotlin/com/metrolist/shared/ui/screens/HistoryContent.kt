@@ -112,6 +112,7 @@ import com.metrolist.shared.ui.components.PopupContent
 import com.metrolist.shared.ui.components.PopupVisibility
 import com.metrolist.shared.ui.components.RefreshIndicator
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.menu.SongSelectionMenuSheet
 import com.metrolist.shared.ui.menu.historySelectionMenuModel
 import com.metrolist.shared.ui.navigation.NavigationBackHandler
@@ -236,16 +237,7 @@ fun HistoryContent(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.tvFocusHighlight(CircleShape),
-                    shapes = IconButtonDefaults.shapes(),
-                ) {
-                    Icon(
-                        MetrolistIcons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(Res.string.back),
-                    )
-                }
+                SonderIcon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back), onNavigateBack, glass = true)
                 Text(
                     stringResource(Res.string.history),
                     style = MaterialTheme.typography.headlineMedium,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -30,6 +31,7 @@ import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.go_back
 import com.metrolist.shared.generated.resources.more_options
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.theme.uiEnhanced
 import com.metrolist.shared.ui.tv.tvFocusHighlight
@@ -96,7 +98,8 @@ fun DetailBackButton(
 ) {
     IconButton(
         onClick = onBackClick,
-        modifier = modifier.padding(start = 8.dp, top = 8.dp).tvFocusHighlight(CircleShape),
+        modifier = modifier.padding(start = 8.dp, top = 8.dp).size(48.dp).clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.56f)).tvFocusHighlight(CircleShape),
         shapes = IconButtonDefaults.shapes(),
     ) {
         Icon(
@@ -115,6 +118,7 @@ fun CollectionHeaderNavigation(
     title: (@Composable () -> Unit)? = null,
     selectionControls: (@Composable () -> Unit)? = null,
     topContentPadding: Dp = 64.dp,
+    topEndContent: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -130,19 +134,11 @@ fun CollectionHeaderNavigation(
                     Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.CenterStart) { title() }
                 }
                 DetailBackButton(onBackClick)
-                if (onMoreOptions != null) {
-                    IconButton(
-                        onClick = onMoreOptions,
-                        modifier =
-                            Modifier
-                                .align(
-                                    Alignment.TopEnd,
-                                ).padding(end = 8.dp, top = 8.dp)
-                                .tvFocusHighlight(CircleShape)
-                                .navigationPopupSource(),
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(MetrolistIcons.Default.MoreVert, stringResource(Res.string.more_options))
+                if (topEndContent != null) {
+                    Box(Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 8.dp)) { topEndContent() }
+                } else if (onMoreOptions != null) {
+                    Box(Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 8.dp).navigationPopupSource()) {
+                        SonderIcon(MetrolistIcons.Default.MoreVert, stringResource(Res.string.more_options), onMoreOptions, glass = true)
                     }
                 }
             }

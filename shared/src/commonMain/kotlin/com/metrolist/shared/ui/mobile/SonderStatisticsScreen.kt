@@ -65,7 +65,7 @@ import com.metrolist.shared.ui.sonder.SonderPill
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun SonderStatisticsScreen(
+fun SonderStatisticsScreen(
     state: StatisticsUiState,
     onPeriodSelected: (StatisticsPeriod) -> Unit,
     onModeSelected: (StatisticsPeriodMode) -> Unit,
@@ -113,32 +113,29 @@ internal fun SonderStatisticsScreen(
                     null -> ""
                 },
                 modifier = Modifier.weight(1f).padding(start = 8.dp),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
                 maxLines = 1,
             )
+            if (detail == null) {
+                Box {
+                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, "Statistics options", { modeMenu = true }, glass = true)
+                    DropdownMenu(expanded = modeMenu, onDismissRequest = { modeMenu = false }) {
+                        StatisticsPeriodMode.entries.forEach { mode ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(if (mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode)) },
+                                onClick = { modeMenu = false; onModeSelected(mode) },
+                            )
+                        }
+                        DropdownMenuItem(text = { Text(stringResource(Res.string.statistics_custom_dates)) }, onClick = { modeMenu = false; showDatePicker = true })
+                    }
+                }
+            }
             if (state.canExportStatistics()) SonderIcon(MetrolistIcons.Outlined.Share, exportLabel, { shareOpen = true }, glass = true)
         }
 
         if (detail == null) {
             SonderStatisticsTabs(selected = detailed, onSelected = { detailed = it })
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    Box {
-                        SonderPill(
-                            text = stringResource(if (state.mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode),
-                            onClick = { modeMenu = true },
-                        )
-                        DropdownMenu(expanded = modeMenu, onDismissRequest = { modeMenu = false }) {
-                            StatisticsPeriodMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(if (mode == StatisticsPeriodMode.CALENDAR) Res.string.statistics_calendar_mode else Res.string.statistics_continuous_mode)) },
-                                    onClick = { modeMenu = false; onModeSelected(mode) },
-                                )
-                            }
-                            DropdownMenuItem(text = { Text(stringResource(Res.string.statistics_custom_dates)) }, onClick = { modeMenu = false; showDatePicker = true })
-                        }
-                    }
-                }
                 StatisticsPeriod.entries.forEach { period ->
                     item(key = "sonder_stats_period_$period") {
                         SonderPill(periodLabel(period), state.dateRange == null && state.period == period) { onPeriodSelected(period) }
@@ -158,7 +155,7 @@ internal fun SonderStatisticsScreen(
                 } else if (state.errorMessage != null) {
                     item { Text(state.errorMessage, Modifier.padding(20.dp), color = colors.error) }
                 } else {
-                    if (detailed) item { SonderStatisticsSummary(state) }
+                    if (detailed) item { SonderStatisticsSummary(state, detailed = true) }
                     if (state.totalPlays == 0 && state.dailyStats.isEmpty()) {
                         item { Text(stringResource(Res.string.statistics_no_data), color = colors.onSurfaceVariant) }
                     } else if (detailed) {
@@ -185,7 +182,7 @@ internal fun SonderStatisticsScreen(
                             )
                         }
                     } else {
-                        item { SonderStatisticsSummary(state) }
+                        item { SonderStatisticsSummary(state, detailed = false) }
                         item { SonderStatisticsChartCard(stringResource(Res.string.statistics_activity)) { ActivityHeatmap(state.dailyStats, state.period, state.dateRange) } }
                         item { SonderStatisticsChartCard(stringResource(Res.string.statistics_listening_habits)) { HourlyActivityChart(state.hourlyStats) } }
                     }
@@ -226,32 +223,50 @@ private fun SonderStatisticsTabs(selected: Boolean, onSelected: (Boolean) -> Uni
 }
 
 @Composable
-private fun SonderStatisticsSummary(state: StatisticsUiState) {
+private fun SonderStatisticsSummary(state: StatisticsUiState, detailed: Boolean) {
     val colors = MaterialTheme.colorScheme
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF1D3B3A), Color(0xFF2F5A55), Color(0xFF1D3B3A))))
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text("${periodLabel(state.period)} summary", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            "You've played ${state.totalPlays} tracks for ${statisticsDuration(state.totalTimeMs)}",
-            color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 29.sp,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-            SummaryMetric("Tracks", state.totalPlays.toString(), Modifier.weight(1f))
-            SummaryMetric("Albums", state.albumCount.toString(), Modifier.weight(1f))
-            SummaryMetric("Artists", state.artistCount.toString(), Modifier.weight(1f))
+    if (detailed) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF1D3B3A), Color(0xFF2F5A55), Color(0xFF1D3B3A))))
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("${periodLabel(state.period)} summary", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("You've played ${state.totalPlays} tracks for ${statisticsDuration(state.totalTimeMs)}", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 29.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                SummaryMetric("Tracks", state.totalPlays.toString(), Modifier.weight(1f))
+                SummaryMetric("Albums", state.albumCount.toString(), Modifier.weight(1f))
+                SummaryMetric("Artists", state.artistCount.toString(), Modifier.weight(1f))
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF1D3B3A), Color(0xFF2F5A55), Color(0xFF1D3B3A))))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text("Time listened · ${periodLabel(state.period)}", color = Color.White.copy(alpha = 0.78f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(statisticsDuration(state.totalTimeMs), color = Color.White, fontSize = 46.sp, lineHeight = 52.sp, fontWeight = FontWeight.Bold)
+                val listenedDays = state.totalTimeMs / 86_400_000L
+                Text("About $listenedDays days of music", color = Color.White.copy(alpha = 0.76f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SummaryMetric("Tracks", state.totalPlays.toString(), Modifier.weight(1f))
+                SummaryMetric("Albums", state.albumCount.toString(), Modifier.weight(1f))
+                SummaryMetric("Artists", state.artistCount.toString(), Modifier.weight(1f))
+            }
         }
     }
 }
 
 @Composable
 private fun SummaryMetric(label: String, value: String, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.18f)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(label, color = Color.White.copy(alpha = 0.72f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Text(value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    Column(modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 

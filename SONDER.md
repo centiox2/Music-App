@@ -28,8 +28,10 @@ module is included. Sonder's original artwork palette extraction and weighted me
 have been ported to common Kotlin UI code, along with its dark/light surfaces,
 bundled Inter fonts, floating three-tab navigation, inset mini player and circular
 transport controls. Phone, landscape and TV layouts use the same KMP player actions.
-Browsing and detail pages use Metrolist's shared workflows with Sonder's theme;
-menus, account management and settings remain Metrolist's implementations.
+Every visible mobile route and its menus should use Sonder's typography, spacing,
+surfaces and controls. Where the old Sonder app has a matching screen, that screen is
+the visual reference; KMP-only pages use the same Sonder styling rather than copying
+Metrolist's stock Material 3 layouts. Backend behavior remains Metrolist KMP.
 
 The build workflow verifies the artwork palette, contrast, navigation preferences
 and settings restore before assembling and publishing the signed Android APK.

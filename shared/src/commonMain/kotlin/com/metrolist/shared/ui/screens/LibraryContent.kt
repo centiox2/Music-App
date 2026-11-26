@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -81,6 +82,7 @@ import com.metrolist.shared.constants.GridTileSpacing
 import com.metrolist.shared.constants.currentGridCells
 import com.metrolist.shared.constants.gridTileColumns
 import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.library
 import com.metrolist.shared.generated.resources.display_density
 import com.metrolist.shared.generated.resources.filter_downloaded
 import com.metrolist.shared.generated.resources.library_load_failed
@@ -132,6 +134,7 @@ import com.metrolist.shared.ui.components.rememberItemPlayback
 import com.metrolist.shared.ui.haptics.HapticEvent
 import com.metrolist.shared.ui.haptics.rememberMetrolistHaptics
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.icons.SongStatusIcons
 import com.metrolist.shared.ui.menu.ExpressiveSelectionMenu
 import com.metrolist.shared.ui.menu.trackPressPosition
@@ -255,6 +258,7 @@ fun LibraryContent(
     onSearchDescendingChange: (Boolean) -> Unit = {},
     onPlayAlbum: ((AlbumItem) -> Unit)? = null,
     presentation: LibraryPresentation = remember { LibraryPresentation() },
+    headerActions: @Composable RowScope.() -> Unit = {},
 ) {
     val currentSongIdState = rememberUpdatedState(currentSongId)
     val isPlayingState = rememberUpdatedState(isPlaying)
@@ -461,6 +465,7 @@ fun LibraryContent(
                             onSearchToggle = toggleSearch,
                             onFilterChange = onFilterChange,
                             onGridViewChange = onGridViewChange,
+                            headerActions = headerActions,
                         )
                     }
                     if (onSearchQueryChange != null) {
@@ -642,12 +647,18 @@ private fun LibraryHeader(
     onSearchToggle: () -> Unit,
     onFilterChange: (LibraryFilter?) -> Unit,
     onGridViewChange: (Boolean) -> Unit,
+    headerActions: @Composable RowScope.() -> Unit,
 ) {
     var sortingMenu by remember { mutableStateOf(false) }
     val sortingFilter = selectedFilter?.let { LibraryFilterType.valueOf(it.name) } ?: LibraryFilterType.ALL
     val sorting = Settings.shared.librarySorting(sortingFilter)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ChipShelf(options = LibraryFilter.entries.filterNot { it == LibraryFilter.PODCASTS && Settings.shared.hidePodcasts },
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(Res.string.library), Modifier.weight(1f), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            headerActions()
+        }
+        ChipShelf(options = listOf(LibraryFilter.PLAYLISTS, LibraryFilter.TRACKS, LibraryFilter.ALBUMS, LibraryFilter.ARTISTS, LibraryFilter.PODCASTS)
+            .filterNot { it == LibraryFilter.PODCASTS && Settings.shared.hidePodcasts },
             selectedOption = selectedFilter, onSelectionChange = onFilterChange, label = { text.filterLabels.getValue(it) }, contentPadding = PaddingValues(0.dp))
         Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
@@ -695,9 +706,10 @@ private fun AutoPlaylistItem(
     playlist: LibraryAutoPlaylist,
     isGridView: Boolean,
 ) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-            Icon(playlist.icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onPrimary)
+    val liked = playlist.type == "liked"
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(if (liked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+            Icon(playlist.icon, null, Modifier.size(24.dp), tint = if (liked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onPrimary)
         }
         Text(playlist.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(playlist.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)

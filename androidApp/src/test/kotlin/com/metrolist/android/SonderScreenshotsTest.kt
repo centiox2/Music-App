@@ -92,7 +92,13 @@ class SonderScreenshotsTest {
             ))
     }
     @Test fun album() = render("album-dark") {
-        Column { SonderTopBar("Album", {}); AlbumHeader(album, songs, false, onArtistClick = {}, description = "A little room to slow down.", showMoreLabel = "More", showLessLabel = "Less"); songs.take(3).forEach { SonderMediaRow(it, {}, {}) } }
+        AlbumContent(
+            album = album,
+            songs = songs,
+            text = AlbumContentText("Play", "Shuffle", "Songs", "Other versions", "More", "Less"),
+            onPlayAll = {}, onShuffle = {}, onArtistClick = {}, onTrackClick = { _, _, _ -> }, onTrackMenuClick = {},
+            onBackClick = {}, description = "A little room to slow down.", onDownload = {}, immersiveHeader = true,
+        )
     }
     @Test fun artist() = render("artist-dark") {
         ArtistScreen(artist = ArtistItem("artist", "Luna Vale", album.thumbnail, banner = album.thumbnail, monthlyListeners = "1.2M monthly listeners"), artistId = "artist", sections = mapOf("Songs" to songs), isLoading = false, errorMessage = null,
@@ -136,16 +142,13 @@ class SonderScreenshotsTest {
     @Test fun libraryList() = library(false)
     @Test fun libraryGrid() = library(true)
     private fun library(grid: Boolean) = render("library-${if (grid) "grid" else "list"}") {
-        Column {
-            SonderTopBar("Your library")
-            LibraryContent(
+        LibraryContent(
                 text = LibraryContentText(LibraryFilter.entries.associateWith { it.name.lowercase().replaceFirstChar(Char::uppercase) }, LibrarySortType.entries.associateWith { it.name.lowercase().replace('_', ' ') }, "Empty", "Sort", "Grid", "List", "Artist", "Loading", "Search", "Search your library", "No results"),
                 items = songs + album, autoPlaylists = listOf(LibraryAutoPlaylist("liked", "Liked songs", "8 songs", MetrolistIcons.Rounded.Favorite), LibraryAutoPlaylist("downloaded", "Downloads", "Ready offline", MetrolistIcons.Filled.Download)),
                 hiddenItemKeys = emptySet(), isLoading = false, isGridView = grid, selectedFilter = null, manualOrder = "", topPadding = 0.dp, compactGrid = false,
                 onFilterChange = {}, onGridViewChange = {}, onManualOrderChange = {}, onItemClick = {}, onPlaySongs = { _, _ -> }, currentSongId = null, isPlaying = false, onAutoPlaylistClick = {},
                 itemContainer = { _, _, _, _, content -> content() }, scrollState = rememberLazyGridState(),
             )
-        }
     }
     @Test fun mediaMenu() = render("media-menu") {
         Column(Modifier.padding(top = 24.dp)) { MediaMenuSheetContent(MediaMenuModel(songs.first().title, "Luna Vale", album.thumbnail,

@@ -3,6 +3,7 @@ package com.metrolist.shared.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -12,6 +13,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.DialogProperties
+import com.metrolist.shared.ui.theme.ComponentShapes
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.BasicAlertDialog as MaterialBasicAlertDialog
 
@@ -43,8 +45,8 @@ fun AlertDialog(
     icon: @Composable (() -> Unit)? = null,
     title: @Composable (() -> Unit)? = null,
     text: @Composable (() -> Unit)? = null,
-    shape: Shape = AlertDialogDefaults.shape,
-    containerColor: Color = AlertDialogDefaults.containerColor,
+    shape: Shape = ComponentShapes.MenuExteriorShape,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     iconContentColor: Color = AlertDialogDefaults.iconContentColor,
     titleContentColor: Color = AlertDialogDefaults.titleContentColor,
     textContentColor: Color = AlertDialogDefaults.textContentColor,
