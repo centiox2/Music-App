@@ -73,6 +73,10 @@ internal fun SonderPlayerScreen(
     DisposableEffect(Unit) { onDispose { onLyricsVisible(false); viewModel.setLyricsVisible(false) } }
     LaunchedEffect(active, requestFocus) { if (active && requestFocus) { playFocus.requestFocus(); onFocusRequested() } }
     if (!active) return
+    com.metrolist.shared.ui.navigation.NavigationBackHandler(enabled = (state.isFullscreen && state.isVideoModeActive) || pane != SonderPlayerPane.COVER) {
+        if (state.isFullscreen && state.isVideoModeActive) viewModel.toggleFullscreen()
+        else pane = SonderPlayerPane.COVER
+    }
     platform.PlayerWindowEffects(hideSystemBars = Settings.shared.immersivePlayer || (state.isFullscreen && state.isVideoModeActive), lockLandscape = state.isFullscreen && state.isVideoModeActive)
     if (state.isFullscreen && state.isVideoModeActive) {
         platform.MusicVideoSurface(modifier.fillMaxSize(), 0.dp, true, true, true,

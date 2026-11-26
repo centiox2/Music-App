@@ -7,6 +7,8 @@
 
 package com.metrolist.shared.ui.player
 
+import com.metrolist.shared.generated.resources.close
+import com.metrolist.shared.generated.resources.repeat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState

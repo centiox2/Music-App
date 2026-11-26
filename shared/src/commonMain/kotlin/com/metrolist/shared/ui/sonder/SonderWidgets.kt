@@ -69,11 +69,11 @@ fun SonderPill(text: String, selected: Boolean = false, onClick: () -> Unit) {
 }
 
 @Composable
-fun SonderSearchField(value: String, placeholder: String, onChange: (String) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier, focusRequester: androidx.compose.ui.focus.FocusRequester = androidx.compose.ui.focus.FocusRequester.Default) {
+fun SonderSearchField(value: String, placeholder: String, onChange: (String) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier, focusRequester: androidx.compose.ui.focus.FocusRequester? = null) {
     val colors = MaterialTheme.colorScheme
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.onSurface.copy(alpha = 0.07f)).padding(horizontal = 14.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(MetrolistIcons.Outlined.Search, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
-        BasicTextField(value, onChange, Modifier.weight(1f).padding(12.dp).focusRequester(focusRequester), singleLine = true,
+        BasicTextField(value, onChange, Modifier.weight(1f).padding(12.dp).then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier), singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface, fontSize = 15.sp), cursorBrush = SolidColor(colors.onSurface),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { onSearch() }),
             decorationBox = { input -> Box { if (value.isBlank()) Text(placeholder, color = colors.onSurfaceVariant, fontSize = 15.sp); input() } })
