@@ -192,6 +192,7 @@ sentry {
 
 android {
     namespace = "com.metrolist.android"
+    testOptions { unitTests.isIncludeAndroidResources = true }
     compileSdk {
         version = release(37) { minorApiLevel = 1 }
     }
@@ -422,6 +423,7 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.junit4)
+    testImplementation("org.jetbrains.compose.ui:ui-test-junit4-android:${libs.versions.compose.get()}")
     testImplementation(libs.junit4)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.ktor.client.content.negotiation)

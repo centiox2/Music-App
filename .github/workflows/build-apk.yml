@@ -56,6 +56,18 @@ jobs:
           --tests 'com.metrolist.shared.settings.ExpressiveMiniPlayerSettingsTest'
           --tests 'com.metrolist.shared.settings.LegacySettingsMigrationTest'
 
+      - name: Render Sonder screens
+        run: ./gradlew :androidApp:testDebugUnitTest --tests 'com.metrolist.android.SonderScreenshotsTest' --no-daemon --no-configuration-cache
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sonder-screen-review
+          path: |
+            androidApp/build/reports/sonder-screenshots/
+            androidApp/build/reports/tests/testDebugUnitTest/
+          retention-days: 7
+
       - name: Build
         run: ./gradlew :androidApp:assembleRelease --no-daemon --no-configuration-cache -x :androidApp:lintVitalRelease
 
