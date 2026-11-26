@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupPositionProvider
 import com.metrolist.shared.ui.navigation.LocalNavigationContainerState
 import com.metrolist.shared.ui.theme.ComponentShapes
-import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
 
 internal class PopupMenuAnchorState {
     private var wasExpanded = false
@@ -104,6 +103,40 @@ fun FabMenuPopup(
             }
         }
     } else {
-        MaterialDropdownMenuPopup(expanded, onDismissRequest, content = content)
+        PopupVisibility(expanded) {
+            val positionProvider =
+                remember {
+                    object : PopupPositionProvider {
+                        override fun calculatePosition(
+                            anchorBounds: IntRect,
+                            windowSize: IntSize,
+                            layoutDirection: LayoutDirection,
+                            popupContentSize: IntSize,
+                        ): IntOffset {
+                            val x = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.left else anchorBounds.right - popupContentSize.width
+                            val below = anchorBounds.bottom + popupContentSize.height <= windowSize.height
+                            val y = if (below) anchorBounds.bottom else anchorBounds.top - popupContentSize.height
+                            return IntOffset(
+                                x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                                y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+                            )
+                        }
+                    }
+                }
+            Popup(positionProvider, onDismissRequest) {
+                Surface(
+                    modifier = Modifier.popupMotion(),
+                    shape = ComponentShapes.MenuExteriorShape,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 8.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.widthIn(min = 200.dp, max = 400.dp).width(IntrinsicSize.Max).heightIn(max = 720.dp).padding(8.dp),
+                        content = content,
+                    )
+                }
+            }
+        }
     }
 }

@@ -213,7 +213,7 @@ internal fun SettingsSearchResults(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            itemsIndexed(results, key = { _, result -> "${result.page.id}:${result.item?.id}" }) { index, result ->
+            itemsIndexed(results, key = { index, result -> "${result.page.id}:${result.item?.id}:$index" }) { index, result ->
                 SearchResultRow(
                     result = result,
                     query = query,

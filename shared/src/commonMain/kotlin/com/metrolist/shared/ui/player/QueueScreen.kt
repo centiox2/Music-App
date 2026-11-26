@@ -581,8 +581,8 @@ fun QueueScreen(
 
                 val reorderableState =
                     rememberReorderableLazyListState(lazyListState) { from, to ->
-                        val fromTrack = allTracks.firstOrNull { it.uniqueKey == from.key }
-                        val toTrack = state.tracks.firstOrNull { it.uniqueKey == to.key }
+                        val fromTrack = state.tracks.firstOrNull { "queue:${it.uniqueKey}" == from.key }
+                        val toTrack = state.tracks.firstOrNull { "queue:${it.uniqueKey}" == to.key }
                         if (fromTrack != null && toTrack != null) {
                             // Keep the viewport at its current index and offset while row keys move.
                             lazyListState.requestScrollToItem(
@@ -663,7 +663,7 @@ fun QueueScreen(
                         }
                         itemsIndexed(
                             items = state.tracks,
-                            key = { _, item -> item.uniqueKey },
+                            key = { _, item -> "queue:${item.uniqueKey}" },
                         ) { index, track ->
                             val queueIndex = track.queueIndex
                             val isSelected = track.entryKey in state.selectedEntryKeys
@@ -679,7 +679,7 @@ fun QueueScreen(
 
                             ReorderableItem(
                                 state = reorderableState,
-                                key = track.uniqueKey,
+                                key = "queue:${track.uniqueKey}",
                                 // A no-op drop inside the selection leaves the drag library waiting for a move.
                                 enabled = track.isReorderTarget(draggingEntryKey, state.selectedEntryKeys),
                             ) {
@@ -699,7 +699,7 @@ fun QueueScreen(
                                         Modifier
                                     }
                                 QueueTrackSwipeToDismissBox(
-                                    trackKey = track.uniqueKey,
+                                    trackKey = "queue:${track.uniqueKey}",
                                     enabled = isUnlocked && track.canRemove && !hasSelection && canControlPlayback && !isDragging,
                                     onDismiss = {
                                         if (canControlPlayback) {
@@ -743,7 +743,7 @@ fun QueueScreen(
                                                                 else -> 0
                                                             }
                                                         tvMovement.target(tvEntryKeys, direction)?.let { target ->
-                                                            tvScrollTarget = TvReorderScrollTarget(track.uniqueKey, index)
+                                                            tvScrollTarget = TvReorderScrollTarget("queue:${track.uniqueKey}", index)
                                                             onEvent(QueueEvent.ReorderTrack(track.entryKey, target))
                                                             onEvent(QueueEvent.CommitReorder)
                                                         }
@@ -816,14 +816,14 @@ fun QueueScreen(
                             item(key = "suggested-heading") {
                                 QueueSectionHeading(stringResource(Res.string.suggested_tracks))
                             }
-                            items(
+                            itemsIndexed(
                                 items = state.suggestedTracks,
-                                key = { item -> item.uniqueKey },
-                            ) { track ->
+                                key = { index, item -> "suggested:$index:${item.uniqueKey}" },
+                            ) { index, track ->
                                 val isActive = track.entryKey == state.currentEntryKey
                                 Box {
                                     QueueTrackSwipeToDismissBox(
-                                        trackKey = track.uniqueKey,
+                                        trackKey = "suggested:$index:${track.uniqueKey}",
                                         enabled = isUnlocked && track.canRemove && !hasSelection && canControlPlayback,
                                         onDismiss = {
                                             if (canControlPlayback) {

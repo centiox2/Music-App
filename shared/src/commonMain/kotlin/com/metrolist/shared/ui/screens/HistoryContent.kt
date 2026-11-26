@@ -344,7 +344,7 @@ fun HistoryContent(
                                         )
                                     }
                                 }
-                                itemsIndexed(sectionEntries, key = { _, entry -> entry.id }) { index, entry ->
+                                itemsIndexed(sectionEntries, key = { index, entry -> "history:${entry.id}:$index" }) { index, entry ->
                                     val groupPosition =
                                         when {
                                             sectionEntries.size == 1 -> HistoryEntryGroupPosition.SINGLE

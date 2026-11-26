@@ -387,7 +387,7 @@ private fun SearchEmptyState(
                                 horizontalArrangement = Arrangement.spacedBy(if (isWide) 16.dp else 12.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                             ) {
-                                items(recentSearchItems.take(10), key = { it.id }) { item ->
+                                itemsIndexed(recentSearchItems.take(10), key = { index, item -> "recent:${item.id}:$index" }) { _, item ->
                                     RecentSearchItemCard(
                                         item = item,
                                         text = text,

@@ -247,7 +247,7 @@ fun PodcastContent(
                             onChannelClick = onChannelClick,
                         )
                     }
-                    itemsIndexed(page.episodes, key = { _, it -> it.id }) { index, episode ->
+                    itemsIndexed(page.episodes, key = { index, episode -> "episode:${episode.id}:$index" }) { index, episode ->
                         EpisodeRow(
                             episode = episode,
                             isFirst = index == 0,

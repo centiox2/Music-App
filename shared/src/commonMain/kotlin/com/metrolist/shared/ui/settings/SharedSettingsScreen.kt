@@ -517,7 +517,7 @@ private fun SettingsHomeList(
                 }
             }
         } else if (searchResults.isNotEmpty()) {
-            items(searchResults.size, key = { "${searchResults[it].page.id}:${searchResults[it].item?.id}" }) { index ->
+            items(searchResults.size, key = { index -> "${searchResults[index].page.id}:${searchResults[index].item?.id}:$index" }) { index ->
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     SearchResultRow(searchResults[index], query, index == 0, index == searchResults.lastIndex, onSearchResultSelected)
                 }

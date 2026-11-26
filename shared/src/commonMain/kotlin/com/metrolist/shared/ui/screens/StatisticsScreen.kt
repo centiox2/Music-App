@@ -43,7 +43,7 @@ import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
+import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -654,7 +654,7 @@ fun StatisticsDetailScreen(
                         )
                     }
                 }
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                itemsIndexed(items, key = { index, item -> "statistics:${item.id}:$index" }) { index, item ->
                     LaunchedEffect(item.id) { if (item.circularArtwork) onArtistVisible?.invoke(item) }
                     val interactions = remember { MutableInteractionSource() }
                     val pressed by interactions.collectIsPressedAsState()
@@ -846,7 +846,7 @@ private fun StatisticsCarousel(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(GridTileSpacing),
             ) {
-                itemsIndexed(items.take(500), key = { _, item -> item.id }) { index, item ->
+                itemsIndexed(items.take(500), key = { index, item -> "statistics-carousel:${item.id}:$index" }) { index, item ->
                     LaunchedEffect(item.id) { onItemVisible?.invoke(item) }
                     val shape = statisticsArtworkShape(item, index)
                     Column(

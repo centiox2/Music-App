@@ -234,7 +234,7 @@ fun PlaylistChooserContent(
                 }
             }
 
-            itemsIndexed(playlists, key = { _, playlist -> playlist.id }) { index, playlist ->
+            itemsIndexed(playlists, key = { index, playlist -> "playlist:${playlist.id}:$index" }) { index, playlist ->
                 val containsSongs = playlist.id in membership
                 Material3MenuGroupItem(
                     item =

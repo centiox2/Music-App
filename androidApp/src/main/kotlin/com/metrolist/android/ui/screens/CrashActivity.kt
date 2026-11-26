@@ -3,8 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
 package com.metrolist.android.ui.screens
 
 import android.content.Intent
@@ -18,12 +16,9 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,26 +30,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -163,8 +148,23 @@ class CrashActivity : ComponentActivity() {
         }
 
         setContent {
-            val darkTheme = isSystemInDarkTheme()
-            val colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()
+            val darkTheme = true
+            val colorScheme =
+                darkColorScheme(
+                    primary = androidx.compose.ui.graphics.Color.White,
+                    onPrimary = androidx.compose.ui.graphics.Color.Black,
+                    primaryContainer = androidx.compose.ui.graphics.Color(0xFF191C1D),
+                    onPrimaryContainer = androidx.compose.ui.graphics.Color.White,
+                    secondary = androidx.compose.ui.graphics.Color(0xFF9CC9BA),
+                    onSecondary = androidx.compose.ui.graphics.Color.Black,
+                    background = androidx.compose.ui.graphics.Color.Black,
+                    surface = androidx.compose.ui.graphics.Color.Black,
+                    surfaceContainer = androidx.compose.ui.graphics.Color(0xFF171A1B),
+                    surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF202124),
+                    onSurface = androidx.compose.ui.graphics.Color.White,
+                    onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFB8B8B8),
+                    outline = androidx.compose.ui.graphics.Color(0xFF414546),
+                )
             SideEffect {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                     // Android 7 only supports light navigation icons.
@@ -311,7 +311,7 @@ private fun CrashScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                    IconButton(onClick = onClose) {
                         Icon(
                             MetrolistIcons.Outlined.Close,
                             contentDescription = stringResource(Res.string.crash_close),
@@ -322,20 +322,6 @@ private fun CrashScreen(
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { onShare(paste) },
-                icon = {
-                    Icon(
-                        MetrolistIcons.Outlined.Share,
-                        contentDescription = null,
-                    )
-                },
-                text = { Text(stringResource(Res.string.crash_share_logs)) },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -368,37 +354,9 @@ private fun CrashScreen(
                     stringResource(Res.string.crash_logs),
                 )
             val actions = listOf(onRestart, onCopy, onLogs)
-            ButtonGroup(
-                overflowIndicator = { ButtonGroupDefaults.OverflowIndicator(it) },
-                modifier = Modifier.fillMaxWidth(),
-                expandedRatio = 1f,
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 labels.forEachIndexed { index, label ->
-                    customItem(
-                        buttonGroupContent = {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            val shapes =
-                                when (index) {
-                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                    labels.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                }
-                            Button(
-                                onClick = actions[index],
-                                modifier = Modifier.weight(1f).animateWidth(interactionSource, 12.dp),
-                                interactionSource = interactionSource,
-                                shapes = ButtonDefaults.shapes(shape = shapes.shape, pressedShape = shapes.pressedShape),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp),
-                            ) {
-                                Text(label, textAlign = TextAlign.Center)
-                            }
-                        },
-                        menuContent = {
-                            DropdownMenuItem(text = { Text(label) }, onClick = actions[index])
-                        },
-                    )
+                    CrashActionButton(label, actions[index], primary = index == 0, modifier = Modifier.weight(1f))
                 }
             }
             CrashUpdateButton(onUpdate)
@@ -407,6 +365,10 @@ private fun CrashScreen(
                 onRetry = onRetryUpload,
                 onOpenPaste = onOpenPaste,
             )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                CrashActionButton(stringResource(Res.string.crash_share_logs), { onShare(paste) }, primary = true)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -437,6 +399,27 @@ private fun CrashScreen(
 }
 
 @Composable
+private fun CrashActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+) {
+    val foreground = if (primary) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val background = if (primary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer
+    Box(
+        modifier
+            .clip(RoundedCornerShape(28.dp))
+            .background(background)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = foreground, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
 private fun CrashUploadStatus(
     state: CrashUploadState,
     onRetry: () -> Unit,
@@ -454,9 +437,7 @@ private fun CrashUploadStatus(
                         text = stringResource(Res.string.crash_upload_disclosure),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) {
-                        Text(stringResource(Res.string.crash_upload))
-                    }
+                    CrashTextAction(stringResource(Res.string.crash_upload), onRetry)
                 }
             }
 
@@ -482,9 +463,7 @@ private fun CrashUploadStatus(
                         text = stringResource(Res.string.crash_upload_failed),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) {
-                        Text(stringResource(Res.string.crash_retry))
-                    }
+                    CrashTextAction(stringResource(Res.string.crash_retry), onRetry)
                 }
             }
 
@@ -588,15 +567,24 @@ private fun CrashUpdateButton(onUpdate: () -> Unit) {
             is AppUpdateState.Downloaded -> value.release
             else -> null
         }
-    TextButton(onClick = onUpdate, shapes = ButtonDefaults.shapes()) {
-        Text(
-            when {
-                release != null -> "${stringResource(Res.string.crash_updates_action)} ·\u00a0${release.version}"
-                state is AppUpdateState.Checking -> stringResource(Res.string.crash_updates_checking)
-                state is AppUpdateState.Error -> stringResource(Res.string.crash_updates_error)
-                state is AppUpdateState.UpToDate -> stringResource(Res.string.crash_updates_no_updates)
-                else -> stringResource(Res.string.crash_updates_check)
-            },
-        )
-    }
+    CrashTextAction(
+        when {
+            release != null -> "${stringResource(Res.string.crash_updates_action)} ·\u00a0${release.version}"
+            state is AppUpdateState.Checking -> stringResource(Res.string.crash_updates_checking)
+            state is AppUpdateState.Error -> stringResource(Res.string.crash_updates_error)
+            state is AppUpdateState.UpToDate -> stringResource(Res.string.crash_updates_no_updates)
+            else -> stringResource(Res.string.crash_updates_check)
+        },
+        onUpdate,
+    )
+}
+
+@Composable
+private fun CrashTextAction(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        Modifier.clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        color = MaterialTheme.colorScheme.secondary,
+        style = MaterialTheme.typography.labelLarge,
+    )
 }

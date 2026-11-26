@@ -416,7 +416,7 @@ fun AlbumContent(
                                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                                     modifier = Modifier.fillMaxWidth().carouselScroll(otherRowState),
                                                 ) {
-                                                    items(otherVersions, key = { it.id }, contentType = { "album" }) { other ->
+                                                    itemsIndexed(otherVersions, key = { index, other -> "album-version:${other.id}:$index" }, contentType = { _, _ -> "album" }) { _, other ->
                                                         OtherVersionItem(
                                                             album = other,
                                                             sourceAlbumId = album.id,
@@ -596,7 +596,7 @@ fun AlbumContent(
                                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                                             modifier = Modifier.fillMaxWidth().carouselScroll(otherRowState),
                                         ) {
-                                            items(otherVersions, key = { it.id }, contentType = { "album" }) { other ->
+                                            itemsIndexed(otherVersions, key = { index, other -> "album-version:${other.id}:$index" }, contentType = { _, _ -> "album" }) { _, other ->
                                                 OtherVersionItem(
                                                     album = other,
                                                     sourceAlbumId = album.id,

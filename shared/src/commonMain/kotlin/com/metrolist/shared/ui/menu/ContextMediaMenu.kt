@@ -32,7 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
+import com.metrolist.shared.ui.components.FabMenuPopup
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -253,14 +253,7 @@ fun CursorDropdownMenu(
         return
     }
     if (offset == DpOffset.Zero && animated) {
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = onDismissRequest,
-            offset = anchorOffset,
-            modifier = modifier.then(Modifier.heightIn(max = 720.dp)),
-            shape = ComponentShapes.MenuExteriorShape,
-            content = content,
-        )
+        FabMenuPopup(expanded, onDismissRequest, content)
         return
     }
     val transition = updateTransition(targetState = expanded, label = "MenuTransition")
