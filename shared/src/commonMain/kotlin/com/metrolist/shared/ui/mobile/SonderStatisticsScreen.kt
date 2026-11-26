@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +58,8 @@ import com.metrolist.shared.ui.statistics.StatisticsPeriodMode
 import com.metrolist.shared.ui.statistics.StatisticsShareDialog
 import com.metrolist.shared.ui.statistics.canExportStatistics
 import com.metrolist.shared.ui.components.images.AsyncImage
+import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenu
+import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.sonder.SonderGroup
 import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.sonder.SonderPill
@@ -118,7 +119,7 @@ fun SonderStatisticsScreen(
             )
             if (detail == null) {
                 Box {
-                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, "Statistics options", { modeMenu = true }, glass = true)
+                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, "Statistics options", { modeMenu = true }, modifier = Modifier.navigationPopupSource(), glass = true)
                     DropdownMenu(expanded = modeMenu, onDismissRequest = { modeMenu = false }) {
                         StatisticsPeriodMode.entries.forEach { mode ->
                             DropdownMenuItem(

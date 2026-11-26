@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -224,6 +225,7 @@ import com.metrolist.shared.ui.navigation.NavigationDestination
 import com.metrolist.shared.ui.navigation.currentAdaptiveLayout
 import com.metrolist.shared.ui.navigation.isNavigationBar
 import com.metrolist.shared.ui.navigation.navigationPopupSource
+import com.metrolist.shared.ui.sonder.SonderIcon
 import com.metrolist.shared.ui.navigation.rememberNavigationMotion
 import com.metrolist.shared.ui.playback.LocalPlaybackController
 import com.metrolist.shared.ui.playback.PlaybackController
@@ -860,36 +862,20 @@ fun MobileApp(
                                 },
                                 actions = {
                                     if (selectedTab == MobileRoute.Home) {
-                                        IconButton(onClick = { selectTab(MobileRoute.Search) }, shapes = IconButtonDefaults.shapes()) {
-                                            Icon(MetrolistIcons.Outlined.Search, contentDescription = stringResource(Res.string.search))
-                                        }
+                                        SonderIcon(MetrolistIcons.Outlined.Search, stringResource(Res.string.search), { selectTab(MobileRoute.Search) }, glass = true)
                                     }
                                     if (Settings.shared.devtoolsUnlocked) {
-                                        IconButton(
-                                            onClick = { open(MobileRoute.Settings(initialPage = SettingsPageId.DEVTOOLS)) },
-                                            shapes = IconButtonDefaults.shapes(),
-                                        ) {
-                                            Icon(
-                                                MetrolistIcons.Outlined.Settings,
-                                                contentDescription = stringResource(Res.string.devtools_title),
-                                                modifier = Modifier.size(24.dp),
-                                            )
-                                        }
+                                        SonderIcon(MetrolistIcons.Outlined.Settings, stringResource(Res.string.devtools_title), { open(MobileRoute.Settings(initialPage = SettingsPageId.DEVTOOLS)) }, glass = true)
                                     }
                                     if (Settings.shared.listenTogetherEnabled) {
-                                        IconButton(onClick = { open(MobileRoute.ListenTogether()) }, shapes = IconButtonDefaults.shapes()) {
-                                            Icon(
-                                                MetrolistIcons.Outlined.Group,
-                                                contentDescription = stringResource(Res.string.listen_together),
-                                                modifier = Modifier.size(24.dp),
-                                            )
-                                        }
+                                        SonderIcon(MetrolistIcons.Outlined.Group, stringResource(Res.string.listen_together), { open(MobileRoute.ListenTogether()) }, glass = true)
                                     }
                                     Box {
-                                        IconButton(
-                                            modifier = Modifier.navigationPopupSource(),
-                                            onClick = { showAccountMenu = true },
-                                            shapes = IconButtonDefaults.shapes(),
+                                        Box(
+                                            Modifier.size(44.dp).clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f))
+                                                .navigationPopupSource().clickable { showAccountMenu = true },
+                                            contentAlignment = Alignment.Center,
                                         ) {
                                             if (authManager.isLoggedIn && authManager.accountThumbnail.isNotBlank()) {
                                                 AsyncImage(

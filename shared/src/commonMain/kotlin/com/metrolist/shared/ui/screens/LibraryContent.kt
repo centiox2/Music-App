@@ -31,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -75,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.shared.constants.GridRowSpacing
 import com.metrolist.shared.constants.GridScreenPadding
@@ -123,6 +123,7 @@ import com.metrolist.shared.ui.components.ChipShelf
 import com.metrolist.shared.ui.components.CollectionPreviews
 import com.metrolist.shared.ui.components.ContainedLoadingIndicator
 import com.metrolist.shared.ui.components.ExpandableSearchBar
+import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenu
 import com.metrolist.shared.ui.components.GridCard
 import com.metrolist.shared.ui.components.ListCard
 import com.metrolist.shared.ui.components.ReorderMenu
@@ -141,6 +142,7 @@ import com.metrolist.shared.ui.menu.trackPressPosition
 import com.metrolist.shared.ui.navigation.LocalRootContentActive
 import com.metrolist.shared.ui.navigation.LocalUseDesktopUi
 import com.metrolist.shared.ui.navigation.blockInput
+import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.player.staticConnectedLeadingButtonShapes
 import com.metrolist.shared.ui.player.staticConnectedTrailingButtonShapes
 import com.metrolist.shared.ui.tv.tvFocusHighlight
@@ -662,7 +664,7 @@ private fun LibraryHeader(
             selectedOption = selectedFilter, onSelectionChange = onFilterChange, label = { text.filterLabels.getValue(it) }, contentPadding = PaddingValues(0.dp))
         Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
-                TextButton(onClick = { sortingMenu = true }) { Text(text.sortLabels.getValue(sortType), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                TextButton(onClick = { sortingMenu = true }, modifier = Modifier.navigationPopupSource()) { Text(text.sortLabels.getValue(sortType), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 DropdownMenu(expanded = sortingMenu, onDismissRequest = { sortingMenu = false }) {
                     LibrarySortType.entries.filter { it.isAvailableFor(selectedFilter) }.forEach { choice ->
                         DropdownMenuItem(text = { Text(text.sortLabels.getValue(choice)) }, onClick = {

@@ -450,7 +450,7 @@ private fun ArtistScreenContent(
         LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
             item("sonder_artist_hero") {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.fillMaxWidth().height(320.dp)) {
+                    Box(Modifier.fillMaxWidth().height(520.dp)) {
                         AsyncImage(artist.banner ?: artist.thumbnail, Modifier.fillMaxSize())
                         headerVideoLayer?.invoke(Modifier.fillMaxSize())
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surface))))
@@ -459,13 +459,37 @@ private fun ArtistScreenContent(
                             fontWeight = FontWeight.Black, fontSize = 50.sp, lineHeight = 47.sp, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                     artist.monthlyListeners?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp)) }
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                        com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.shuffle), onClick = onShuffleClick)
-                        Surface(onClick = onPlayAllClick, shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp)) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(MetrolistIcons.Rounded.PlayArrow, stringResource(Res.string.play), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(28.dp)) }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                        if (showSubscribe) {
+                            com.metrolist.shared.ui.sonder.SonderIcon(
+                                MetrolistIcons.Filled.Star,
+                                stringResource(if (isSubscribed) Res.string.subscribed else Res.string.subscribe),
+                                onSubscribeClick,
+                                glass = true,
+                                selected = isSubscribed,
+                                size = 56.dp,
+                                iconSize = 24.dp,
+                            )
                         }
-                        if (showSubscribe) com.metrolist.shared.ui.sonder.SonderPill(stringResource(if (isSubscribed) Res.string.subscribed else Res.string.subscribe), isSubscribed, onSubscribeClick)
-                        else com.metrolist.shared.ui.sonder.SonderPill(stringResource(Res.string.radio), onClick = onMixClick)
+                        com.metrolist.shared.ui.sonder.SonderIcon(
+                            MetrolistIcons.Rounded.Shuffle,
+                            stringResource(Res.string.shuffle),
+                            onShuffleClick,
+                            glass = true,
+                            size = 56.dp,
+                            iconSize = 24.dp,
+                        )
+                        Surface(onClick = onPlayAllClick, shape = CircleShape, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(76.dp)) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(MetrolistIcons.Rounded.PlayArrow, stringResource(Res.string.play), tint = MaterialTheme.colorScheme.surface, modifier = Modifier.size(34.dp)) }
+                        }
+                        com.metrolist.shared.ui.sonder.SonderIcon(
+                            MetrolistIcons.Filled.Radio,
+                            stringResource(Res.string.radio),
+                            onMixClick,
+                            glass = true,
+                            size = 56.dp,
+                            iconSize = 24.dp,
+                        )
                     }
                 }
             }

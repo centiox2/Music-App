@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -70,8 +69,10 @@ import com.metrolist.shared.generated.resources.none
 import com.metrolist.shared.generated.resources.scrobble_connecting
 import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.navigation.navigationPopupSource
 import com.metrolist.shared.ui.utils.toPolygonShape
 import com.metrolist.shared.ui.utils.verticalScrollWithDrag
+import com.metrolist.shared.ui.components.FabMenuPopup as DropdownMenu
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -226,7 +227,7 @@ fun ConnectedDevicesContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Box {
-                    TextButton(onClick = { showDefaults = true }, shapes = ButtonDefaults.shapes()) {
+                    TextButton(onClick = { showDefaults = true }, modifier = Modifier.navigationPopupSource(), shapes = ButtonDefaults.shapes()) {
                         Text(pairedDevices.firstOrNull { it.deviceId == defaultDeviceId }?.deviceName ?: stringResource(Res.string.none))
                     }
                     DropdownMenu(expanded = showDefaults, onDismissRequest = { showDefaults = false }) {
