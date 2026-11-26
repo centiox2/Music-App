@@ -135,6 +135,65 @@ class SonderScreenshotsTest {
     @Test fun statistics() = render("statistics") {
         StatisticsScreen(StatisticsUiState(totalPlays = 120, totalTimeMs = 36000000, artistCount = 18, albumCount = 9), {}, {}, {}, {}, null, "Share", { true }, onNavigateBack = {})
     }
+    @Test fun search() = render("search-results") {
+        val text = SearchContentText(
+            search = "Search",
+            suggestions = "Suggestions",
+            recommended = "Recommended",
+            recentSearches = "Recent searches",
+            recentFromSearches = "Recent from searches",
+            clear = "Clear",
+            clearHistory = "Clear history",
+            useSearchText = "Use search text",
+            startTypingToSearch = "Start typing to search",
+            noResultsFound = "No results found",
+            filterAll = "All",
+            filterSongs = "Songs",
+            filterAlbums = "Albums",
+            filterArtists = "Artists",
+            filterPlaylists = "Playlists",
+            filterVideos = "Videos",
+            filterPodcasts = "Podcasts",
+            filterEpisodes = "Episodes",
+            browse = "Browse",
+            verifiedArtists = "Verified artists",
+            filterFeaturedPlaylists = "Filter featured playlists",
+            filterCommunityPlaylists = "Community playlists",
+            filterProfiles = "Profiles",
+            topResults = "Top results",
+            moreOptions = "More options",
+            clearSection = { it },
+            removeRecentSearchQuestion = "Remove recent search question",
+            removeRecentSearchDescription = { it },
+            removeFromRecentQuestion = "Remove from recent question",
+            removeRecentItemDescription = { it },
+            clearRecentSearchesQuestion = "Clear recent searches question",
+            deleteAllRecentSearchesQuestion = "Delete all recent searches question",
+            clearRecentFromSearchesQuestion = "Clear recent from searches question",
+            deleteAllRecentFromSearchesQuestion = "Delete all recent from searches question",
+            removeRecentSearchAction = "Remove recent search action",
+            removeRecentSearchItemAction = "Remove recent search item action",
+            delete = "Delete",
+            cancel = "Cancel",
+            useSuggestion = "Use suggestion",
+            shuffle = "Shuffle",
+            mix = "Mix",
+            track = "Track",
+            album = "Album",
+            artist = "Artist",
+            playlist = "Playlist",
+            podcast = "Podcast",
+            episode = "Episode",
+            monthlyAudienceShort = "Monthly audience short",
+            play = "Play",
+            save = "Save",
+        )
+        SearchScreen(
+            uiState = com.metrolist.shared.viewmodels.SearchViewModel.SearchUiState(query = "Luna Vale", hasSearched = true, isQuerySubmitted = true, unfilteredResults = SearchResultPage(songs + album)),
+            text = SearchScreenText(text, "Search songs, albums, artists", "Back", "Clear", "Recognize music"),
+            onQueryChange = {}, onSearch = {}, onBack = {}, onItemClick = {}, onItemLongClick = {}, onSongSave = {}, onHistoryItemClick = {}, onHistoryItemInsert = {}, onClearHistory = {}, onFilterSelected = {}, onLoadMore = {}, onRetryLoadMore = {},
+        )
+    }
     @Test fun rowsAndControls() = render("rows-and-controls") {
         Column { SonderTopBar("Your library", {}); Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { SonderPill("Songs", true) {}; SonderPill("Albums", false) {}; SonderPill("Playlists", false) {} }; songs.forEach { SonderMediaRow(it, {}, {}) }; SonderGroup(Modifier.padding(20.dp)) { Text("Playback", Modifier.padding(16.dp)); Row(Modifier.padding(16.dp)) { Text("Autoplay", Modifier.weight(1f)); com.metrolist.shared.ui.components.ExpressiveSwitch(true, {}) } } }
     }
