@@ -227,7 +227,7 @@
     <string name="credits_license_name">许可</string>
     <string name="credits_license_desc">Metrolist 采用 GPL-3.0 许可证授权。</string>
     <string name="devmode_already_active" translatable="true">开发模式已激活</string>
-    <string name="discord_listen_to_metrolist">收听 Metrolist</string>
+    <string name="discord_listen_to_metrolist">收听 Sonder</string>
     <string name="discord_login_description">连接您的 Discord 账号</string>
     <string name="discord_button1_text_default">在 YouTube Music 上收听</string>
     <string name="discord_button2_text_default">访问 Metrolist</string>
@@ -235,7 +235,7 @@
     <string name="discord_status_not_initialized">未初始化</string>
     <string name="discord_status_authorized">已授权</string>
     <string name="discord_error_denied">Discord 授权被拒绝。</string>
-    <string name="discord_error_connection_failed">无法连接到 Discord。Metrolist 将自动重试。</string>
+    <string name="discord_error_connection_failed">无法连接到 Discord。Sonder 将自动重试。</string>
     <string name="discord_error_no_browser">没有可用的应用来打开 Discord 授权。</string>
     <string name="discord_error_token_exchange_failed">令牌交换失败。请重试。</string>
     <string name="discord_error_token_refresh_failed">令牌刷新失败。请重新登录。</string>
@@ -265,8 +265,8 @@
     <string name="settings_application_about">应用与关于</string>
     <string name="settings_open_supported_links_title">打开支持的链接</string>
     <string name="settings_updates_title">更新</string>
-    <string name="settings_updates_available_description">有新的 Metrolist 更新可用</string>
-    <string name="settings_about_title">关于 Metrolist</string>
+    <string name="settings_updates_available_description">有新的 Sonder 更新可用</string>
+    <string name="settings_about_title">关于 Sonder</string>
     <string name="settings_search_placeholder">搜索设置</string>
     <string name="settings_search_no_results">未找到设置</string>
     <string name="settings_search_no_results_desc">未找到 %1$s 的匹配项</string>
@@ -289,7 +289,7 @@
     <string name="app_icon_arctic_haze">北极迷雾</string>
     <string name="app_icon_static">静态</string>
     <string name="app_font_choose">选择字体文件</string>
-    <string name="app_font_picker_desc">选择 TTF 或 OTF 文件。Metrolist 将其复制到应用私有存储。</string>
+    <string name="app_font_picker_desc">选择 TTF 或 OTF 文件。Sonder 将其复制到应用私有存储。</string>
     <string name="app_font_system">系统默认</string>
     <string name="app_font_applied">使用 %1$s</string>
     <string name="app_font_invalid">无法使用该字体。请选择有效的 TTF 或 OTF 文件，大小小于 20 MB。</string>
@@ -420,7 +420,7 @@
     <string name="animated_cover_resolution_high">高 (1080p)</string>
     <string name="animated_cover_resolution_original">原始</string>
     <string name="enable_animated_covers">启用动态封面</string>
-    <string name="startup_error_title">Metrolist 启动错误</string>
+    <string name="startup_error_title">Sonder 启动错误</string>
     <string name="lyrics_show_translations">显示翻译</string>
     <string name="artist_latest_release">最新发行</string>
     <string name="top_tracks">热门曲目</string>
@@ -557,7 +557,7 @@
     <string name="onboarding_continue_without_migration">使用空媒体库继续</string>
     <string name="onboarding_migration_recovery_description">您可以重试或使用空媒体库继续。原始数据库的恢复副本将保留在此设备上。完成设置后，您可以恢复备份。</string>
     <string name="onboarding_migration_failed">无法准备您的媒体库。您的原始数据已保留。</string>
-    <string name="onboarding_library_migrated_description">您的播放列表、历史记录、喜欢的内容和媒体库数据已在此版本的 Metrolist 中准备就绪。</string>
+    <string name="onboarding_library_migrated_description">您的播放列表、历史记录、喜欢的内容和媒体库数据已在此版本的 Sonder 中准备就绪。</string>
     <string name="onboarding_notifications_denied">通知已禁用。您可以稍后在 Android 应用设置中启用通知，或选择“否”以继续。</string>
     <string name="mini_player_video_prerequisite">请先在播放设置中启用“播放音乐视频”</string>
     <string name="download_folder_access_failed">无法保存此文件夹的访问权限。请选择具有读写权限的文件夹。</string>
@@ -582,9 +582,9 @@
     <string name="updates_notification_settings">Android 通知设置</string>
     <string name="widget_recognizer_open_result">打开已识别的歌曲</string>
     <string name="statistics_load_failed">无法刷新统计数据。请重试。</string>
-    <string name="desktop_platform_unsupported">Metrolist 不支持此操作系统。请使用 Windows 10 或更高版本、macOS，或 Omarchy 以外的 Linux 发行版。</string>
+    <string name="desktop_platform_unsupported">Sonder 不支持此操作系统。请使用 Windows 10 或更高版本、macOS，或 Omarchy 以外的 Linux 发行版。</string>
     <string name="shortcut_toggle_expanded">展开或收起播放器</string>
-    <string name="desktop_display_unavailable">Metrolist 无法连接到此会话的 X 显示服务。请在已设置 DISPLAY 的桌面会话中启动。</string>
+    <string name="desktop_display_unavailable">Sonder 无法连接到此会话的 X 显示服务。请在已设置 DISPLAY 的桌面会话中启动。</string>
     <string name="webkit_install_hint">内嵌登录需要 WebKitGTK 4.1（%1$s）。请使用系统包管理器安装。</string>
     <string name="webkit_install_command">使用以下命令安装：\n%1$s</string>
     <string name="webkit_appimage_hint">AppImage 版本也使用系统的 WebKitGTK 库进行登录。</string>
@@ -597,7 +597,7 @@
     <string name="video_stats_latency_value">%1$s ms</string>
     <string name="video_stats_media_stream_value">%1$s / %2$s MB（%3$s%）</string>
     <string name="video_stats_position_volume_value">%1$s | 音量：%2$s</string>
-    <string name="download_folder_unavailable">无法使用此文件夹。请选择一个可写入且系统或沙盒允许 Metrolist 访问的文件夹。</string>
+    <string name="download_folder_unavailable">无法使用此文件夹。请选择一个可写入且系统或沙盒允许 Sonder 访问的文件夹。</string>
     <string name="window_maximize">最大化</string>
     <string name="window_restore">还原窗口</string>
     <string name="equalizer_stream_unavailable">均衡器和前置放大器不适用于此媒体流。播放支持的歌曲时，更改将生效。</string>
@@ -610,7 +610,7 @@
     <string name="queue_youtube_history_paused_desc">请恢复听歌历史记录，以暂存离线播放记录供稍后同步</string>
     <string name="search_online_failed">无法在线搜索。请检查网络连接后重试。</string>
     <string name="search_load_more_failed">无法加载更多结果。</string>
-    <string name="discord_error_gateway_configuration">Discord 拒绝了连接配置。请更新 Metrolist 后重试。</string>
+    <string name="discord_error_gateway_configuration">Discord 拒绝了连接配置。请更新 Sonder 后重试。</string>
     <string name="discord_preview_buttons_adjusted">Discord 会缩短过长的按钮文字，并省略链接过长的按钮。此预览显示实际将发送的按钮。</string>
     <string name="discord_presence_status_warning">详细活动状态会向 Discord 发送“在线”状态。它可能覆盖“隐身”或“请勿打扰”，即使播放停止后也是如此。</string>
     <string name="discord_refresh_queued">状态刷新已加入队列。</string>
@@ -645,8 +645,8 @@
     <string name="theme_color_rose">玫瑰色</string>
     <string name="theme_color_red">红色</string>
     <string name="theme_color_gold">金色</string>
-    <string name="backup_unsupported_format">此版本的 Metrolist 不支持此备份格式。</string>
-    <string name="backup_unsupported_database">此版本的 Metrolist 不支持此备份中的数据库版本。</string>
+    <string name="backup_unsupported_format">此版本的 Sonder 不支持此备份格式。</string>
+    <string name="backup_unsupported_database">此版本的 Sonder 不支持此备份中的数据库版本。</string>
     <string name="backup_too_large">备份超出了支持的大小或条目数量限制。</string>
     <string name="backup_invalid_data">无法读取或验证备份。备份可能已损坏或包含不支持的数据。</string>
     <string name="search_history_removal_failed">无法清除账号的搜索历史记录。请联网后重试。</string>
@@ -659,8 +659,8 @@
     <string name="onboarding_migration_title">已找到您的 v13 媒体库</string>
     <string name="onboarding_migration_description">我们找到了独立版 Metrolist 的数据库。您可以就地迁移播放列表、历史记录、喜欢的内容和媒体库数据。如果迁移失败，您可以恢复原始数据库。</string>
     <string name="onboarding_migration_complete_title">您的账号已迁移</string>
-    <string name="onboarding_migration_complete_description">您的账号、播放列表、历史记录、喜欢的内容和媒体库数据已在此版本的 Metrolist 中准备就绪。</string>
-    <string name="onboarding_crash_reports_title">帮助改进 Metrolist</string>
+    <string name="onboarding_migration_complete_description">您的账号、播放列表、历史记录、喜欢的内容和媒体库数据已在此版本的 Sonder 中准备就绪。</string>
+    <string name="onboarding_crash_reports_title">帮助改进 Sonder</string>
     <string name="onboarding_crash_reports_description">您可以选择通过 Sentry 分享诊断信息，帮助我们发现并修复问题。您随时都可以在设置中更改此选项。</string>
     <string name="onboarding_notifications_title">允许通知</string>
     <string name="onboarding_notifications_description">启用播放和下载通知。</string>
@@ -676,7 +676,7 @@
     <string name="onboarding_finish_title">一切就绪</string>
     <string name="onboarding_finish_description">设置已完成。开始收听，或先导入您的账号和数据。</string>
     <string name="onboarding_restore_backup">从备份恢复</string>
-    <string name="onboarding_settings_hint">从右上角菜单打开设置，即可自定义 Metrolist。</string>
+    <string name="onboarding_settings_hint">从右上角菜单打开设置，即可自定义 Sonder。</string>
     <string name="onboarding_no_saved_accounts">未找到已关联的账号。</string>
     <string name="onboarding_account_picture">%1$s 的头像</string>
     <string name="onboarding_backup_picker_title">恢复 Metrolist 备份</string>

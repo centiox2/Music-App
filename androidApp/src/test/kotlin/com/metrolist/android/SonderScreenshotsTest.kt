@@ -17,6 +17,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.ui.player.*
+import com.metrolist.shared.viewmodels.PlayerViewModel
+import com.metrolist.shared.ui.components.images.AsyncImage
+import androidx.compose.ui.focus.FocusRequester
 import com.metrolist.shared.ui.components.AlbumHeader
 import com.metrolist.shared.ui.screens.*
 import com.metrolist.shared.ui.settings.*
@@ -89,6 +93,17 @@ class SonderScreenshotsTest {
     @Test fun content() = settings(SettingsPageId.CONTENT)
     private fun settings(page: SettingsPageId?) = render("settings-${page?.name?.lowercase() ?: "home"}") {
         SharedSettingsScreen(SharedSettingsHost(platform = SettingsPlatform.ANDROID, onClose = {}, initialPage = page, singlePane = true))
+    }
+    @Test fun player() = playerScreen()
+    @Test @Config(qualifiers = "w844dp-h390dp-xhdpi-land") fun playerLandscape() = playerScreen("player-landscape")
+    private fun playerScreen(name: String = "player-dark") = render(name) {
+        val song = songs.first()
+        SonderPlayerPresentation(
+            PlayerViewModel.PlayerUiState(currentSong = PlayerViewModel.SongUiModel(song.id, song.title, song.artists, song.thumbnail, song.duration), isPlaying = true, duration = 205000, queueTitle = "Quiet evenings"),
+            SonderPlayerPane.COVER, {}, false, remember { FocusRequester() }, Modifier, {}, {},
+            artwork = { AsyncImage(song.thumbnail, it) }, lyrics = {}, queue = {},
+            timeline = { SonderSeekBar(68000, 205000, true, {}) },
+        )
     }
     @Test fun rowsAndControls() = render("rows-and-controls") {
         Column { SonderTopBar("Your library", {}); Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { SonderPill("Songs", true) {}; SonderPill("Albums", false) {}; SonderPill("Playlists", false) {} }; songs.forEach { SonderMediaRow(it, {}, {}) }; SonderGroup(Modifier.padding(20.dp)) { Text("Playback", Modifier.padding(16.dp)); Row(Modifier.padding(16.dp)) { Text("Autoplay", Modifier.weight(1f)); com.metrolist.shared.ui.components.ExpressiveSwitch(true, {}) } } }

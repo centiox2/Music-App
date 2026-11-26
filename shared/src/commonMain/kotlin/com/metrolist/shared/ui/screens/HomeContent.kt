@@ -225,6 +225,22 @@ fun HomeContent(
             contentPadding = contentPadding, modifier = Modifier.fillMaxSize(),
             onLoadMore = onLoadMore, loading = uiState.isContentLoading || uiState.isLoadingMore,
             header = header,
+            shelfAction = { shelf ->
+                val songs = shelf.items.filterIsInstance<SongItem>().filter(isItemEnabled)
+                when (shelf.headerNavigationAction(onLocalShelfClick != null)) {
+                    HomeShelfHeaderAction.BROWSE -> shelf.browseId?.takeIf(String::isNotBlank)?.let { id -> { onItemClick(BrowseItem(id, shelf.title, params = shelf.params)) } }
+                    HomeShelfHeaderAction.LIBRARY -> onLibraryClick?.let { click -> { click(LibraryFilterType.ALBUMS.takeIf { shelf.browseId?.startsWith("FEmusic_library") == true }) } }
+                    HomeShelfHeaderAction.LOCAL -> onLocalShelfClick?.let { click -> { click(shelf) } }
+                    HomeShelfHeaderAction.PLAY_ALL -> onPlaySongs?.let { play -> { play(songs) } }
+                    HomeShelfHeaderAction.SHUFFLE -> onShuffleSongs?.let { shuffle -> { shuffle(songs) } }
+                    else -> null
+                }
+            },
+            shelfActionLabel = { shelf -> when (shelf.headerAction) {
+                HomeShelfHeaderAction.PLAY_ALL -> text.playAll
+                HomeShelfHeaderAction.SHUFFLE -> text.shuffle
+                else -> null
+            } },
         )
     }
 }

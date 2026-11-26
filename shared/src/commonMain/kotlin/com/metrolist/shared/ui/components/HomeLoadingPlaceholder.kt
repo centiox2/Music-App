@@ -53,82 +53,27 @@ fun HomeLoadingPlaceholder(
     modifier: Modifier = Modifier,
     isLandscape: Boolean = false,
 ) {
+
     val label = stringResource(Res.string.loading)
-    BoxWithConstraints(
-        modifier =
-            modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-                contentDescription = label
-                liveRegion = LiveRegionMode.Polite
-            },
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        val isWide = maxWidth > 840.dp
-        val horizontalPadding = if (isWide) 24.dp else 16.dp
-        val tile = currentGridThumbnailHeight()
-        val tileShape = RoundedCornerShape(uiEnhanced(ThumbnailCornerRadius, 12.dp))
-        val availableWidth = maxWidth.coerceAtMost(1400.dp) - horizontalPadding * 2
-        val speedDial = speedDialLayout(availableWidth, Settings.shared.gridItemSize)
-        val landscapeTile = (if (isWide) 170.dp else 136.dp) * (Settings.shared.gridItemSize.thumbnailHeight / GridThumbnailHeight)
-        val speedDialColumns = if (isLandscape) (availableWidth / (landscapeTile + GridTileSpacing)).toInt() + 1 else speedDial.columns
-        val speedDialRows = if (isLandscape) 3 else speedDial.rows
-        val carouselCount = ((maxWidth - horizontalPadding) / (tile + 12.dp)).toInt().coerceAtLeast(2) + 1
-        Column(
-            modifier =
-                Modifier
-                    .then(if (isWide) Modifier.widthIn(max = 1400.dp) else Modifier)
-                    .fillMaxWidth()
-                    .loadingShimmer(),
-            verticalArrangement = Arrangement.spacedBy(if (isWide) 16.dp else 8.dp),
-        ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .clipToBounds()
-                        .wrapContentWidth(Alignment.Start, unbounded = true)
-                        .padding(start = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ChipWidths.forEach { width -> SkeletonBlock(Modifier.width(width).height(32.dp), CircleShape) }
-            }
-
-            Column(Modifier.padding(horizontal = horizontalPadding).padding(bottom = if (isWide) 24.dp else 16.dp).clipToBounds()) {
-                ShelfTitlePlaceholder(isWide)
-                repeat(speedDialRows) { row ->
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .then(if (isLandscape) Modifier.wrapContentWidth(Alignment.Start, unbounded = true) else Modifier)
-                                .padding(top = if (row == 0) 0.dp else GridTileSpacing),
-                        horizontalArrangement = Arrangement.spacedBy(GridTileSpacing),
-                    ) {
-                        repeat(speedDialColumns) {
-                            SkeletonBlock(
-                                if (isLandscape) Modifier.size(landscapeTile) else Modifier.weight(1f).aspectRatio(1f),
-                                tileShape,
-                            )
-                        }
-                    }
-                }
-                if (!isLandscape) Spacer(Modifier.height(30.dp))
-            }
-
-            repeat(3) {
-                Column(Modifier.padding(start = horizontalPadding, bottom = if (isWide) 24.dp else 16.dp)) {
-                    ShelfTitlePlaceholder(isWide)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clipToBounds().wrapContentWidth(Alignment.Start, unbounded = true),
-                        horizontalArrangement = Arrangement.spacedBy(if (isWide) 12.dp else GridTileSpacing),
-                    ) {
-                        repeat(carouselCount) { CarouselItemPlaceholder(tile, tileShape) }
-                    }
+    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp).semantics {
+        contentDescription = label; liveRegion = LiveRegionMode.Polite
+    }.loadingShimmer(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipWidths.take(3).forEach { SkeletonBlock(Modifier.width(it).height(34.dp), CircleShape) }
+        }
+        SkeletonBlock(Modifier.fillMaxWidth().height(190.dp), RoundedCornerShape(18.dp))
+        SkeletonBlock(Modifier.width(140.dp).height(22.dp), RoundedCornerShape(6.dp))
+        repeat(8) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SkeletonBlock(Modifier.size(48.dp), RoundedCornerShape(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SkeletonBlock(Modifier.width(160.dp).height(14.dp), CircleShape)
+                    SkeletonBlock(Modifier.width(100.dp).height(12.dp), CircleShape)
                 }
             }
         }
     }
+
 }
 
 @Composable

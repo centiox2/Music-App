@@ -35,7 +35,7 @@ import com.metrolist.shared.viewmodels.PlayerViewModel
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToLong
 
-internal enum class SonderPlayerPane { COVER, QUEUE, LYRICS }
+enum class SonderPlayerPane { COVER, QUEUE, LYRICS }
 
 @Composable
 internal fun SonderPlayerScreen(
@@ -72,89 +72,37 @@ internal fun SonderPlayerScreen(
             if (platform.supportsPictureInPicture) ({ platform.enterPictureInPicture(state.isPlaying, true) }) else null)
         return
     }
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        LiquidBackground(song.thumbnail, animate = Settings.shared.animatedGradient, isPlaying = state.isPlaying, visible = active)
-        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
-            val wide = maxWidth > maxHeight && maxWidth >= 600.dp
-            Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SonderIcon(MetrolistIcons.Rounded.KeyboardArrowDown, stringResource(Res.string.close), onClose, glass = true)
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(stringResource(Res.string.now_playing), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        state.queueTitle?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    }
-                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { menu = true }, glass = true)
-                }
-                @Composable fun Artwork(mod: Modifier) {
-                    Box(mod.clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))) {
-                        if (state.isVideoModeActive) platform.MusicVideoSurface(Modifier.fillMaxSize(), 18.dp, false, true, false, { viewModel.toggleFullscreen() }, null)
-                        else AsyncImage(song.displayThumbnail, Modifier.fillMaxSize())
-                    }
-                }
-                @Composable fun Pane(mod: Modifier) {
-                    when (pane) {
-                        SonderPlayerPane.COVER -> Box(mod, contentAlignment = Alignment.Center) { Artwork(Modifier.fillMaxWidth().aspectRatio(1f)) }
-                        SonderPlayerPane.LYRICS -> LyricsViewWithPosition(viewModel, state.lyrics, state.lyricsSongwriters, state.lyricsAgents, state.lyricsProvider,
-                            state.lyricsOffsetMs, viewModel::seekToPosition, state.isLyricsLoading, MaterialTheme.colorScheme.onSurface, false, mod)
-                        SonderPlayerPane.QUEUE -> LazyColumn(mod) {
-                            itemsIndexed(state.queueEntryKeys, key = { _, key -> key }) { index, key ->
-                                viewModel.getQueueSong(key)?.let { entry ->
-                                    SonderMediaRow(entry, { viewModel.playQueueEntry(key) }, { queueMenu = key }, current = index == state.currentQueueIndex)
-                                }
-                            }
-                        }
-                    }
-                }
-                @Composable fun Controls(mod: Modifier) {
-                    Column(mod, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(song.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(song.artists.joinToString { it.name }, Modifier.clickable { song.artists.firstOrNull()?.id?.let(onArtist) }.padding(top = 4.dp), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            SonderIcon(if (state.isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder,
-                                stringResource(if (state.isLiked) Res.string.unlike else Res.string.action_like), viewModel::toggleLike)
-                        }
-                        SonderTimeline(viewModel, state.duration, !guest)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), viewModel::toggleShuffle, enabled = !guest)
-                            SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), viewModel::previous, enabled = !guest)
-                            Surface(onClick = viewModel::togglePlayPause, shape = CircleShape, color = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(if (wide) 68.dp else 76.dp).focusRequester(playFocus)) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(if (state.isPlaying) MetrolistIcons.Rounded.Pause else MetrolistIcons.Rounded.PlayArrow,
-                                        stringResource(if (state.isPlaying) Res.string.pause else Res.string.play), Modifier.size(36.dp))
-                                }
-                            }
-                            SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), viewModel::next, enabled = !guest)
-                            SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), viewModel::toggleRepeat, enabled = !guest)
-                        }
-                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.clickable { viewModel.retry() }) }
-                    }
-                }
-                if (wide) {
-                    Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Artwork(Modifier.weight(1f).aspectRatio(1f))
-                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                            if (pane != SonderPlayerPane.COVER) Pane(Modifier.weight(1f).fillMaxWidth())
-                            Controls(Modifier.fillMaxWidth())
-                        }
-                    }
-                } else {
-                    Pane(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp))
-                    Controls(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
-                }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    SonderIcon(MetrolistIcons.Outlined.Devices, stringResource(Res.string.connected_devices), { devices = true }, glass = true)
-                    SonderPill(stringResource(Res.string.queue), pane == SonderPlayerPane.QUEUE) { pane = if (pane == SonderPlayerPane.QUEUE) SonderPlayerPane.COVER else SonderPlayerPane.QUEUE }
-                    SonderPill(stringResource(Res.string.lyrics), pane == SonderPlayerPane.LYRICS) { pane = if (pane == SonderPlayerPane.LYRICS) SonderPlayerPane.COVER else SonderPlayerPane.LYRICS }
-                    if (pane == SonderPlayerPane.LYRICS) SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { lyricsMenu = true })
-                    else if (state.isVideoAvailable) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), viewModel::toggleVideoMode)
-                    else SonderIcon(MetrolistIcons.Outlined.Share, stringResource(Res.string.share), { viewModel.shareSong() })
+    SonderPlayerPresentation(state, pane, { pane = it }, guest, playFocus, modifier, onArtist,
+        onAction = { action -> when (action) {
+            SonderPlayerAction.CLOSE -> onClose()
+            SonderPlayerAction.MENU -> menu = true
+            SonderPlayerAction.LIKE -> viewModel.toggleLike()
+            SonderPlayerAction.SHUFFLE -> viewModel.toggleShuffle()
+            SonderPlayerAction.PREVIOUS -> viewModel.previous()
+            SonderPlayerAction.PLAY_PAUSE -> viewModel.togglePlayPause()
+            SonderPlayerAction.NEXT -> viewModel.next()
+            SonderPlayerAction.REPEAT -> viewModel.toggleRepeat()
+            SonderPlayerAction.RETRY -> viewModel.retry()
+            SonderPlayerAction.DEVICES -> devices = true
+            SonderPlayerAction.LYRICS_MENU -> lyricsMenu = true
+            SonderPlayerAction.VIDEO -> viewModel.toggleVideoMode()
+            SonderPlayerAction.SHARE -> viewModel.shareSong()
+        } },
+        artwork = { mod ->
+            if (state.isVideoModeActive) platform.MusicVideoSurface(mod, 18.dp, false, true, false, { viewModel.toggleFullscreen() }, null)
+            else AsyncImage(song.displayThumbnail, mod)
+        },
+        lyrics = { mod -> LyricsViewWithPosition(viewModel, state.lyrics, state.lyricsSongwriters, state.lyricsAgents, state.lyricsProvider,
+            state.lyricsOffsetMs, viewModel::seekToPosition, state.isLyricsLoading, MaterialTheme.colorScheme.onSurface, false, mod) },
+        queue = { mod -> LazyColumn(mod) {
+            itemsIndexed(state.queueEntryKeys, key = { _, key -> key }) { index, key ->
+                viewModel.getQueueSong(key)?.let { entry ->
+                    SonderMediaRow(entry, { viewModel.playQueueEntry(key) }, { queueMenu = key }, current = index == state.currentQueueIndex)
                 }
             }
-        }
-    }
+        } },
+        timeline = { SonderTimeline(viewModel, state.duration, !guest) },
+    )
     queueMenu?.let { key ->
         viewModel.getQueueSong(key)?.let { entry ->
             val index = state.queueEntryKeys.indexOf(key)
@@ -184,13 +132,114 @@ internal fun SonderPlayerScreen(
     }
 }
 
+/** Backend-independent presentation used by the Android player and rendered screen checks. */
+enum class SonderPlayerAction { CLOSE, MENU, LIKE, SHUFFLE, PREVIOUS, PLAY_PAUSE, NEXT, REPEAT, RETRY, DEVICES, LYRICS_MENU, VIDEO, SHARE }
+
+@Composable
+fun SonderPlayerPresentation(
+    state: PlayerViewModel.PlayerUiState,
+    pane: SonderPlayerPane,
+    onPaneChange: (SonderPlayerPane) -> Unit,
+    guest: Boolean,
+    playFocus: FocusRequester,
+    modifier: Modifier,
+    onArtist: (String) -> Unit,
+    onAction: (SonderPlayerAction) -> Unit,
+    artwork: @Composable (Modifier) -> Unit,
+    lyrics: @Composable (Modifier) -> Unit,
+    queue: @Composable (Modifier) -> Unit,
+    timeline: @Composable () -> Unit,
+) {
+    val song = state.currentSong ?: return
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        LiquidBackground(song.thumbnail, animate = Settings.shared.animatedGradient, isPlaying = state.isPlaying, visible = true)
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            val wide = maxWidth > maxHeight && maxWidth >= 600.dp
+            Column(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SonderIcon(MetrolistIcons.Rounded.KeyboardArrowDown, stringResource(Res.string.close), { onAction(SonderPlayerAction.CLOSE) }, glass = true)
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(Res.string.now_playing), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        state.queueTitle?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                    SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.MENU) }, glass = true)
+                }
+                @Composable fun Artwork(mod: Modifier) {
+                    Box(mod.clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))) {
+                        artwork(Modifier.fillMaxSize())
+                    }
+                }
+                @Composable fun Pane(mod: Modifier) {
+                    when (pane) {
+                        SonderPlayerPane.COVER -> Box(mod, contentAlignment = Alignment.Center) { Artwork(Modifier.fillMaxWidth().aspectRatio(1f)) }
+                        SonderPlayerPane.LYRICS -> lyrics(mod)
+                        SonderPlayerPane.QUEUE -> queue(mod)
+                    }
+                }
+                @Composable fun Controls(mod: Modifier) {
+                    Column(mod, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(song.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(song.artists.joinToString { it.name }, Modifier.clickable { song.artists.firstOrNull()?.id?.let(onArtist) }.padding(top = 4.dp), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            SonderIcon(if (state.isLiked) MetrolistIcons.Rounded.Favorite else MetrolistIcons.Rounded.FavoriteBorder,
+                                stringResource(if (state.isLiked) Res.string.unlike else Res.string.action_like), { onAction(SonderPlayerAction.LIKE) })
+                        }
+                        timeline()
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            SonderIcon(MetrolistIcons.Rounded.Shuffle, stringResource(Res.string.shuffle), { onAction(SonderPlayerAction.SHUFFLE) }, enabled = !guest)
+                            SonderIcon(MetrolistIcons.Rounded.SkipPrevious, stringResource(Res.string.previous), { onAction(SonderPlayerAction.PREVIOUS) }, enabled = !guest)
+                            Surface(onClick = { onAction(SonderPlayerAction.PLAY_PAUSE) }, shape = CircleShape, color = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(if (wide) 68.dp else 76.dp).focusRequester(playFocus)) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(if (state.isPlaying) MetrolistIcons.Rounded.Pause else MetrolistIcons.Rounded.PlayArrow,
+                                        stringResource(if (state.isPlaying) Res.string.pause else Res.string.play), Modifier.size(36.dp))
+                                }
+                            }
+                            SonderIcon(MetrolistIcons.Rounded.SkipNext, stringResource(Res.string.next), { onAction(SonderPlayerAction.NEXT) }, enabled = !guest)
+                            SonderIcon(if (state.repeatMode == 1) MetrolistIcons.Rounded.RepeatOne else MetrolistIcons.Rounded.Repeat, stringResource(Res.string.repeat), { onAction(SonderPlayerAction.REPEAT) }, enabled = !guest)
+                        }
+                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.clickable { onAction(SonderPlayerAction.RETRY) }) }
+                    }
+                }
+                if (wide) {
+                    Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Artwork(Modifier.weight(1f).aspectRatio(1f))
+                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                            if (pane != SonderPlayerPane.COVER) Pane(Modifier.weight(1f).fillMaxWidth())
+                            Controls(Modifier.fillMaxWidth())
+                        }
+                    }
+                } else {
+                    Pane(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp))
+                    Controls(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    SonderIcon(MetrolistIcons.Outlined.Devices, stringResource(Res.string.connected_devices), { onAction(SonderPlayerAction.DEVICES) }, glass = true)
+                    SonderPill(stringResource(Res.string.queue), pane == SonderPlayerPane.QUEUE) { onPaneChange(if (pane == SonderPlayerPane.QUEUE) SonderPlayerPane.COVER else SonderPlayerPane.QUEUE) }
+                    SonderPill(stringResource(Res.string.lyrics), pane == SonderPlayerPane.LYRICS) { onPaneChange(if (pane == SonderPlayerPane.LYRICS) SonderPlayerPane.COVER else SonderPlayerPane.LYRICS) }
+                    if (pane == SonderPlayerPane.LYRICS) SonderIcon(MetrolistIcons.Filled.MoreHoriz, stringResource(Res.string.more_options), { onAction(SonderPlayerAction.LYRICS_MENU) })
+                    else if (state.isVideoAvailable) SonderIcon(MetrolistIcons.Filled.Movie, stringResource(Res.string.video), { onAction(SonderPlayerAction.VIDEO) })
+                    else SonderIcon(MetrolistIcons.Outlined.Share, stringResource(Res.string.share), { onAction(SonderPlayerAction.SHARE) })
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SonderTimeline(viewModel: PlayerViewModel, duration: Long, enabled: Boolean) {
     val position by viewModel.currentPosition.collectAsState()
+    SonderSeekBar(position, duration, enabled, viewModel::seekToPosition)
+}
+
+@Composable
+fun SonderSeekBar(position: Long, duration: Long, enabled: Boolean, onSeek: (Long) -> Unit) {
     var preview by remember { mutableStateOf<Float?>(null) }
     val fraction = preview ?: if (duration > 0) position.toFloat() / duration else 0f
     val color = MaterialTheme.colorScheme.onSurface
-    val seek: (Float) -> Unit = { f -> viewModel.seekToPosition((f.coerceIn(0f, 1f) * duration).roundToLong()) }
+    val seek: (Float) -> Unit = { f -> onSeek((f.coerceIn(0f, 1f) * duration).roundToLong()) }
     Column {
         Canvas(Modifier.fillMaxWidth().height(28.dp)
             .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f); setProgress { if (enabled) { seek(it); true } else false } }

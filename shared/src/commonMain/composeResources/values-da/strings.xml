@@ -11,7 +11,7 @@
     <string name="import_error_unsupported_playlist_entries">Denne playliste indeholder lokale filer eller direkte links, som Android ikke kan få adgang til. Importér en playliste med YouTube-links, eller vælg de lokale filer på computeren.</string>
     <string name="import_error_local_files_require_local_playlist">Lokale lydfiler kan kun importeres til en lokal playliste.</string>
     <string name="import_error_file_read_failed">Playlistens fil kunne ikke læses. Vælg den igen, og giv adgang til filen.</string>
-    <string name="startup_error_title">Fejl ved start af Metrolist</string>
+    <string name="startup_error_title">Fejl ved start af Sonder</string>
     <string name="lyrics_show_translations">Vis oversættelser</string>
     <string name="artist_latest_release">Seneste udgivelse</string>
     <string name="top_tracks">Mest populære numre</string>
@@ -126,7 +126,7 @@
     <string name="onboarding_continue_without_migration">Fortsæt med et tomt bibliotek</string>
     <string name="onboarding_migration_recovery_description">Du kan prøve igen eller fortsætte med et tomt bibliotek. En gendannelseskopi af din oprindelige database bliver på denne enhed. Du kan gendanne en sikkerhedskopi efter opsætningen.</string>
     <string name="onboarding_migration_failed">Kunne ikke klargøre dit bibliotek. Dine oprindelige data er bevaret.</string>
-    <string name="onboarding_library_migrated_description">Dine afspilningslister, din historik, dine sange, du synes om, og dine biblioteksdata er klar i denne version af Metrolist.</string>
+    <string name="onboarding_library_migrated_description">Dine afspilningslister, din historik, dine sange, du synes om, og dine biblioteksdata er klar i denne version af Sonder.</string>
     <string name="onboarding_notifications_denied">Notifikationer er slået fra. Du kan slå dem til senere i Androids appindstillinger eller vælge Nej for at fortsætte.</string>
     <string name="mini_player_video_prerequisite">Slå først Afspil musikvideoer til i afspilningsindstillingerne</string>
     <string name="download_folder_access_failed">Kunne ikke gemme adgangen til denne mappe. Vælg en mappe med læse- og skriveadgang.</string>
@@ -151,9 +151,9 @@
     <string name="updates_notification_settings">Androids notifikationsindstillinger</string>
     <string name="widget_recognizer_open_result">Åbn den genkendte sang</string>
     <string name="statistics_load_failed">Kunne ikke opdatere statistikken. Prøv igen.</string>
-    <string name="desktop_platform_unsupported">Dette operativsystem understøttes ikke af Metrolist. Brug Windows 10 eller nyere, macOS eller en anden Linux-distribution end Omarchy.</string>
+    <string name="desktop_platform_unsupported">Dette operativsystem understøttes ikke af Sonder. Brug Windows 10 eller nyere, macOS eller en anden Linux-distribution end Omarchy.</string>
     <string name="shortcut_toggle_expanded">Udvid eller sammenfold afspilleren</string>
-    <string name="desktop_display_unavailable">Metrolist kunne ikke oprette forbindelse til denne sessions X-skærm. Start appen fra din skrivebordssession med DISPLAY indstillet.</string>
+    <string name="desktop_display_unavailable">Sonder kunne ikke oprette forbindelse til denne sessions X-skærm. Start appen fra din skrivebordssession med DISPLAY indstillet.</string>
     <string name="webkit_install_hint">Indbygget login kræver WebKitGTK 4.1 (%1$s). Installér det med systemets pakkehåndtering.</string>
     <string name="webkit_install_command">Installér det med:\n%1$s</string>
     <string name="webkit_appimage_hint">AppImage-versioner bruger også systemets WebKitGTK-biblioteker til login.</string>
@@ -166,7 +166,7 @@
     <string name="video_stats_latency_value">%1$s ms</string>
     <string name="video_stats_media_stream_value">%1$s / %2$s MB (%3$s%)</string>
     <string name="video_stats_position_volume_value">%1$s | Lydstyrke: %2$s</string>
-    <string name="download_folder_unavailable">Kunne ikke bruge denne mappe. Vælg en skrivbar mappe, som dit system eller din sandkasse giver Metrolist adgang til.</string>
+    <string name="download_folder_unavailable">Kunne ikke bruge denne mappe. Vælg en skrivbar mappe, som dit system eller din sandkasse giver Sonder adgang til.</string>
     <string name="window_maximize">Maksimér</string>
     <string name="window_restore">Gendan vindue</string>
     <string name="equalizer_stream_unavailable">Equalizer og forforstærker er ikke tilgængelige for denne stream. Ændringerne træder i kraft, når et understøttet nummer afspilles.</string>
@@ -180,7 +180,7 @@
     <string name="queue_youtube_history_paused_desc">Genoptag lyttehistorikken for at sætte afspilninger i kø, mens du er offline</string>
     <string name="search_online_failed">Kunne ikke søge online. Kontrollér din forbindelse, og prøv igen.</string>
     <string name="search_load_more_failed">Kunne ikke indlæse flere resultater.</string>
-    <string name="discord_error_gateway_configuration">Discord afviste forbindelseskonfigurationen. Opdatér Metrolist, før du prøver igen.</string>
+    <string name="discord_error_gateway_configuration">Discord afviste forbindelseskonfigurationen. Opdatér Sonder, før du prøver igen.</string>
     <string name="discord_preview_buttons_adjusted">Discord forkorter lange knaptekster og udelader knapper med for lange links. Denne forhåndsvisning viser de knapper, der bliver sendt.</string>
     <string name="discord_presence_status_warning">Aktivitetsvisning sender statussen Online til Discord. Den kan tilsidesætte Usynlig eller Forstyr ikke, også når afspilningen stopper.</string>
     <string name="discord_refresh_queued">Opdatering af aktivitetsstatus sat i kø.</string>
@@ -215,8 +215,8 @@
     <string name="theme_color_rose">Rosa</string>
     <string name="theme_color_red">Rød</string>
     <string name="theme_color_gold">Guld</string>
-    <string name="backup_unsupported_format">Dette sikkerhedskopiformat understøttes ikke af denne version af Metrolist.</string>
-    <string name="backup_unsupported_database">Databaseversionen i denne sikkerhedskopi understøttes ikke af denne version af Metrolist.</string>
+    <string name="backup_unsupported_format">Dette sikkerhedskopiformat understøttes ikke af denne version af Sonder.</string>
+    <string name="backup_unsupported_database">Databaseversionen i denne sikkerhedskopi understøttes ikke af denne version af Sonder.</string>
     <string name="backup_too_large">Sikkerhedskopien overskrider en understøttet grænse for størrelse eller antal poster.</string>
     <string name="backup_invalid_data">Sikkerhedskopien kunne ikke læses eller valideres. Den kan være beskadiget eller indeholde data, der ikke understøttes.</string>
     <string name="search_history_removal_failed">Kunne ikke rydde kontoens søgehistorik. Prøv igen, når du har forbindelse.</string>
@@ -229,8 +229,8 @@
     <string name="onboarding_migration_title">Dit v13-bibliotek er her</string>
     <string name="onboarding_migration_description">Vi fandt en selvstændig Metrolist-database. Overfør afspilningslister, historik, sange, du synes om, og biblioteksdata på stedet. Du kan gendanne den oprindelige database, hvis overførslen mislykkes.</string>
     <string name="onboarding_migration_complete_title">Din konto er overført</string>
-    <string name="onboarding_migration_complete_description">Din konto, dine afspilningslister, din historik, dine sange, du synes om, og dine biblioteksdata er klar i denne version af Metrolist.</string>
-    <string name="onboarding_crash_reports_title">Hjælp med at forbedre Metrolist</string>
+    <string name="onboarding_migration_complete_description">Din konto, dine afspilningslister, din historik, dine sange, du synes om, og dine biblioteksdata er klar i denne version af Sonder.</string>
+    <string name="onboarding_crash_reports_title">Hjælp med at forbedre Sonder</string>
     <string name="onboarding_crash_reports_description">Del valgfrie diagnosticeringsdata via Sentry for at hjælpe os med at finde og løse problemer. Du kan til enhver tid ændre dette i Indstillinger.</string>
     <string name="onboarding_notifications_title">Tillad notifikationer</string>
     <string name="onboarding_notifications_description">Aktivér notifikationer om afspilning og downloads.</string>
@@ -246,7 +246,7 @@
     <string name="onboarding_finish_title">Alt er klar</string>
     <string name="onboarding_finish_description">Opsætningen er færdig. Begynd at lytte, eller overfør først din konto og dine data.</string>
     <string name="onboarding_restore_backup">Gendan fra sikkerhedskopi</string>
-    <string name="onboarding_settings_hint">Åbn Indstillinger fra menuen øverst til højre for at tilpasse Metrolist.</string>
+    <string name="onboarding_settings_hint">Åbn Indstillinger fra menuen øverst til højre for at tilpasse Sonder.</string>
     <string name="onboarding_no_saved_accounts">Der blev ikke fundet nogen tilknyttede konti.</string>
     <string name="onboarding_account_picture">Profilbillede for %1$s</string>
     <string name="onboarding_backup_picker_title">Gendan Metrolist-sikkerhedskopi</string>

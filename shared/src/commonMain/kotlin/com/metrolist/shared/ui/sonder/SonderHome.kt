@@ -9,6 +9,9 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.shared.model.*
 import com.metrolist.shared.ui.screens.HomeShelf
 import com.metrolist.shared.ui.screens.HomeContentText
+import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.see_all
+import org.jetbrains.compose.resources.stringResource
 
 /** Original Sonder Home composition: mood pills, featured mix, quick-pick tracks and cover shelves. */
 @Composable
@@ -19,6 +22,8 @@ fun SonderHome(
     currentSongId: State<String?>, enabled: (YTItem) -> Boolean,
     listState: LazyListState, contentPadding: PaddingValues, modifier: Modifier,
     onLoadMore: (() -> Unit)?, loading: Boolean, header: (LazyListScope.() -> Unit)?,
+    shelfAction: (HomeShelf) -> (() -> Unit)? = { null },
+    shelfActionLabel: (HomeShelf) -> String? = { null },
 ) {
     val featured = shelves.firstNotNullOfOrNull { shelf ->
         shelf.items.firstOrNull { (it is PlaylistItem || it is AlbumItem) && it.thumbnail != null && enabled(it) }?.let { shelf to it }
@@ -47,7 +52,7 @@ fun SonderHome(
             item("sonder_shelf_${index}_${shelf.key}") {
                 Column {
                     Spacer(Modifier.height(16.dp))
-                    SonderSection(shelf.title)
+                    SonderSection(shelf.headerTitle ?: shelf.title, shelfActionLabel(shelf) ?: stringResource(Res.string.see_all), shelfAction(shelf))
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(shelf.items, key = { i, item -> "${i}_${item.id}" }) { _, item ->
                             SonderCard(item, { if (enabled(item)) onItemClick(item) }, onItemLongClick?.let { more -> { more(item) } })

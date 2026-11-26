@@ -255,7 +255,7 @@
     <string name="credits_license_desc">Metrolist on GPL-3.0-lisenssin alainen.</string>
     <string name="devmode_already_active" translatable="true">Kehittäjätila on jo käytössä</string>
     <string name="discord_enable_rich_presence">Discord Rich Presence</string>
-    <string name="discord_listen_to_metrolist">Kuuntele Metrolistillä</string>
+    <string name="discord_listen_to_metrolist">Kuuntele Sonderillä</string>
     <string name="discord_login_description">Yhdistä Discord-tilisi</string>
     <string name="discord_rich_presence">Rich presence</string>
     <string name="discord_state">Tila</string>
@@ -265,7 +265,7 @@
     <string name="discord_status_not_initialized">Ei aloitettu</string>
     <string name="discord_status_authorized">Valtuutettu</string>
     <string name="discord_error_denied">Discord eväsi valtuutuksen.</string>
-    <string name="discord_error_connection_failed">Discordiin yhdistäminen epäonnistui. Metrolist yrittää automaattisesti uudelleen.</string>
+    <string name="discord_error_connection_failed">Discordiin yhdistäminen epäonnistui. Sonder yrittää automaattisesti uudelleen.</string>
     <string name="discord_error_no_browser">Discordin valtuutuksen käsittelyyn sopivaa selainta ei löytynyt.</string>
     <string name="discord_error_token_exchange_failed">Avainten vaihto epäonnistui. Yritä uudestaan.</string>
     <string name="discord_error_token_refresh_failed">Avainten virkistäminen epäonnistui. Kirjaudu uudestaan sisään.</string>
@@ -296,7 +296,7 @@
     <string name="settings_open_supported_links_title">Avaa tuetut linkit</string>
     <string name="settings_updates_title">Päivitykset</string>
     <string name="settings_updates_available_description">Uusi päivitys on saatavilla</string>
-    <string name="settings_about_title">Tietoja Metrolististä</string>
+    <string name="settings_about_title">Tietoja Sonderistä</string>
     <string name="settings_search_placeholder">Hae asetuksista</string>
     <string name="settings_search_no_results">Asetuksia ei löytynyt</string>
     <string name="settings_search_no_results_desc">Haulla %1$s ei löytynyt mitään</string>
@@ -327,7 +327,7 @@
     <string name="app_icon_zenith_black">Zenith Black (Zeniitinmusta)</string>
     <string name="app_icon_zenith_white">Zenith White (Zeniitinvalkoinen)</string>
     <string name="app_font_choose">Valitse fonttitiedosto</string>
-    <string name="app_font_picker_desc">Valitse TTF- tai OTF-tiedosto. Metrolist kopioi sen omaan sovellustallennustilaansa.</string>
+    <string name="app_font_picker_desc">Valitse TTF- tai OTF-tiedosto. Sonder kopioi sen omaan sovellustallennustilaansa.</string>
     <string name="app_font_system">Järjestelmän oletus</string>
     <string name="app_font_applied">Käytössä: %1$s</string>
     <string name="app_font_invalid">Fonttia ei voi käyttää. Valitse kelvollinen TTF- tai OTF-tiedosto, joka on pienempi kuin 20 MB.</string>
@@ -444,7 +444,7 @@
     <string name="backup_restore_title">Varmuuskopiointi ja palautus</string>
     <string name="spotify_sign_in">Kirjaudu sisään Spotifyhin</string>
     <string name="spotify_sign_in_again">Kirjaudu uudelleen sisään</string>
-    <string name="spotify_choose_playlists_supporting">Valitse soittolistat, jotka haluat tuoda Metrolistiin.</string>
+    <string name="spotify_choose_playlists_supporting">Valitse soittolistat, jotka haluat tuoda Sonderiin.</string>
     <plurals name="spotify_selected_playlist_count">
         <item quantity="one">%1$d soittolista valittu</item>
         <item quantity="other">%1$d soittolistaa valittu</item>
@@ -475,7 +475,7 @@
     <string name="backup_restore_busy">Työskennellään…</string>
     <string name="backup_sensitive_title">Arkaluonteinen varmuuskopio</string>
     <string name="backup_sensitive_message">Varmuuskopiot sisältävät API-avaimesi, kirjautumistietosi, todennusevästeet, istunnon tunnisteet ja muita arkaluonteisia tietoja. Kuka tahansa tämän tiedoston saanut voi käyttää tilejäsi. Säilytä se turvallisesti äläkä koskaan jaa sitä.</string>
-    <string name="restore_in_progress">Tuodaan varmuuskopiota...\nMetrolist käynnistyy automaattisesti uudelleen.</string>
+    <string name="restore_in_progress">Tuodaan varmuuskopiota...\nSonder käynnistyy automaattisesti uudelleen.</string>
     <string name="scrobble_tap_to_disconnect">Klikkaa katkaistaksesi yhteyden</string>
     <string name="scrobble_enable">Scrobblaaminen</string>
     <string name="scrobble_now_playing">Nyt kuunnellaan -päivitykset</string>
@@ -496,7 +496,7 @@
     <string name="listenbrainz_now_playing_description">Näytä kuuntelussa oleva kappale ListenBrainzissa</string>
     <string name="listenbrainz_connect_title">Yhdistä ListenBrainz</string>
     <string name="listenbrainz_user_token">Käyttäjätoken</string>
-    <string name="restore_database_incompatible">Tämä varmuuskopio käyttää tietokantaversiota %1$d, mutta nykyinen sovellus ei tue uudempia versioita kuin %2$d. Päivitä Metrolist ja yritä uudelleen.</string>
+    <string name="restore_database_incompatible">Tämä varmuuskopio käyttää tietokantaversiota %1$d, mutta nykyinen sovellus ei tue uudempia versioita kuin %2$d. Päivitä Sonder ja yritä uudelleen.</string>
     <string name="restore_failed_detail">Varmuuskopion tuonti epäonnistui vaiheessa %1$s.\n\nSyy: %2$s</string>
     <string name="restore_error_unknown">Lisätietoja ei ole saatavilla.</string>
     <string name="restore_stage_reading_backup">Luetaan varmuuskopiotiedostoa</string>
@@ -564,35 +564,35 @@
     <string name="updates_title">Sovelluspäivitykset</string>
     <string name="updates_check">Hae päivityksiä</string>
     <string name="updates_checking">Haetaan päivityksiä…</string>
-    <string name="updates_no_updates">Metrolist on ajan tasalla</string>
+    <string name="updates_no_updates">Sonder on ajan tasalla</string>
     <string name="updates_error">Päivitysten hakeminen epäonnistui</string>
-    <string name="updates_status_current">Päivitetty Metrolistin versioon %1$s</string>
+    <string name="updates_status_current">Päivitetty Sonderin versioon %1$s</string>
     <string name="updates_auto_check">Hae päivityksiä automaattisesti</string>
     <string name="updates_notifications">Päivitysilmoitukset</string>
     <string name="updates_changelogs">Muutoslokit</string>
     <string name="updates_last_check">Päivityksiä haettu viimeksi</string>
     <string name="updates_pending_title">Odottava päivitys</string>
-    <string name="updates_version">Metrolistin versio</string>
+    <string name="updates_version">Sonderin versio</string>
     <string name="updates_size">Päivityksen koko</string>
     <string name="updates_date">Päivämäärä</string>
     <string name="updates_changelog">Muutosloki</string>
     <string name="updates_install">Asenna</string>
     <string name="updates_retry">Yritä uudelleen</string>
-    <string name="updates_available_title">Metrolist %1$s on saatavilla</string>
+    <string name="updates_available_title">Sonder %1$s on saatavilla</string>
     <string name="updates_available_message">Klikkaa "Päivitä" ladataksesi päivityksen ja jatkaaksesi Androidin asentajapalveluun.</string>
     <string name="updates_changelog_preview">Uutuudet</string>
     <string name="updates_pending_parenthetical">(päivitys odottamassa)</string>
     <string name="update_pending">Päivitys odottamassa</string>
     <string name="updates_action">Päivitä</string>
-    <string name="updates_notification_title">Metrolist %1$s on valmiina</string>
+    <string name="updates_notification_title">Sonder %1$s on valmiina</string>
     <string name="updates_notification_text">Klikkaa ladataksesi ja asentaaksesi päivityksen</string>
     <string name="updates_channel_name">Sovelluspäivitykset</string>
-    <string name="updates_channel_description">Ilmoituksia Metrolistin uusista versioista</string>
+    <string name="updates_channel_description">Ilmoituksia Sonderin uusista versioista</string>
     <string name="updates_download_failed">Päivityksen lataaminen epäonnistui.</string>
     <string name="updates_digest_failed">Ladatun päivityksen tarkistussumma ei vastannut GitHubin tarkistussummaa.</string>
     <string name="updates_installer_failed">Androidin asentajapalvelu ei ole saatavilla tai sovellusten asentaminen on rajoitettu tällä laitteella.</string>
     <string name="updates_release_unavailable">Tämä versio ei sisällä sopivaa APK-tiedostoa.</string>
-    <string name="updates_release_notes_title">Uutuuksia Metrolistin versiossa %1$s</string>
+    <string name="updates_release_notes_title">Uutuuksia Sonderin versiossa %1$s</string>
     <string name="device_connect_title">Laiteyhteydet</string>
     <string name="device_connect_beta">Beta</string>
     <string name="device_connect_enable">Ota käyttöön</string>
@@ -603,7 +603,7 @@
     <string name="device_connect_rescan">Etsi uudestaan</string>
     <string name="device_connect_account_mismatch">Eri tili</string>
     <string name="device_connect_grant_permission">Myönnä lupa</string>
-    <string name="side_menu_welcome">Tervetuloa Metrolistiin</string>
+    <string name="side_menu_welcome">Tervetuloa Sonderiin</string>
     <string name="action_cannot_be_undone">Tätä toimintoa ei voi peruuttaa.</string>
     <string name="add">Lisää</string>
     <string name="add_a_song">Lisää kappale</string>
@@ -1138,7 +1138,7 @@
     <string name="subtitle_text_size">Tekstitysten fonttikoko</string>
     <string name="album_art">Kansikuvat</string>
     <string name="previous">Edellinen</string>
-    <string name="tap_to_play">Klikkaa avataksesi Metrolistin</string>
+    <string name="tap_to_play">Klikkaa avataksesi Sonderin</string>
     <string name="play_pause">Toista/pysäytä</string>
     <string name="next">Seuraava</string>
     <string name="widget_turntable">Levylautanen</string>
@@ -1172,7 +1172,7 @@
     <string name="ai_base_url">Pohja-URL</string>
     <string name="recognition_notification_no_match">Vastaavuuksia ei löytynyt</string>
     <string name="discord_button_1">Painike 1</string>
-    <string name="onboarding_settings_hint">Muuta Metrolistin asetuksia oikean yläkulman valikosta.</string>
+    <string name="onboarding_settings_hint">Muuta Sonderin asetuksia oikean yläkulman valikosta.</string>
     <string name="continue_action">Jatka</string>
     <string name="onboarding_sentry_private">Kirjautumistiedot, tokenit, evästeet ja allekirjoitetut URL-osoitteet eivät sisälly raportteihin.</string>
     <string name="onboarding_privacy_policy">Lue yksityisyyskäytäntömme</string>
@@ -1203,8 +1203,8 @@
     <string name="onboarding_migration_title">V13-kirjastosi on täällä</string>
     <string name="onboarding_migration_description">Löysimme erillisen Metrolist-tietokannan. Voit tuoda soittolistat, historian, tykkäykset ja kirjastosi. Alkuperäinen tietokanta säilyy, mikäli tuonti epäonnistuisi.</string>
     <string name="onboarding_migration_complete_title">Tilisi tuotiin</string>
-    <string name="onboarding_migration_complete_description">Tilisi, soittolistasi, historiasi, tykkäyksesi ja kirjastosi ovat nyt käytettävissä Metrolistin tässä versiossa.</string>
-    <string name="onboarding_crash_reports_title">Auta parantamaan Metrolistia</string>
+    <string name="onboarding_migration_complete_description">Tilisi, soittolistasi, historiasi, tykkäyksesi ja kirjastosi ovat nyt käytettävissä Sonderin tässä versiossa.</string>
+    <string name="onboarding_crash_reports_title">Auta parantamaan Sonderia</string>
     <string name="onboarding_crash_reports_description">Voit auttaa meitä puuttumaan ongelmiin jakamalla lokeja Sentryn kautta. Voit muuttaa tätä milloin tahansa asetuksissa.</string>
     <string name="onboarding_notifications_title">Salli ilmoitukset</string>
     <string name="onboarding_notifications_description">Ota käyttöön ilmoitukset toistolle ja latauksille.</string>
@@ -1267,7 +1267,7 @@
     <string name="add_to_queue_desc">Lisää jonon loppuun</string>
     <string name="listen_together_error">Yhteysongelma</string>
     <string name="lyrics_offset">Sanoitusten poikkeama</string>
-    <string name="startup_error_title">Metrolistin käynnistysvirhe</string>
+    <string name="startup_error_title">Sonderin käynnistysvirhe</string>
     <string name="top_tracks">Suosikkikappaleet</string>
     <string name="device_connect_signed_out_pairing">Et ole kirjautunut: Vertaa kahden laitteen liittämiskoodeja ennen hyväksymistä</string>
     <string name="device_connect_pair">Yhdistä</string>
@@ -1399,7 +1399,7 @@
     <string name="menu_keyboard_shortcuts">Pikanäppäimet</string>
     <string name="menu_application_logs">Sovelluslokit</string>
     <string name="menu_report_issue">Ilmoita ongelmasta…</string>
-    <string name="menu_about_metrolist">Tietoja Metrolististä</string>
+    <string name="menu_about_metrolist">Tietoja Sonderistä</string>
     <string name="menu_song">Kappale</string>
     <string name="menu_stop">Pysäytä</string>
     <string name="menu_go_to_current_song">Siirry nykyiseen kappaleeseen</string>
@@ -1464,7 +1464,7 @@
     <string name="sensitive_backup">Arkaluonteinen varmuuskopio</string>
     <string name="restore_backup_confirm">Palauta varmuuskopio?</string>
     <string name="restore">Palauta</string>
-    <string name="restoring_backup">Tuodaan varmuuskopiota...\nMetrolist käynnistyy automaattisesti uudelleen.</string>
+    <string name="restoring_backup">Tuodaan varmuuskopiota...\nSonder käynnistyy automaattisesti uudelleen.</string>
     <string name="hidden_items_count">Piilotetut kohteet (%1$d)</string>
     <string name="hidden_library_items">Kirjaston piilotettu osio</string>
     <string name="delete_playlist_confirm">Haluatko poistaa soittolistan?</string>
@@ -1572,7 +1572,7 @@
     <string name="backup_created">Varmuuskopio luotu</string>
     <string name="backup_failed">Varmuuskopio epäonnistui: %1$s</string>
     <string name="could_not_open_file_picker">Tiedostoselaimen avaaminen epäonnistui: %1$s</string>
-    <string name="restore_replaces_data">Tämä korvaa nykyiset asetuksesi, tunnuksesi, tilisi ja kirjastosi. Metrolist tulee käynnistymään uudelleen.</string>
+    <string name="restore_replaces_data">Tämä korvaa nykyiset asetuksesi, tunnuksesi, tilisi ja kirjastosi. Sonder tulee käynnistymään uudelleen.</string>
     <string name="create_backup_countdown">Luo varmuuskopio (%1$d)</string>
     <string name="listen_together_how_it_works">Kuinka se toimii</string>
     <string name="listen_together_how_it_works_body">Kuuntele musiikkia reaaliajassa kavereidesi kanssa. Ylläpitäjä ohjaa toistoa kaverien seuratessa mukana.</string>
@@ -1634,7 +1634,7 @@
     <string name="tray_show_window">Näytä ikkuna</string>
     <string name="tray_show_miniplayer">Näytä minisoitin</string>
     <string name="tray_settings">Asetukset</string>
-    <string name="tray_quit_metrolist">Sulje Metrolist</string>
+    <string name="tray_quit_metrolist">Sulje Sonder</string>
     <string name="sign_in_discord">Kirjaudu sisään Discordiin</string>
     <string name="discord_sign_in_unavailable">Discord-kirjautuminen ei ole saatavilla</string>
     <string name="sign_in_youtube_music">Kirjaudu sisään Youtube Musiciin</string>
@@ -2010,7 +2010,7 @@
     <string name="onboarding_continue_without_migration">Jatka tyhjällä kirjastolla</string>
     <string name="onboarding_migration_recovery_description">Voit yrittää uudelleen tai jatkaa tyhjällä kirjastolla. Alkuperäisen tietokantasi kopio säilytetään tällä laitteella. Voit palauttaa varmuuskopion käyttöönoton jälkeen.</string>
     <string name="onboarding_migration_failed">Kirjastosi valmistelu epäonnistui. Alkuperäiset tietosi on säilytetty.</string>
-    <string name="onboarding_library_migrated_description">Soittolistasi, historiasi, tykkäyksesi ja kirjastosi tiedot ovat valmiina tässä Metrolist-versiossa.</string>
+    <string name="onboarding_library_migrated_description">Soittolistasi, historiasi, tykkäyksesi ja kirjastosi tiedot ovat valmiina tässä Sonder-versiossa.</string>
     <string name="onboarding_notifications_denied">Ilmoitukset on poistettu käytöstä. Voit ottaa ne käyttöön myöhemmin Androidin sovellusasetuksissa tai jatkaa valitsemalla Ei.</string>
     <string name="mini_player_video_prerequisite">Ota ensin Toista musiikkivideot käyttöön toistoasetuksissa</string>
     <string name="download_folder_access_failed">Tämän kansion käyttöoikeutta ei voitu tallentaa. Valitse kansio, johon on luku- ja kirjoitusoikeus.</string>
@@ -2035,9 +2035,9 @@
     <string name="updates_notification_settings">Androidin ilmoitusasetukset</string>
     <string name="widget_recognizer_open_result">Avaa tunnistettu kappale</string>
     <string name="statistics_load_failed">Tilastojen päivitys epäonnistui. Yritä uudelleen.</string>
-    <string name="desktop_platform_unsupported">Metrolist ei tue tätä käyttöjärjestelmää. Käytä Windows 10:tä tai uudempaa, macOS:ää tai jotain muuta Linux-distroa kuin Omarchy.</string>
+    <string name="desktop_platform_unsupported">Sonder ei tue tätä käyttöjärjestelmää. Käytä Windows 10:tä tai uudempaa, macOS:ää tai jotain muuta Linux-distroa kuin Omarchy.</string>
     <string name="shortcut_toggle_expanded">Näytä tai piilota laajennettu soitin</string>
-    <string name="desktop_display_unavailable">Metrolist ei saanut yhteyttä tämän istunnon X-näyttöön. Käynnistä se työpöytäistunnosta, jossa DISPLAY on asetettu.</string>
+    <string name="desktop_display_unavailable">Sonder ei saanut yhteyttä tämän istunnon X-näyttöön. Käynnistä se työpöytäistunnosta, jossa DISPLAY on asetettu.</string>
     <string name="webkit_install_hint">Sisäänrakennettu kirjautuminen vaatii WebKitGTK 4.1:n (%1$s). Asenna se järjestelmäsi paketinhallinnalla.</string>
     <string name="webkit_install_command">Asenna komennolla:\n%1$s</string>
     <string name="webkit_appimage_hint">Myös AppImage-versiot käyttävät kirjautumiseen järjestelmän WebKitGTK-kirjastoja.</string>
@@ -2050,7 +2050,7 @@
     <string name="video_stats_latency_value">%1$s ms</string>
     <string name="video_stats_media_stream_value">%1$s / %2$s Mt (%3$s%)</string>
     <string name="video_stats_position_volume_value">%1$s | Voimakkuus: %2$s</string>
-    <string name="download_folder_unavailable">Tätä kansiota ei voitu käyttää. Valitse kirjoitettava kansio, johon järjestelmä tai hiekkalaatikko sallii Metrolistin pääsyn.</string>
+    <string name="download_folder_unavailable">Tätä kansiota ei voitu käyttää. Valitse kirjoitettava kansio, johon järjestelmä tai hiekkalaatikko sallii Sonderin pääsyn.</string>
     <string name="window_maximize">Suurenna</string>
     <string name="window_restore">Palauta ikkuna</string>
     <string name="equalizer_stream_unavailable">Taajuuskorjain ja esivahvistin eivät ole käytettävissä tälle suoratoistolle. Muutokset tulevat voimaan, kun tuettua kappaletta toistetaan.</string>
@@ -2064,7 +2064,7 @@
     <string name="queue_youtube_history_paused_desc">Ota kuunteluhistoria taas käyttöön, jotta offline-kuuntelut tallennetaan jonoon</string>
     <string name="search_online_failed">Verkkohaku epäonnistui. Tarkista yhteys ja yritä uudelleen.</string>
     <string name="search_load_more_failed">Lisää tuloksia ei voitu ladata.</string>
-    <string name="discord_error_gateway_configuration">Discord hylkäsi yhteysasetukset. Päivitä Metrolist ennen uutta yritystä.</string>
+    <string name="discord_error_gateway_configuration">Discord hylkäsi yhteysasetukset. Päivitä Sonder ennen uutta yritystä.</string>
     <string name="discord_preview_buttons_adjusted">Discord lyhentää pitkiä painiketekstejä ja jättää pois painikkeet, joiden linkit ovat liian pitkiä. Tämä esikatselu näyttää lähetettävät painikkeet.</string>
     <string name="discord_presence_status_warning">Rich presence lähettää käyttöön otettaessa Discordiin Paikalla-tilan ja voi ohittaa Näkymätön- tai Älä häiritse -tilan myös toiston pysähtyessä</string>
     <string name="discord_refresh_queued">Läsnäolotietojen päivitys lisätty jonoon.</string>
@@ -2099,8 +2099,8 @@
     <string name="theme_color_rose">Vaaleanpunainen</string>
     <string name="theme_color_red">Punainen</string>
     <string name="theme_color_gold">Kulta</string>
-    <string name="backup_unsupported_format">Tämä Metrolist-versio ei tue tämän varmuuskopion muotoa.</string>
-    <string name="backup_unsupported_database">Tämä Metrolist-versio ei tue varmuuskopion tietokantaversiota.</string>
+    <string name="backup_unsupported_format">Tämä Sonder-versio ei tue tämän varmuuskopion muotoa.</string>
+    <string name="backup_unsupported_database">Tämä Sonder-versio ei tue varmuuskopion tietokantaversiota.</string>
     <string name="backup_too_large">Varmuuskopio ylittää sallitun koon tai merkintöjen määrän.</string>
     <string name="backup_invalid_data">Varmuuskopiota ei voitu lukea tai tarkistaa. Se saattaa olla vioittunut tai sisältää tietoja, joita ei tueta.</string>
     <string name="search_history_removal_failed">Tilin hakuhistoriaa ei voitu tyhjentää. Yritä uudelleen, kun verkkoyhteys on käytettävissä.</string>
@@ -2124,7 +2124,7 @@
     <string name="no_match_found">Vastaavuuksia ei löytynyt</string>
     <string name="recognition_error">Tunnistusvirhe</string>
     <string name="try_again">Yritä uudelleen</string>
-    <string name="play_on_app">Toista Metrolistillä</string>
+    <string name="play_on_app">Toista Sonderillä</string>
     <string name="re_listen">Nauhoita uudelleen</string>
     <string name="stands_with_palestine">Tämä projekti tukee Palestiinaa</string>
     <string name="recognition_match_found">Vastaavuus löydettiin</string>

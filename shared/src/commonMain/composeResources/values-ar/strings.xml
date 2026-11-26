@@ -280,7 +280,7 @@
     <string name="import_error_unsupported_playlist_entries">تحتوي قائمة التشغيل هذه على ملفات محلية أو روابط مباشرة لا يستطيع Android الوصول إليها. استورد قائمة تشغيل تحتوي على روابط YouTube، أو اختر الملفات المحلية على سطح المكتب.</string>
     <string name="import_error_local_files_require_local_playlist">لا يمكن استيراد ملفات الصوت المحلية إلا إلى قائمة تشغيل محلية.</string>
     <string name="import_error_file_read_failed">تعذرت قراءة ملف قائمة التشغيل. اختره مرة أخرى وامنح إذن الوصول إلى الملف.</string>
-    <string name="startup_error_title">خطأ في بدء تشغيل Metrolist</string>
+    <string name="startup_error_title">خطأ في بدء تشغيل Sonder</string>
     <string name="lyrics_show_translations">إظهار الترجمات</string>
     <string name="artist_latest_release">أحدث إصدار</string>
     <string name="top_tracks">أشهر المقاطع</string>
@@ -406,7 +406,7 @@
     <string name="onboarding_continue_without_migration">المتابعة بمكتبة فارغة</string>
     <string name="onboarding_migration_recovery_description">يمكنك المحاولة مجددًا أو المتابعة بمكتبة فارغة. ستبقى نسخة استرداد من قاعدة بياناتك الأصلية على هذا الجهاز. يمكنك استعادة نسخة احتياطية بعد الإعداد.</string>
     <string name="onboarding_migration_failed">تعذر تجهيز مكتبتك. تم الاحتفاظ ببياناتك الأصلية.</string>
-    <string name="onboarding_library_migrated_description">قوائم التشغيل وسجل الاستماع والأغاني المفضلة وبيانات مكتبتك جاهزة في هذا الإصدار من Metrolist.</string>
+    <string name="onboarding_library_migrated_description">قوائم التشغيل وسجل الاستماع والأغاني المفضلة وبيانات مكتبتك جاهزة في هذا الإصدار من Sonder.</string>
     <string name="onboarding_notifications_denied">الإشعارات معطّلة. يمكنك تفعيلها لاحقًا في إعدادات التطبيق على Android، أو اختيار «لا» للمتابعة.</string>
     <string name="mini_player_video_prerequisite">فعّل «تشغيل مقاطع الفيديو الموسيقية» في إعدادات التشغيل أولًا</string>
     <string name="download_folder_access_failed">تعذر حفظ إذن الوصول إلى هذا المجلد. اختر مجلدًا يسمح بالقراءة والكتابة.</string>
@@ -431,9 +431,9 @@
     <string name="updates_notification_settings">إعدادات إشعارات Android</string>
     <string name="widget_recognizer_open_result">فتح الأغنية التي تم التعرّف عليها</string>
     <string name="statistics_load_failed">تعذر تحديث الإحصاءات. حاول مجددًا.</string>
-    <string name="desktop_platform_unsupported">نظام التشغيل هذا غير مدعوم في Metrolist. استخدم Windows 10 أو أحدث، أو macOS، أو توزيعة Linux غير Omarchy.</string>
+    <string name="desktop_platform_unsupported">نظام التشغيل هذا غير مدعوم في Sonder. استخدم Windows 10 أو أحدث، أو macOS، أو توزيعة Linux غير Omarchy.</string>
     <string name="shortcut_toggle_expanded">تبديل توسيع المشغّل</string>
-    <string name="desktop_display_unavailable">تعذر على Metrolist الاتصال بشاشة X لهذه الجلسة. شغّله من جلسة سطح المكتب مع ضبط المتغير DISPLAY.</string>
+    <string name="desktop_display_unavailable">تعذر على Sonder الاتصال بشاشة X لهذه الجلسة. شغّله من جلسة سطح المكتب مع ضبط المتغير DISPLAY.</string>
     <string name="webkit_install_hint">يتطلب تسجيل الدخول المضمّن WebKitGTK 4.1 (%1$s). ثبّته باستخدام مدير حزم النظام.</string>
     <string name="webkit_install_command">ثبّته باستخدام:\n%1$s</string>
     <string name="webkit_appimage_hint">تستخدم إصدارات AppImage أيضًا مكتبات WebKitGTK في النظام لتسجيل الدخول.</string>
@@ -446,7 +446,7 @@
     <string name="video_stats_latency_value">%1$s مللي ثانية</string>
     <string name="video_stats_media_stream_value">%1$s / %2$s ميغابايت (%3$s%)</string>
     <string name="video_stats_position_volume_value">%1$s | مستوى الصوت: %2$s</string>
-    <string name="download_folder_unavailable">تعذر استخدام هذا المجلد. اختر مجلدًا قابلًا للكتابة يسمح النظام أو بيئة العزل لتطبيق Metrolist بالوصول إليه.</string>
+    <string name="download_folder_unavailable">تعذر استخدام هذا المجلد. اختر مجلدًا قابلًا للكتابة يسمح النظام أو بيئة العزل لتطبيق Sonder بالوصول إليه.</string>
     <string name="window_maximize">تكبير</string>
     <string name="window_restore">استعادة حجم النافذة</string>
     <string name="equalizer_stream_unavailable">موازن الصوت والتضخيم المسبق غير متاحين لهذا البث. تُطبّق التغييرات عند تشغيل مقطع مدعوم.</string>
@@ -464,7 +464,7 @@
     <string name="queue_youtube_history_paused_desc">استأنف تسجيل سجل الاستماع لحفظ مرات التشغيل أثناء عدم الاتصال ومزامنتها لاحقًا</string>
     <string name="search_online_failed">تعذر البحث عبر الإنترنت. تحقّق من اتصالك وحاول مجددًا.</string>
     <string name="search_load_more_failed">تعذر تحميل المزيد من النتائج.</string>
-    <string name="discord_error_gateway_configuration">رفض Discord إعدادات الاتصال. حدّث Metrolist قبل المحاولة مجددًا.</string>
+    <string name="discord_error_gateway_configuration">رفض Discord إعدادات الاتصال. حدّث Sonder قبل المحاولة مجددًا.</string>
     <string name="discord_preview_buttons_adjusted">يختصر Discord تسميات الأزرار الطويلة ويستبعد الأزرار ذات الروابط الطويلة جدًا. تعرض هذه المعاينة الأزرار التي ستُرسل.</string>
     <string name="discord_presence_status_warning">ترسل حالة النشاط المفصّلة حالة «متصل» إلى Discord. قد تتجاوز حالتي «مخفي» أو «عدم الإزعاج»، حتى عند توقف التشغيل.</string>
     <string name="discord_refresh_queued">تمت إضافة تحديث حالة النشاط إلى قائمة الانتظار.</string>
@@ -499,8 +499,8 @@
     <string name="theme_color_rose">وردي</string>
     <string name="theme_color_red">أحمر</string>
     <string name="theme_color_gold">ذهبي</string>
-    <string name="backup_unsupported_format">تنسيق هذه النسخة الاحتياطية غير مدعوم في هذا الإصدار من Metrolist.</string>
-    <string name="backup_unsupported_database">إصدار قاعدة البيانات في هذه النسخة الاحتياطية غير مدعوم في هذا الإصدار من Metrolist.</string>
+    <string name="backup_unsupported_format">تنسيق هذه النسخة الاحتياطية غير مدعوم في هذا الإصدار من Sonder.</string>
+    <string name="backup_unsupported_database">إصدار قاعدة البيانات في هذه النسخة الاحتياطية غير مدعوم في هذا الإصدار من Sonder.</string>
     <string name="backup_too_large">تتجاوز النسخة الاحتياطية الحد المسموح للحجم أو عدد الإدخالات.</string>
     <string name="backup_invalid_data">تعذرت قراءة النسخة الاحتياطية أو التحقّق من صحتها. قد تكون تالفة أو تحتوي على بيانات غير مدعومة.</string>
     <string name="search_history_removal_failed">تعذر مسح سجل البحث في الحساب. حاول مجددًا عند الاتصال.</string>
@@ -513,8 +513,8 @@
     <string name="onboarding_migration_title">مكتبتك من الإصدار 13 موجودة هنا</string>
     <string name="onboarding_migration_description">عثرنا على قاعدة بيانات مستقلة لـ Metrolist. انقل قوائم الأغاني وسجل الاستماع والأغاني المفضلة وبيانات المكتبة في مكانها. يمكنك استعادة قاعدة البيانات الأصلية إذا فشل النقل.</string>
     <string name="onboarding_migration_complete_title">تم نقل حسابك</string>
-    <string name="onboarding_migration_complete_description">حسابك وقوائم الأغاني وسجل الاستماع والأغاني المفضلة وبيانات مكتبتك جاهزة في هذا الإصدار من Metrolist.</string>
-    <string name="onboarding_crash_reports_title">ساعد في تحسين Metrolist</string>
+    <string name="onboarding_migration_complete_description">حسابك وقوائم الأغاني وسجل الاستماع والأغاني المفضلة وبيانات مكتبتك جاهزة في هذا الإصدار من Sonder.</string>
+    <string name="onboarding_crash_reports_title">ساعد في تحسين Sonder</string>
     <string name="onboarding_crash_reports_description">شارك بيانات تشخيصية اختيارية عبر Sentry لمساعدتنا في العثور على المشكلات وإصلاحها. يمكنك تغيير ذلك في أي وقت من الإعدادات.</string>
     <string name="onboarding_notifications_title">السماح بالإشعارات</string>
     <string name="onboarding_notifications_description">فعّل التنبيهات للتشغيل والتنزيلات.</string>
@@ -530,7 +530,7 @@
     <string name="onboarding_finish_title">كل شيء جاهز</string>
     <string name="onboarding_finish_description">اكتمل الإعداد. ابدأ الاستماع، أو انقل حسابك وبياناتك أولًا.</string>
     <string name="onboarding_restore_backup">استعادة من نسخة احتياطية</string>
-    <string name="onboarding_settings_hint">افتح الإعدادات من القائمة في أعلى اليمين لتخصيص Metrolist.</string>
+    <string name="onboarding_settings_hint">افتح الإعدادات من القائمة في أعلى اليمين لتخصيص Sonder.</string>
     <string name="onboarding_no_saved_accounts">لم يُعثر على حسابات مرتبطة.</string>
     <string name="onboarding_account_picture">صورة الملف الشخصي لـ %1$s</string>
     <string name="onboarding_backup_picker_title">استعادة نسخة Metrolist الاحتياطية</string>

@@ -196,68 +196,8 @@ fun ExpressiveMediaMenuHeader(
         if (actions.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 actions.forEach { action ->
-                    when {
-                        action.isToggle -> {
-                            FilledTonalIconToggleButton(
-                                checked = action.isChecked,
-                                onCheckedChange = { action.onClick() },
-                                modifier = Modifier.size(56.dp).tvFocusHighlight(CircleShape),
-                                shapes = IconButtonDefaults.toggleableShapes(),
-                                colors =
-                                    IconButtonDefaults.filledTonalIconToggleButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        checkedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    ),
-                            ) {
-                                if (action.isLoading) {
-                                    ContainedLoadingIndicator(Modifier.size(28.dp), label = action.contentDescription)
-                                } else {
-                                    Icon(
-                                        imageVector = action.icon,
-                                        contentDescription = action.contentDescription,
-                                        modifier = Modifier.size(28.dp),
-                                    )
-                                }
-                            }
-                        }
-
-                        action.isPrimary -> {
-                            FilledIconButton(
-                                onClick = action.onClick,
-                                modifier = Modifier.size(56.dp).tvFocusHighlight(RoundedCornerShape(16.dp)),
-                                shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
-                            ) {
-                                if (action.isLoading) {
-                                    ContainedLoadingIndicator(Modifier.size(32.dp), label = action.contentDescription)
-                                } else {
-                                    Icon(
-                                        imageVector = action.icon,
-                                        contentDescription = action.contentDescription,
-                                        modifier = Modifier.size(32.dp),
-                                    )
-                                }
-                            }
-                        }
-
-                        else -> {
-                            FilledTonalIconButton(
-                                onClick = action.onClick,
-                                modifier = Modifier.size(56.dp).tvFocusHighlight(RoundedCornerShape(16.dp)),
-                                shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
-                            ) {
-                                if (action.isLoading) {
-                                    ContainedLoadingIndicator(Modifier.size(28.dp), label = action.contentDescription)
-                                } else {
-                                    Icon(
-                                        imageVector = action.icon,
-                                        contentDescription = action.contentDescription,
-                                        modifier = Modifier.size(28.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    if (action.isLoading) ContainedLoadingIndicator(Modifier.size(44.dp), label = action.contentDescription)
+                    else com.metrolist.shared.ui.sonder.SonderIcon(action.icon, action.contentDescription, action.onClick, glass = true)
                 }
             }
         }

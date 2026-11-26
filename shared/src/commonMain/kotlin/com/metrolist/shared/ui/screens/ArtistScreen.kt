@@ -464,9 +464,17 @@ private fun ArtistScreenContent(
                 }
             }
             sections.entries.forEachIndexed { sectionIndex, (title, entries) ->
-                if (entries.isNotEmpty()) {
+                if (entries.isNotEmpty() && title != "header") {
                     item("artist_section_${sectionIndex}") {
-                        com.metrolist.shared.ui.sonder.SonderSection(title, stringResource(Res.string.see_all), onSectionClick?.let { navigate -> { val destination = sectionBrowseIds[title]; navigate(destination?.first ?: artist.id, destination?.second, title) } })
+                        val sectionTitle = when (title) {
+                            "latest_release" -> stringResource(Res.string.artist_latest_release)
+                            topTracksSection -> stringResource(Res.string.top_tracks)
+                            else -> title
+                        }
+                        val target = sectionBrowseIds[title]
+                        val navigate = if (entries.isVideoShelf(allowUntypedSongs = title in videoSections)) onVideoSectionClick else onSectionClick
+                        com.metrolist.shared.ui.sonder.SonderSection(sectionTitle, stringResource(Res.string.see_all),
+                            if (target?.first != null && navigate != null) ({ navigate(target.first!!, target.second, sectionTitle) }) else null)
                     }
                     if (entries.all { it is SongItem }) {
                         items(entries.size, key = { index -> "artist_${sectionIndex}_${index}_${entries[index].id}" }) { index ->

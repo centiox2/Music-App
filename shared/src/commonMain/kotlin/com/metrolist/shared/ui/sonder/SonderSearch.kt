@@ -18,7 +18,11 @@ fun SonderSearchResults(state: SearchUiState, text: SearchContentText,
     currentSongId: String?, modifier: Modifier, listState: LazyListState, padding: PaddingValues,
 ) {
     val results = state.filteredResults?.items ?: state.searchSummary?.summaries?.flatMap { it.items } ?: state.unfilteredResults?.items.orEmpty()
-    val filters = listOf(null to text.filterAll, SearchFilter.SONG to text.filterSongs, SearchFilter.ALBUM to text.filterAlbums, SearchFilter.ARTIST to text.filterArtists, SearchFilter.FEATURED_PLAYLIST to text.filterPlaylists, SearchFilter.VIDEO to text.filterVideos)
+    val filters = listOf(null to text.filterAll, SearchFilter.SONG to text.filterSongs, SearchFilter.ALBUM to text.filterAlbums, SearchFilter.ARTIST to text.filterArtists, SearchFilter.FEATURED_PLAYLIST to text.filterPlaylists, SearchFilter.VIDEO to text.filterVideos, SearchFilter.COMMUNITY_PLAYLIST to text.filterCommunityPlaylists, SearchFilter.PODCAST to text.filterPodcasts, SearchFilter.EPISODE to text.filterEpisodes, SearchFilter.PROFILE to text.filterProfiles)
+        .filter { (filter, _) ->
+            !(com.metrolist.shared.settings.Settings.shared.hideVideoSongs && filter == SearchFilter.VIDEO) &&
+                !(com.metrolist.shared.settings.Settings.shared.hidePodcasts && (filter == SearchFilter.PODCAST || filter == SearchFilter.EPISODE))
+        }
     val nearEnd by remember(listState) { derivedStateOf { val info = listState.layoutInfo; info.totalItemsCount > 0 && (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - 3 } }
     LaunchedEffect(nearEnd, results.size) { if (nearEnd && state.hasSearched && !state.isSearching && !state.isLoadingMore) onLoadMore() }
     LazyColumn(modifier.fillMaxSize(), state = listState, contentPadding = padding) {

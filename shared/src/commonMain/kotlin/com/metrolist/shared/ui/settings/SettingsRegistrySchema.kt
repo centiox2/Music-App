@@ -101,7 +101,6 @@ data class SettingsHostAction(
 data class SharedSettingsHost(
     val platform: SettingsPlatform,
     val onClose: () -> Unit,
-    val rootHeader: @Composable () -> Unit = {},
     val onOpenArtist: (String) -> Unit = {},
     val title: String? = null,
     val bottomContentPadding: Dp = 0.dp,
@@ -133,6 +132,7 @@ data class SharedSettingsHost(
     val onSwitchYouTubeChannel: (() -> Unit)? = null,
     val customPageIcons: Map<SettingsPageId, @Composable (Color) -> Unit> = emptyMap(),
     val pageContent: @Composable (SettingsPageId, onBack: () -> Unit, onNavigate: (SettingsPageId) -> Unit) -> Unit = { _, _, _ -> },
+    val rootHeader: @Composable () -> Unit = {},
     val rememberMetroEqProfilePicker: (@Composable (onPicked: (fileName: String, content: String) -> Unit) -> () -> Unit)? = null,
 )
 
