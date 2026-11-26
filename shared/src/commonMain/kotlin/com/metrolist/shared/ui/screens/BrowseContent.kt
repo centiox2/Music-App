@@ -118,37 +118,8 @@ fun BrowseContent(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TwoRowsTopAppBar(
-                expandedHeight = 128.dp,
-                title = { expanded ->
-                    Text(
-                        title.orEmpty().ifBlank { stringResource(Res.string.browse) },
-                        style =
-                            if (expanded) {
-                                MaterialTheme.typography.headlineMediumEmphasized
-                            } else {
-                                MaterialTheme.typography.titleLargeEmphasized
-                            },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier =
-                            if (expanded) {
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = if (categoriesOnly) 6.dp else 0.dp, vertical = 16.dp)
-                            } else {
-                                Modifier
-                            },
-                    )
-                },
-                navigationIcon = {
-                    if (onBackClick != null) {
-                        IconButton(onClick = onBackClick, shapes = IconButtonDefaults.shapes()) {
-                            Icon(MetrolistIcons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.back))
-                        }
-                    }
-                },
-                scrollBehavior = scrollBehavior,
+            com.metrolist.shared.ui.sonder.SonderTopBar(
+                title.orEmpty().ifBlank { stringResource(Res.string.browse) }, onBackClick,
             )
         },
     ) { scaffoldPadding ->
