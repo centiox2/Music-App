@@ -256,10 +256,11 @@ fun SonderPlayerPresentation(
                 Column(Modifier.fillMaxSize()) {
                     Header()
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                        val artworkSize = minOf(maxWidth, (maxHeight - 56.dp - if (compact) 16.dp else 30.dp).coerceAtLeast(1.dp))
                         when (pane) {
                             SonderPlayerPane.COVER -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
                                 val gap = if (compact) 16.dp else 30.dp
-                                Artwork(Modifier.size(minOf(maxWidth, (maxHeight - 56.dp - gap).coerceAtLeast(1.dp))))
+                                Artwork(Modifier.size(artworkSize))
                                 Spacer(Modifier.height(gap)); Title(true)
                             }
                             SonderPlayerPane.LYRICS -> Column(Modifier.fillMaxSize()) { lyrics(Modifier.weight(1f).fillMaxWidth()); Spacer(Modifier.height(12.dp)); Title(false) }
